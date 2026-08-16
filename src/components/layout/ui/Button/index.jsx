@@ -6,7 +6,7 @@ export default function Button({ children, variant = 'primary', className = '', 
   const baseStyle = "flex items-center justify-center gap-2 px-4 py-2 rounded-xl font-medium transition-colors duration-200 outline-none";
   
   const variants = {
-    primary: "bg-blue-600 hover:bg-blue-700 text-white shadow-sm",
+    primary: "bg-amber-500 hover:bg-amber-400 text-black shadow-sm",
     secondary: "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700",
     ghost: "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400",
   };

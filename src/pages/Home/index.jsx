@@ -1,7 +1,7 @@
 // src/pages/Home/index.jsx
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { collection, onSnapshot, query, orderBy, limit } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { db } from '@/services/firebase';
 import { HardDrive, Image as ImageIcon, FileText, Video, Clock } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -10,6 +10,7 @@ export default function Home() {
   const [stats, setStats] = useState({ total: 0, image: 0, document: 0, video: 0, raw: 0 });
   const [recentFiles, setRecentFiles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     const q = query(collection(db, 'windhub_files'), orderBy('timestamp', 'desc'));
@@ -17,8 +18,9 @@ export default function Home() {
       const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       
       // Tính toán thống kê
-      const newStats = { total: docs.length, image: 0, document: 0, video: 0, raw: 0 };
-      docs.forEach(file => {
+      const filesOnly = docs.filter((file) => file.type !== 'folder');
+      const newStats = { total: filesOnly.length, image: 0, document: 0, video: 0, raw: 0 };
+      filesOnly.forEach(file => {
         if (newStats[file.type] !== undefined) {
           newStats[file.type]++;
         } else {
@@ -28,6 +30,9 @@ export default function Home() {
       
       setStats(newStats);
       setRecentFiles(docs.slice(0, 5)); // Lấy 5 file mới nhất
+      setLoading(false);
+    }, () => {
+      setError('Không thể tải dữ liệu. Vui lòng kiểm tra kết nối và thử lại.');
       setLoading(false);
     });
 
@@ -42,7 +47,7 @@ export default function Home() {
   ];
 
   return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="h-full flex flex-col gap-6">
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="h-full flex flex-col gap-6">
       <div className="bg-white dark:bg-slate-900 p-8 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
         <h1 className="text-3xl font-extrabold text-slate-800 dark:text-slate-100 mb-2">Xin chào, Trịnh Gia Phong! 👋</h1>
         <p className="text-slate-500 dark:text-slate-400">Chào mừng bạn quay trở lại với hệ thống WindHub. Dưới đây là tổng quan tài nguyên của bạn.</p>
@@ -52,13 +57,17 @@ export default function Home() {
         <div className="flex-1 flex items-center justify-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
         </div>
+      ) : error ? (
+        <div className="flex flex-1 items-center justify-center rounded-2xl border border-red-200 bg-red-50 p-6 text-center text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
+          {error}
+        </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1">
           {/* Cột trái: Thống kê */}
           <div className="lg:col-span-2 space-y-6">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {statCards.map((card, idx) => (
-                <motion.div key={idx} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: idx * 0.1 }} className={`${card.bg} p-6 rounded-2xl border border-white/50 dark:border-slate-800 shadow-sm flex flex-col justify-between`}>
+                <motion.div key={idx} initial={{ opacity: 0, scale: 0.94, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} whileHover={{ y: -4, scale: 1.015 }} transition={{ delay: idx * 0.07 }} className={`${card.bg} p-6 rounded-2xl border border-white/50 dark:border-slate-800 shadow-sm flex flex-col justify-between`}>
                   <div className={`w-12 h-12 rounded-full ${card.color} text-white flex items-center justify-center mb-4 shadow-sm`}>
                     {card.icon}
                   </div>
@@ -89,8 +98,8 @@ export default function Home() {
                 </div>
               ) : (
                 <ul className="space-y-1 p-2">
-                  {recentFiles.map(file => (
-                    <li key={file.id} className="flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl transition-colors">
+                  {recentFiles.map((file, index) => (
+                    <motion.li key={file.id} initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 + index * 0.05 }} whileHover={{ x: 3 }} className="flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl transition-colors">
                       <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 shrink-0">
                         {file.type === 'image' ? <ImageIcon size={18} /> : file.type === 'video' ? <Video size={18} /> : <FileText size={18} />}
                       </div>
@@ -98,7 +107,7 @@ export default function Home() {
                         <p className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">{file.name}</p>
                         <p className="text-xs text-slate-400 mt-0.5">{file.createdAt}</p>
                       </div>
-                    </li>
+                    </motion.li>
                   ))}
                 </ul>
               )}

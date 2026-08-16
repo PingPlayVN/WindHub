@@ -1,6 +1,7 @@
 // src/services/firebase.js
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 
 // Thay thế đoạn này bằng config bạn copy từ Firebase Console
 const firebaseConfig = {
@@ -19,3 +20,4 @@ const app = initializeApp(firebaseConfig);
 
 // Khởi tạo và xuất Firestore ra để dùng
 export const db = getFirestore(app);
+export const auth = getAuth(app);
