@@ -452,24 +452,31 @@ export default function FileManager() {
               {currentFiles.map((file) => (
                 <motion.div 
                   key={file.id} 
-                  layout 
-                  // [CẢI THIỆN ANIMATION] Chuyển động Physics Spring cực mượt
-                  initial={{ opacity: 0, scale: 0.9, y: 15 }} 
-                  animate={{ opacity: 1, scale: 1, y: 0 }} 
-                  exit={{ opacity: 0, scale: 0.9 }} 
-                  whileHover={{ y: -3 }}
-                  whileTap={{ scale: 0.98 }}
-                  transition={{ type: "spring", stiffness: 350, damping: 25 }}
-                  
-                  draggable={!renamingItem} 
+                  layout /* Gọi lại layout để giữ tính năng dồn chỗ */
+  
+                  /* Vẫn giữ nguyên hiệu ứng Lật 3D của bạn */
+                  initial={{ opacity: 0, rotateX: 90, y: 20 }} 
+                  animate={{ opacity: 1, rotateX: 0, y: 0 }} 
+                  exit={{ opacity: 0, rotateX: -90, y: -20 }} 
+  
+                  /* BÍ QUYẾT TỐI ƯU Ở ĐÂY: Tách biệt tốc độ */
+                  transition={{ 
+                  // 1. Ép hiệu ứng dồn chỗ (layout) chạy đồng loạt cực nhanh (0.15s)
+                  layout: { type: "tween", duration: 0.1, ease: "easeInOut" },
+    
+                  // 2. Hiệu ứng lật 3D thì vẫn giữ tốc độ mượt mà cũ (0.4s)
+                  default: { duration: 0.4, type: "tween", ease: "backOut" } 
+                  }}
+  
+                  draggable={true} 
                   onDragStart={(e) => handleDragStart(e, file)}
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleDrop(e, file)}
-                  
+  
                   onClick={(e) => { e.stopPropagation(); handleItemClick(e, file); }}
                   onContextMenu={(e) => { e.stopPropagation(); handleContextMenu(e, file); }}
-                  
-                  className={`group relative bg-slate-50 dark:bg-zinc-900 border-2 ${selectedItems.has(file.id) ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/30 shadow-md' : 'border-transparent hover:border-amber-300 dark:hover:border-amber-700'} rounded-xl p-4 flex flex-col items-center gap-3 transition-colors select-none`}
+  
+                  className={`group relative bg-slate-50 dark:bg-slate-800/50 border-2 ${selectedItems.has(file.id) ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 shadow-md' : 'border-transparent hover:border-primary-300 dark:hover:border-primary-700'} rounded-xl p-4 flex flex-col items-center gap-3 transition-colors select-none`}
                 >
                   <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-white/90 dark:bg-slate-900/90 p-1 rounded-lg shadow-sm z-10">
                     <button aria-label={`Mở tác vụ cho ${file.name}`} onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleContextMenu(e, file); }} className="p-1.5 text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md">

@@ -26,7 +26,8 @@ export default function Sidebar() {
       <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-black border-r border-slate-200 dark:border-slate-800 flex flex-col transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0`}>
         
         <div className="flex items-center justify-center font-bold text-3xl tracking-tighter select-none cursor-pointer mt-6 mb-8">
-          <span className="text-white dark:text-white text-slate-900">Wind</span>
+          {/* Thêm transition-colors để khi đổi theme chữ chuyển màu mượt hơn */}
+          <span className="text-black dark:text-white transition-colors duration-300">Wind</span>
           <span className="bg-[#ff9900] text-black px-1.5 py-0.5 ml-1 rounded-md leading-none">hub</span>
         </div>
         
