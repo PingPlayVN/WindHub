@@ -1,37 +1,47 @@
-@import url("https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap");
 @import "tailwindcss";
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (&:where(.dark, .dark *));
 
-/* Thiết lập cơ bản cho dự án */
+@theme {
+  /* 1. MÀU CHỦ ĐẠO (PRIMARY): Chuyển sang dải màu CAM (Orange) */
+  --color-primary-50: #fff7ed;
+  --color-primary-100: #ffedd5;
+  --color-primary-200: #fed7aa;
+  --color-primary-300: #fdba74;
+  --color-primary-400: #fb923c;
+  --color-primary-500: #f97316;
+  --color-primary-600: #ea580c; /* Nút bấm mặc định */
+  --color-primary-700: #c2410c; /* Nút bấm khi Hover */
+  --color-primary-800: #9a3412;
+  --color-primary-900: #7c2d12;
+
+  /* 2. MÀU NỀN TỔNG THỂ: Đen tuyệt đối cho Dark Mode */
+  --color-surface-light: #fafafa;
+  --color-surface-dark: #000000; 
+
+  /* 3. KHỬ ÁM XANH CỦA MÀU SLATE (Biến thành Đen/Xám thuần túy) */
+  --color-slate-50: #fafafa;
+  --color-slate-100: #f5f5f5;
+  --color-slate-200: #e5e5e5;
+  --color-slate-300: #d4d4d4;
+  --color-slate-400: #a3a3a3;
+  --color-slate-500: #737373;
+  --color-slate-600: #525252;
+  --color-slate-700: #262626; /* Viền và khung phụ */
+  --color-slate-800: #171717; /* Các khối nền nhỏ trong Dark Mode */
+  --color-slate-900: #0a0a0a; /* Nền tối phụ */
+}
+
 @layer base {
-  html {
-    font-family: "Be Vietnam Pro", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
-    scroll-behavior: smooth;
-  }
-  
   body {
-    @apply bg-slate-50 text-slate-900 antialiased;
+    @apply bg-surface-light text-slate-800 antialiased transition-colors duration-300;
   }
-
-  .file-name-marquee {
-    display: inline-block;
-  }
-
-  .group:hover .file-name-marquee {
-    animation: file-name-marquee 7s linear infinite alternate;
-  }
-
-  @keyframes file-name-marquee {
-    from { transform: translateX(0); }
-    to { transform: translateX(-30%); }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after {
-      animation-duration: 0.01ms !important;
-      animation-iteration-count: 1 !important;
-      scroll-behavior: auto !important;
-      transition-duration: 0.01ms !important;
-    }
+  .dark body {
+    @apply bg-surface-dark text-slate-200;
   }
 }
+
+/* Đổi màu Thanh cuộn (Scrollbar) sang Cam cho đồng bộ */
+.custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+.custom-scrollbar::-webkit-scrollbar-track { @apply bg-transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { @apply bg-primary-500/50 rounded-full; }
+.dark .custom-scrollbar::-webkit-scrollbar-thumb { @apply bg-primary-600/70; }

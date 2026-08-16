@@ -50,7 +50,10 @@ export default function Header() {
         <button onClick={openLogin} className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-amber-700 transition hover:bg-amber-50 active:scale-95 dark:text-amber-400 dark:hover:bg-amber-950"><LogIn size={18} /> Đăng nhập</button>
       )}
       {user && <button aria-label="Đăng xuất" onClick={handleLogout} className="rounded-full p-2 text-slate-600 transition hover:bg-slate-100 active:scale-95 dark:text-slate-300 dark:hover:bg-slate-900"><LogOut size={19} /></button>}
-      <button 
+      <button
+        type="button"
+        aria-label={theme === 'light' ? 'Bật giao diện tối' : 'Bật giao diện sáng'}
+        aria-pressed={theme === 'dark'}
         onClick={toggleTheme}
         className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors"
       >

@@ -1,7 +1,7 @@
 // src/App.jsx
 import { lazy, Suspense, useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
-import { useThemeStore } from '@/store/useThemeStore';
+import { applyTheme, useThemeStore } from '@/store/useThemeStore';
 import { Toaster } from 'sonner';
 import { MotionConfig } from 'framer-motion';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -18,11 +18,7 @@ function App() {
   const { isLoginOpen, closeLogin } = useUIStore();
 
   useEffect(() => {
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    applyTheme(theme);
   }, [theme]);
 
   useEffect(() => {
