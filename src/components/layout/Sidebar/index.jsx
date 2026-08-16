@@ -25,12 +25,9 @@ export default function Sidebar() {
       {/* Cột Sidebar */}
       <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-black border-r border-slate-200 dark:border-slate-800 flex flex-col transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0`}>
         
-        <div className="h-16 flex items-center justify-between px-6 border-b border-slate-200 dark:border-slate-800">
-          <img src="/windhub-logo.svg" alt="WindHub" className="h-10 w-auto object-contain" />
-          {/* Nút đóng menu trên Mobile */}
-          <button onClick={closeSidebar} className="md:hidden text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200">
-            <X size={24} />
-          </button>
+        <div className="flex items-center font-bold text-3xl tracking-tighter select-none cursor-pointer">
+          <span className="text-white dark:text-white text-slate-900">Wind</span>
+          <span className="bg-[#ff9900] text-black px-1.5 py-0.5 ml-1 rounded-md leading-none">hub</span>
         </div>
         
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
