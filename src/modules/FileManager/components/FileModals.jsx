@@ -1,9 +1,10 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, AlertTriangle, FolderPlus, ExternalLink, FileText, Music } from 'lucide-react';
+import { X, AlertTriangle, FolderPlus, ExternalLink, FileText, Music, Link as LinkIcon } from 'lucide-react';
 
 export default function FileModals({
   showFolderModal, setShowFolderModal, folderName, setFolderName, handleCreateFolder,
+  showLinkModal, setShowLinkModal, linkInput, setLinkInput, handleAddLink,
   fileToDelete, setFileToDelete, confirmDelete,
   previewFile, setPreviewFile, viewerEngine, setViewerEngine
 }) {
@@ -26,7 +27,7 @@ export default function FileModals({
   // Hàm render giao diện xem trước linh hoạt theo loại file
   const renderPreviewContent = () => {
     if (!previewFile) return null;
-    const { type, url, name } = previewFile;
+    const { type, url, name, isLocked } = previewFile;
 
     switch (type) {
       case 'image':
@@ -60,9 +61,13 @@ export default function FileModals({
           <div className="flex flex-col items-center justify-center p-12 bg-[#111] rounded-2xl border border-white/5 w-full max-w-md">
             <FileText size={64} className="text-slate-600 mb-4" />
             <p className="text-slate-400 mb-6 text-center text-sm">Không thể xem trước tệp tin này trực tiếp.<br/>Vui lòng mở trong thẻ mới để truy cập.</p>
-            <a href={url} target="_blank" rel="noreferrer" className="px-6 py-2.5 bg-primary-600 text-white rounded-xl flex items-center gap-2 hover:bg-primary-500 transition-colors shadow-lg shadow-primary-600/20 font-medium">
-              <ExternalLink size={18} /> Mở tệp tin
-            </a>
+            
+            {/* ĐIỀU KIỆN CHẶN NÚT MỞ TỆP LỚN Ở ĐÂY */}
+            {!isLocked && (
+              <a href={url} target="_blank" rel="noreferrer" className="px-6 py-2.5 bg-primary-600 text-white rounded-xl flex items-center gap-2 hover:bg-primary-500 transition-colors shadow-lg shadow-primary-600/20 font-medium">
+                <ExternalLink size={18} /> Mở tệp tin
+              </a>
+            )}
           </div>
         );
     }
@@ -105,7 +110,7 @@ export default function FileModals({
         </div>
       )}
 
-      {/* 3. MODAL PREVIEW FILE CỰC NGẦU */}
+      {/* 3. MODAL PREVIEW FILE */}
       {previewFile && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-6">
           <Overlay onClick={() => setPreviewFile(null)} />
@@ -117,9 +122,14 @@ export default function FileModals({
                 {previewFile.name}
               </h3>
               <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-                <a href={previewFile.url} target="_blank" rel="noreferrer" className="p-2 text-slate-400 hover:text-primary-500 hover:bg-primary-500/10 rounded-xl transition-all" title="Mở trong thẻ mới">
-                  <ExternalLink size={20} />
-                </a>
+                
+                {/* ĐIỀU KIỆN CHẶN NÚT MỞ THẺ MỚI NHỎ Ở ĐÂY NỮA */}
+                {!previewFile.isLocked && (
+                  <a href={previewFile.url} target="_blank" rel="noreferrer" className="p-2 text-slate-400 hover:text-primary-500 hover:bg-primary-500/10 rounded-xl transition-all" title="Mở trong thẻ mới">
+                    <ExternalLink size={20} />
+                  </a>
+                )}
+                
                 <button onClick={() => setPreviewFile(null)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all ml-1" title="Đóng (Esc)">
                   <X size={20} />
                 </button>
@@ -130,6 +140,23 @@ export default function FileModals({
             <div className="flex-1 overflow-auto bg-black flex items-center justify-center p-2 sm:p-6 min-h-[40vh]">
               {renderPreviewContent()}
             </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* 4. MODAL DÁN LINK */}
+      {showLinkModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <Overlay onClick={() => setShowLinkModal(false)} />
+          <motion.div variants={modalVariants} initial="hidden" animate="visible" exit="exit" className="relative w-full max-w-sm bg-[#0a0a0a] border border-blue-500/30 rounded-2xl shadow-[0_0_40px_rgba(59,130,246,0.15)] p-6 z-10">
+            <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2"><LinkIcon className="text-blue-500"/> Dán liên kết file</h3>
+            <form onSubmit={handleAddLink}>
+              <input autoFocus type="url" value={linkInput} onChange={e => setLinkInput(e.target.value)} placeholder="Nhập đường dẫn (https://...)" className="w-full bg-[#111] border border-slate-800 text-white px-4 py-3 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all mb-6 placeholder:text-slate-600" required />
+              <div className="flex justify-end gap-3">
+                <button type="button" onClick={() => setShowLinkModal(false)} className="px-4 py-2 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white transition-colors font-medium">Hủy</button>
+                <button type="submit" disabled={!linkInput.trim()} className="px-5 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-xl font-medium transition-colors shadow-lg shadow-blue-600/20">Lưu file</button>
+              </div>
+            </form>
           </motion.div>
         </div>
       )}

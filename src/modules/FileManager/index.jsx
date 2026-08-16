@@ -314,7 +314,8 @@ export default function FileManager() {
   };
 
   const handleDownload = (item) => {
-    if (item.isLocked && !isAdmin) return toast.error('File này đã bị khóa');
+    // Nếu file bị khóa, cấm tất cả mọi người tải về (kể cả Admin)
+    if (item.isLocked) return toast.error('Tệp tin này đã bị khóa, không thể tải xuống!');
     window.open(item.url, '_blank', 'noopener,noreferrer');
   };
 
@@ -415,23 +416,45 @@ export default function FileManager() {
       </div>
 
       <Breadcrumb path={path} handleNavigateTo={handleNavigateTo} />
+      
+      {/* KHU VỰC TÌM KIẾM VÀ SẮP XẾP */}
+      <div className="flex flex-col gap-3 sm:flex-row w-full z-10">
+        
+        {/* Ô Tìm Kiếm */}
+        <div className="relative flex-1">
+          <span className="sr-only">Tìm kiếm trong thư mục hiện tại</span>
+          <input
+            type="search"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Tìm kiếm trong thư mục hiện tại..."
+            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 shadow-sm outline-none transition focus:border-primary-500 focus:ring-1 focus:ring-primary-500 dark:border-slate-800 dark:bg-[#111] dark:text-slate-100 placeholder:text-slate-600"
+          />
+        </div>
 
-      <label className="flex flex-col gap-2 sm:flex-row">
-        <span className="sr-only">Tìm kiếm trong thư mục hiện tại</span>
-        <input
-          type="search"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="Tìm kiếm trong thư mục hiện tại..."
-          className="w-full flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 shadow-sm outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-black dark:text-slate-100"
-        />
-        <select value={sortBy} onChange={(e) => handleSortChange(e.target.value)} aria-label="Sắp xếp file" className="hidden">
-          <option value="newest">Mới nhất</option>
-          <option value="oldest">Cũ nhất</option>
-          <option value="name-asc">Tên A–Z</option>
-          <option value="name-desc">Tên Z–A</option>
-        </select>
-      </label>
+        {/* Nút Chọn Kiểu Sắp Xếp */}
+        <div className="relative w-full sm:w-44 shrink-0 group">
+          <select 
+            value={sortBy} 
+            onChange={(e) => handleSortChange(e.target.value)} 
+            aria-label="Sắp xếp file" 
+            className="w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-2.5 pr-10 text-sm text-slate-800 shadow-sm outline-none transition focus:border-primary-500 focus:ring-1 focus:ring-primary-500 dark:border-slate-800 dark:bg-[#111] dark:text-slate-100 cursor-pointer"
+          >
+            <option value="newest">Mới nhất</option>
+            <option value="oldest">Cũ nhất</option>
+            <option value="name-asc">Tên A–Z</option>
+            <option value="name-desc">Tên Z–A</option>
+          </select>
+          
+          {/* Icon Mũi tên Custom cho đẹp thay vì mũi tên mặc định của trình duyệt */}
+          <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-slate-500 group-hover:text-primary-500 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m6 9 6 6 6-6"/>
+            </svg>
+          </div>
+        </div>
+        
+      </div>
 
       {/* Lưới hiển thị */}
       <div 

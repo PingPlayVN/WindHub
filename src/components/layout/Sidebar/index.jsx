@@ -1,18 +1,20 @@
 import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, X, FileArchive } from 'lucide-react';
 import { useUIStore } from '@/store/useUIStore';
+import { useThemeStore } from '@/store/useThemeStore';
 import { AnimatePresence, motion } from 'framer-motion';
 
 export default function Sidebar() {
   const { isSidebarOpen, closeSidebar } = useUIStore();
+  const { theme } = useThemeStore();
   const location = useLocation();
 
-  // Hàm hỗ trợ kiểm tra menu đang active
+  // Hàm kiểm tra menu đang active
   const isActive = (path) => location.pathname === path;
 
   return (
     <>
-      {/* Overlay màng đen mờ khi mở menu trên Mobile */}
+      {/* Overlay mờ đen khi mở menu trên Mobile */}
       <AnimatePresence>
       {isSidebarOpen && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -25,10 +27,47 @@ export default function Sidebar() {
       {/* Cột Sidebar */}
       <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-black border-r border-slate-200 dark:border-slate-800 flex flex-col transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0`}>
         
-        <div className="flex items-center justify-center font-bold text-3xl tracking-tighter select-none cursor-pointer mt-6 mb-8">
-          {/* Thêm transition-colors để khi đổi theme chữ chuyển màu mượt hơn */}
-          <span className="text-black dark:text-white transition-colors duration-300">Wind</span>
-          <span className="bg-[#ff9900] text-black px-1.5 py-0.5 ml-1 rounded-md leading-none">hub</span>
+        {/* KHU VỰC LOGO BIẾN HÌNH THEO THEME */}
+        <div className="flex items-center justify-center mt-6 mb-8 h-12">
+          <AnimatePresence mode="wait">
+            {theme === 'dark' ? (
+              // LOGO DARK THEME (Cosplay P**nhub)
+              <motion.div
+                key="logo-dark"
+                initial={{ opacity: 0, rotateX: 90, scale: 0.8 }}
+                animate={{ opacity: 1, rotateX: 0, scale: 1 }}
+                exit={{ opacity: 0, rotateX: -90, scale: 0.8 }}
+                transition={{ duration: 0.25 }}
+                className="flex items-center justify-center font-bold text-3xl tracking-tighter select-none cursor-pointer"
+              >
+                <span className="text-white">Wind</span>
+                <span className="bg-[#ff9900] text-black px-1.5 py-0.5 ml-1 rounded-md leading-none">hub</span>
+              </motion.div>
+            ) : (
+              // LOGO LIGHT THEME (Cosplay xH**ster)
+            <motion.div
+              key="logo-light"
+              initial={{ opacity: 0, rotateX: 90, scale: 0.8 }}
+              animate={{ opacity: 1, rotateX: 0, scale: 1 }}
+              exit={{ opacity: 0, rotateX: -90, scale: 0.8 }}
+              transition={{ duration: 0.25 }}
+              className="flex items-center justify-center select-none cursor-pointer"
+            >
+              {/* Giảm khoảng cách mr-2.5 xuống mr-1.5 để xích lại gần chữ */}
+              <img 
+                src="/hamster.png" 
+                alt="Hamster Logo" 
+                className="w-10 h-10 mr-1.5 object-contain" 
+              />
+              
+              {/* Tăng độ mập của chữ lên font-bold */}
+              <div className="font-bold text-3xl tracking-normal uppercase">
+                <span className="text-[#E03E3E]">W</span>
+                <span className="text-[#1C1F26]">indhub</span>
+              </div>
+            </motion.div>
+            )}
+          </AnimatePresence>
         </div>
         
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">

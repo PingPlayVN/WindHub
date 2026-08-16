@@ -85,14 +85,19 @@ export default function ContextMenu({
           {isFile && !isMulti && (!item.isLocked || isAdmin) && (
             <MenuItem icon={Eye} label="Xem trước" onClick={action(() => handlePreview(item))} />
           )}
-          {isFile && !isMulti && (!item.isLocked || isAdmin) && (
+          
+          {/* LUẬT MỚI: Nếu file bị khóa, KHÔNG AI được tải xuống (Kể cả Admin) */}
+          {isFile && !isMulti && !item.isLocked && (
             <MenuItem icon={Download} label="Tải xuống" onClick={action(() => handleDownload(item))} />
           )}
           
-          {isFile && !isMulti && item.isLocked && !isAdmin && (
-            <p className="px-4 py-2 text-sm text-slate-500">File đã bị khóa.</p>
+          {/* Báo hiệu File bị khóa cực trực quan */}
+          {isFile && !isMulti && item.isLocked && (
+            <p className="px-4 py-2 text-xs font-medium text-amber-500 bg-amber-500/10 rounded-lg mx-2 mb-1.5 flex items-center gap-2">
+              <LockKeyhole size={14} /> Đã khóa tải xuống
+            </p>
           )}
-          
+
           {!isAdmin && !isFile && (
             <p className="px-4 py-2 text-sm text-slate-500">Thư mục chỉ để điều hướng.</p>
           )}
