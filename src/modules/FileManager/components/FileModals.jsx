@@ -1,127 +1,138 @@
-// src/modules/FileManager/components/FileModals.jsx
-import { createPortal } from 'react-dom';
+import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FolderPlus, AlertTriangle, Link as LinkIcon, X, Music, Globe } from 'lucide-react';
+import { X, AlertTriangle, FolderPlus, ExternalLink, FileText, Music } from 'lucide-react';
 
 export default function FileModals({
   showFolderModal, setShowFolderModal, folderName, setFolderName, handleCreateFolder,
-  showLinkModal, setShowLinkModal, linkInput, setLinkInput, handleAddLink,
   fileToDelete, setFileToDelete, confirmDelete,
   previewFile, setPreviewFile, viewerEngine, setViewerEngine
 }) {
+  
+  // Hiệu ứng phông nền tối mờ ảo
+  const Overlay = ({ onClick }) => (
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
+      onClick={onClick} className="absolute inset-0 bg-black/80 backdrop-blur-sm z-0"
+    />
+  );
+
+  // Hiệu ứng Pop-up bật nảy cho các cửa sổ
+  const modalVariants = {
+    hidden: { opacity: 0, scale: 0.9, y: 15 },
+    visible: { opacity: 1, scale: 1, y: 0, transition: { type: 'spring', duration: 0.4, bounce: 0.3 } },
+    exit: { opacity: 0, scale: 0.95, y: -10, transition: { duration: 0.15 } }
+  };
+
+  // Hàm render giao diện xem trước linh hoạt theo loại file
+  const renderPreviewContent = () => {
+    if (!previewFile) return null;
+    const { type, url, name } = previewFile;
+
+    switch (type) {
+      case 'image':
+        return <img src={url} alt={name} className="max-w-full max-h-[75vh] object-contain rounded-xl shadow-[0_0_30px_rgba(0,0,0,0.5)]" />;
+      case 'video':
+        return <video src={url} controls autoPlay className="max-w-full max-h-[75vh] rounded-xl shadow-[0_0_30px_rgba(0,0,0,0.5)] outline-none w-full bg-black" />;
+      case 'audio':
+        return (
+          <div className="flex flex-col items-center justify-center p-12 bg-[#111] rounded-2xl border border-white/5 w-full max-w-md shadow-2xl">
+            <div className="w-24 h-24 bg-primary-500/20 text-primary-500 rounded-full flex items-center justify-center mb-8 animate-pulse shadow-[0_0_20px_rgba(234,88,12,0.3)]">
+              <Music size={48} />
+            </div>
+            <audio src={url} controls autoPlay className="w-full outline-none" />
+          </div>
+        );
+      case 'document':
+        const viewerUrl = viewerEngine === 'google'
+          ? `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`
+          : `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
+        return (
+          <div className="w-full h-[75vh] flex flex-col">
+            <div className="flex gap-2 mb-3 justify-end">
+              <button onClick={() => setViewerEngine('microsoft')} className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${viewerEngine === 'microsoft' ? 'bg-primary-600 text-white shadow-lg shadow-primary-600/30' : 'bg-slate-800 text-slate-400 hover:text-white'}`}>Microsoft Viewer</button>
+              <button onClick={() => setViewerEngine('google')} className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${viewerEngine === 'google' ? 'bg-primary-600 text-white shadow-lg shadow-primary-600/30' : 'bg-slate-800 text-slate-400 hover:text-white'}`}>Google Viewer</button>
+            </div>
+            <iframe src={viewerUrl} className="w-full flex-1 bg-white rounded-xl shadow-inner border-0" title="Document Preview" />
+          </div>
+        );
+      default:
+        return (
+          <div className="flex flex-col items-center justify-center p-12 bg-[#111] rounded-2xl border border-white/5 w-full max-w-md">
+            <FileText size={64} className="text-slate-600 mb-4" />
+            <p className="text-slate-400 mb-6 text-center text-sm">Không thể xem trước tệp tin này trực tiếp.<br/>Vui lòng mở trong thẻ mới để truy cập.</p>
+            <a href={url} target="_blank" rel="noreferrer" className="px-6 py-2.5 bg-primary-600 text-white rounded-xl flex items-center gap-2 hover:bg-primary-500 transition-colors shadow-lg shadow-primary-600/20 font-medium">
+              <ExternalLink size={18} /> Mở tệp tin
+            </a>
+          </div>
+        );
+    }
+  };
+
   return (
-    <>
-      {/* --- MODAL TẠO THƯ MỤC --- */}
-      {createPortal(
-        <AnimatePresence>
-          {showFolderModal && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }} onClick={() => setShowFolderModal(false)} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" />
-              <motion.div initial={{ opacity: 0, scale: 0.95, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97, y: 8 }} transition={{ type: 'spring', stiffness: 380, damping: 28 }} className="relative bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-xl w-full max-w-sm">
-                <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-slate-800 dark:text-slate-100"><FolderPlus size={24} className="text-amber-500"/> Tạo thư mục mới</h3>
-                <form onSubmit={handleCreateFolder}>
-                  <input type="text" autoFocus value={folderName} onChange={(e) => setFolderName(e.target.value)} placeholder="Nhập tên..." className="w-full px-4 py-3 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-amber-500 mb-6" required />
-                  <div className="flex gap-3 justify-end">
-                    <button type="button" onClick={() => setShowFolderModal(false)} className="px-5 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl font-medium">Hủy</button>
-                    <button type="submit" className="px-5 py-2.5 bg-amber-500 text-black rounded-xl font-medium">Tạo</button>
-                  </div>
-                </form>
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>,
-        document.body
+    <AnimatePresence>
+      {/* 1. MODAL TẠO THƯ MỤC */}
+      {showFolderModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <Overlay onClick={() => setShowFolderModal(false)} />
+          <motion.div variants={modalVariants} initial="hidden" animate="visible" exit="exit" className="relative w-full max-w-sm bg-[#0a0a0a] border border-primary-500/30 rounded-2xl shadow-[0_0_40px_rgba(234,88,12,0.15)] p-6 z-10">
+            <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2"><FolderPlus className="text-primary-500"/> Tạo thư mục mới</h3>
+            <form onSubmit={handleCreateFolder}>
+              <input autoFocus type="text" value={folderName} onChange={e => setFolderName(e.target.value)} placeholder="Nhập tên thư mục..." className="w-full bg-[#111] border border-slate-800 text-white px-4 py-3 rounded-xl focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-all mb-6 placeholder:text-slate-600" />
+              <div className="flex justify-end gap-3">
+                <button type="button" onClick={() => setShowFolderModal(false)} className="px-4 py-2 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white transition-colors font-medium">Hủy</button>
+                <button type="submit" disabled={!folderName.trim()} className="px-5 py-2 bg-primary-600 hover:bg-primary-500 disabled:opacity-50 text-white rounded-xl font-medium transition-colors shadow-lg shadow-primary-600/20">Tạo mới</button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
       )}
 
-      {/* --- MODAL XÁC NHẬN XÓA --- */}
-      {createPortal(
-        <AnimatePresence>
-          {fileToDelete && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }} onClick={() => setFileToDelete(null)} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" />
-              <motion.div initial={{ opacity: 0, scale: 0.95, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97, y: 8 }} transition={{ type: 'spring', stiffness: 380, damping: 28 }} className="relative bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-xl w-full max-w-sm text-center">
-                <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4"><AlertTriangle size={32} /></div>
-                <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-2">Xác nhận xóa</h3>
-                <p className="text-slate-500 mb-6">Xóa <span className="font-semibold text-slate-700 dark:text-slate-300">{fileToDelete.name}</span>?</p>
-                <div className="flex gap-3 justify-center">
-                  <button onClick={() => setFileToDelete(null)} className="px-5 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl font-medium">Hủy</button>
-                  <button onClick={confirmDelete} className="px-5 py-2.5 bg-red-600 text-white rounded-xl font-medium">Xóa</button>
-                </div>
-              </motion.div>
+      {/* 2. MODAL XÓA FILE */}
+      {fileToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <Overlay onClick={() => setFileToDelete(null)} />
+          <motion.div variants={modalVariants} initial="hidden" animate="visible" exit="exit" className="relative w-full max-w-sm bg-[#0a0a0a] border border-red-500/30 rounded-2xl shadow-[0_0_40px_rgba(239,68,68,0.15)] p-6 z-10 text-center">
+            <div className="w-16 h-16 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mx-auto mb-5 shadow-[0_0_15px_rgba(239,68,68,0.2)]">
+              <AlertTriangle size={32} />
             </div>
-          )}
-        </AnimatePresence>,
-        document.body
+            <h3 className="text-xl font-bold text-white mb-2">Xác nhận xóa?</h3>
+            <p className="text-slate-400 mb-6 text-sm">Bạn có chắc muốn xóa <span className="text-white font-semibold truncate block max-w-full mt-1">"{fileToDelete.name}"</span> Hành động này không thể hoàn tác.</p>
+            <div className="flex justify-center gap-3">
+              <button onClick={() => setFileToDelete(null)} className="px-5 py-2.5 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white transition-colors font-medium">Hủy bỏ</button>
+              <button onClick={confirmDelete} className="px-5 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl font-medium transition-colors shadow-lg shadow-red-600/20">Xóa vĩnh viễn</button>
+            </div>
+          </motion.div>
+        </div>
       )}
 
-      {/* --- MODAL XEM TRƯỚC (PREVIEW) --- */}
-      {createPortal(
-        <AnimatePresence>
-          {previewFile && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }} onClick={() => setPreviewFile(null)} className="absolute inset-0 bg-slate-900/90 backdrop-blur-sm cursor-pointer" />
-              <motion.div initial={{ opacity: 0, scale: 0.96, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.98, y: 4 }} transition={{ type: 'spring', stiffness: 320, damping: 32 }} className="relative bg-white dark:bg-black w-full max-w-5xl h-[85vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
-                <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900">
-                  <h3 className="font-medium text-slate-800 dark:text-slate-200 pr-4 flex items-center gap-3"><LinkIcon size={18} className="text-amber-500" /><span className="truncate">{previewFile.name}</span></h3>
-                  <div className="flex gap-2 shrink-0 items-center">
-                    <a href={previewFile.url} target="_blank" rel="noreferrer" className="hidden sm:flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-amber-500 text-black rounded-lg">Mở trực tiếp</a>
-                    <button onClick={() => setPreviewFile(null)} className="p-2 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg"><X size={20} /></button>
-                  </div>
-                </div>
-                <div className="flex-1 overflow-auto flex items-center justify-center bg-slate-100 dark:bg-black p-4 relative">
-                  {previewFile.type === 'image' && <img src={previewFile.url} alt={previewFile.name} className="max-w-full max-h-full object-contain rounded-lg" />}
-                  {previewFile.type === 'video' && <video src={previewFile.url} controls autoPlay className="max-w-full max-h-full rounded-lg" />}
-                  {previewFile.type === 'audio' && (
-                    <div className="bg-white dark:bg-slate-900 p-8 rounded-2xl shadow-lg flex flex-col items-center gap-6">
-                      <Music size={64} className="text-pink-500 animate-pulse" />
-                      <audio src={previewFile.url} controls autoPlay className="w-72" />
-                    </div>
-                  )}
-                  {previewFile.type === 'document' && (
-                    <div className="w-full h-full bg-white rounded-lg flex flex-col relative">
-                      {!previewFile.url.toLowerCase().includes('.pdf') && (
-                        <div className="absolute top-2 left-2 z-10 flex bg-white dark:bg-slate-800 rounded-lg shadow-md border border-slate-200 dark:border-slate-700 p-1">
-                           <button onClick={() => setViewerEngine('microsoft')} className={`px-3 py-1.5 text-xs font-medium rounded-md ${viewerEngine === 'microsoft' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-400' : 'text-slate-600 dark:text-slate-400'}`}>Microsoft</button>
-                           <button onClick={() => setViewerEngine('google')} className={`px-3 py-1.5 text-xs font-medium rounded-md ${viewerEngine === 'google' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-400' : 'text-slate-600 dark:text-slate-400'}`}>Google</button>
-                        </div>
-                      )}
-                      {previewFile.url.toLowerCase().includes('.pdf') ? (
-                        <iframe src={previewFile.url} className="w-full h-full border-0" />
-                      ) : (
-                        viewerEngine === 'microsoft' ? <iframe src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(previewFile.url)}`} className="w-full h-full border-0 pt-12" /> : <iframe src={`https://docs.google.com/gview?url=${encodeURIComponent(previewFile.url)}&embedded=true`} className="w-full h-full border-0 pt-12 bg-slate-50" />
-                      )}
-                    </div>
-                  )}
-                  {previewFile.type === 'raw' && (
-                    <div className="text-center"><Globe size={64} className="mx-auto text-slate-400 mb-4" /><a href={previewFile.url} target="_blank" rel="noreferrer" className="px-6 py-2.5 bg-blue-600 text-white rounded-xl">Truy cập trực tiếp</a></div>
-                  )}
-                </div>
-              </motion.div>
+      {/* 3. MODAL PREVIEW FILE CỰC NGẦU */}
+      {previewFile && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-6">
+          <Overlay onClick={() => setPreviewFile(null)} />
+          <motion.div variants={modalVariants} initial="hidden" animate="visible" exit="exit" className="relative w-full max-w-5xl max-h-full bg-[#0a0a0a] border border-primary-500/20 rounded-2xl shadow-[0_0_50px_rgba(234,88,12,0.1)] z-10 flex flex-col overflow-hidden">
+            
+            {/* Header của cửa sổ Preview */}
+            <div className="flex items-center justify-between px-5 py-3 border-b border-white/5 bg-[#0f0f0f]">
+              <h3 className="text-base font-semibold text-white truncate pr-4 drop-shadow-md">
+                {previewFile.name}
+              </h3>
+              <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+                <a href={previewFile.url} target="_blank" rel="noreferrer" className="p-2 text-slate-400 hover:text-primary-500 hover:bg-primary-500/10 rounded-xl transition-all" title="Mở trong thẻ mới">
+                  <ExternalLink size={20} />
+                </a>
+                <button onClick={() => setPreviewFile(null)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all ml-1" title="Đóng (Esc)">
+                  <X size={20} />
+                </button>
+              </div>
             </div>
-          )}
-        </AnimatePresence>,
-        document.body
-      )}
-      {createPortal(
-        <AnimatePresence>
-          {showLinkModal && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowLinkModal(false)} className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
-              <motion.div initial={{ opacity: 0, y: 16, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: 0.97 }} transition={{ type: 'spring', stiffness: 380, damping: 30 }} className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl dark:bg-black">
-                <h3 className="mb-4 text-xl font-bold text-slate-800 dark:text-white">Dán liên kết mới</h3>
-                <form onSubmit={handleAddLink}>
-                  <input type="url" autoFocus value={linkInput} onChange={(event) => setLinkInput(event.target.value)} placeholder="https://example.com/file.pdf" className="mb-6 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white" required />
-                  <div className="flex justify-end gap-3">
-                    <button type="button" onClick={() => setShowLinkModal(false)} className="rounded-xl bg-slate-100 px-5 py-2.5 font-medium text-slate-700 dark:bg-slate-900 dark:text-slate-300">Hủy</button>
-                    <button type="submit" className="rounded-xl bg-blue-600 px-5 py-2.5 font-medium text-white">Lưu liên kết</button>
-                  </div>
-                </form>
-              </motion.div>
+
+            {/* Nội dung Preview */}
+            <div className="flex-1 overflow-auto bg-black flex items-center justify-center p-2 sm:p-6 min-h-[40vh]">
+              {renderPreviewContent()}
             </div>
-          )}
-        </AnimatePresence>,
-        document.body
+          </motion.div>
+        </div>
       )}
-    </>
+    </AnimatePresence>
   );
 }
