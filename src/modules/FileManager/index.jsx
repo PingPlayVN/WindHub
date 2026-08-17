@@ -320,7 +320,7 @@ export default function FileManager() {
   };
 
   const handlePreview = (item) => {
-    if (item.isLocked && !isAdmin) return toast.error('File này đã bị khóa');
+    //if (item.isLocked && !isAdmin) return toast.error('File này đã bị khóa');
     setViewerEngine('microsoft');
     setPreviewFile(item);
   };

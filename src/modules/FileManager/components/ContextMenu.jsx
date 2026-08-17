@@ -72,7 +72,7 @@ export default function ContextMenu({
           onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
         >
           {/* QUYỀN LỢI CHO USER THƯỜNG */}
-          {isFile && !isMulti && (!item.isLocked || isAdmin) && (
+          {isFile && !isMulti && (
             <MenuItem icon={Eye} label="Xem trước" onClick={action(() => handlePreview(item))} />
           )}
           
