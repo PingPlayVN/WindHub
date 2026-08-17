@@ -2,8 +2,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Image as ImageIcon, Video, Globe, Music, 
-  Folder as FolderIcon, FolderPlus, Link as LinkIcon, FileText, ClipboardPaste, MoreVertical, LockKeyhole
+   Image as ImageIcon, Video, Globe, Music, 
+   Folder as FolderIcon, FolderPlus, Link as LinkIcon, FileText, ClipboardPaste, MoreVertical, LockKeyhole,
+   LayoutGrid, List 
 } from 'lucide-react';
 import { collection, addDoc, deleteDoc, doc, updateDoc, onSnapshot, query, setDoc } from 'firebase/firestore';
 import { db } from '@/services/firebase';
@@ -12,6 +13,9 @@ import Breadcrumb from './components/Breadcrumb';
 import FileModals from './components/FileModals/index.jsx';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/store/useAuthStore';
+
+// Import module FileItem
+import FileItem from './components/FileItem';
 
 export default function FileManager() {
   const { isAdmin } = useAuthStore();
@@ -30,6 +34,7 @@ export default function FileManager() {
   const [globalSort, setGlobalSort] = useState({}); // Mặc định từ Firebase
   const [localSort, setLocalSort] = useState({});   // Ghi đè cục bộ trong phiên
   const effectiveSort = localSort[currentFolder.id] || globalSort[currentFolder.id] || 'newest';
+  const [viewMode, setViewMode] = useState('grid'); // Dạng hiển thị: 'grid' hoặc 'list'
 
   // --- STATE TÍNH NĂNG WINDOWS ---
   const [contextMenu, setContextMenu] = useState(null);
@@ -487,6 +492,23 @@ export default function FileManager() {
           </div>
         </div>
         
+        {/* Nút Chọn Kiểu Xem (Mới) */}
+        <div className="flex items-center bg-white dark:bg-[#111] border border-slate-200 dark:border-slate-800 rounded-xl p-1 shadow-sm shrink-0">
+          <button 
+             onClick={() => setViewMode('grid')}
+             className={`p-2 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-slate-100 dark:bg-slate-800 text-primary-500' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+             title="Dạng lưới"
+          >
+             <LayoutGrid size={18} />
+          </button>
+          <button 
+             onClick={() => setViewMode('list')}
+             className={`p-2 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-slate-100 dark:bg-slate-800 text-primary-500' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+             title="Dạng danh sách"
+          >
+             <List size={18} />
+          </button>
+        </div>
       </div>
 
       {/* Lưới hiển thị */}
@@ -503,61 +525,39 @@ export default function FileManager() {
             <p className="text-lg font-medium text-slate-600 dark:text-slate-300">Thư mục trống</p>
           </motion.div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6">
-            <AnimatePresence>
-              {currentFiles.map((file) => (
-                <motion.div 
-                  key={file.id} 
-                  layout /* Gọi lại layout để giữ tính năng dồn chỗ */
-  
-                  /* Vẫn giữ nguyên hiệu ứng Lật 3D của bạn */
-                  initial={{ opacity: 0, rotateX: 90, y: 20 }} 
-                  animate={{ opacity: 1, rotateX: 0, y: 0 }} 
-                  exit={{ opacity: 0, rotateX: -90, y: -20 }} 
-  
-                  /* BÍ QUYẾT TỐI ƯU Ở ĐÂY: Tách biệt tốc độ */
-                  transition={{ 
-                  // 1. Ép hiệu ứng dồn chỗ (layout) chạy đồng loạt cực nhanh (0.15s)
-                  layout: { type: "tween", duration: 0.1, ease: "easeInOut" },
-    
-                  // 2. Hiệu ứng lật 3D thì vẫn giữ tốc độ mượt mà cũ (0.4s)
-                  default: { duration: 0.4, type: "tween", ease: "backOut" } 
-                  }}
-  
-                  draggable={true} 
-                  onDragStart={(e) => handleDragStart(e, file)}
-                  onDragOver={handleDragOver}
-                  onDrop={(e) => handleDrop(e, file)}
-  
-                  onClick={(e) => { e.stopPropagation(); handleItemClick(e, file); }}
-                  onContextMenu={(e) => { e.stopPropagation(); handleContextMenu(e, file); }}
-  
-                  className={`group relative bg-slate-50 dark:bg-slate-800/50 border-2 ${selectedItems.has(file.id) ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 shadow-md' : 'border-transparent hover:border-primary-300 dark:hover:border-primary-700'} rounded-xl p-4 flex flex-col items-center gap-3 transition-colors select-none`}
-                >
-                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-white/90 dark:bg-slate-900/90 p-1 rounded-lg shadow-sm z-10">
-                    <button aria-label={`Mở tác vụ cho ${file.name}`} onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleContextMenu(e, file); }} className="p-1.5 text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md">
-                      <MoreVertical size={16} />
-                    </button>
-                  </div>
-                  {file.isLocked && <div className="absolute top-2 left-2 rounded-lg bg-slate-900/80 p-1.5 text-white shadow-sm"><LockKeyhole size={14} /></div>}
-                  
-                  <div className={`w-full aspect-square flex items-center justify-center bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden ${file.type === 'folder' ? 'cursor-pointer' : 'cursor-default'}`}>
-                    {file.type === 'image' ? <img src={file.url} alt={file.name} className="w-full h-full object-cover" loading="lazy" decoding="async" /> : getFileIcon(file.type)}
-                  </div>
-                  
-                  <div className="w-full text-center">
-                    {renamingItem === file.id ? (
-                      <form onSubmit={(e) => handleRenameSubmit(e, file.id)}>
-                         <input autoFocus type="text" value={renameText} title={renameText} onFocus={(e) => e.currentTarget.select()} onChange={e => setRenameText(e.target.value)} onBlur={(e) => handleRenameSubmit(e, file.id)} className="w-full min-w-0 text-sm font-medium text-center bg-white dark:bg-slate-900 border border-blue-500 rounded px-2 py-1 focus:outline-none" />
-                      </form>
-                    ) : (
-                      <div className="overflow-hidden whitespace-nowrap px-1 text-sm font-medium leading-5 text-slate-700 dark:text-slate-200" title={file.name}><span className="file-name-marquee">{file.name}</span></div>
-                    )}
-                  </div>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </div>
+          /* THÊM ANIMATE PRESENCE MODE="WAIT" Ở ĐÂY */
+          <AnimatePresence mode="wait">
+            <motion.div 
+              // Dùng key={viewMode} để ép render lại và chạy hiệu ứng mượt mà khi đổi Grid/List
+              key={viewMode}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+              className={viewMode === 'grid' ? "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6" : "flex flex-col gap-2"}
+            >
+              <AnimatePresence>
+                {currentFiles.map((file) => (
+                   <FileItem
+                      key={file.id}
+                      file={file}
+                      viewMode={viewMode}
+                      isSelected={selectedItems.has(file.id)}
+                      isRenaming={renamingItem === file.id}
+                      renameText={renameText}
+                      setRenameText={setRenameText}
+                      handleRenameSubmit={handleRenameSubmit}
+                      handleDragStart={handleDragStart}
+                      handleDragOver={handleDragOver}
+                      handleDrop={handleDrop}
+                      handleItemClick={handleItemClick}
+                      handleContextMenu={handleContextMenu}
+                      getFileIcon={getFileIcon}
+                   />
+                ))}
+              </AnimatePresence>
+            </motion.div>
+          </AnimatePresence>
         )}
       </div>
 
