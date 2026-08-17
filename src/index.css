@@ -45,3 +45,14 @@
 .custom-scrollbar::-webkit-scrollbar-track { @apply bg-transparent; }
 .custom-scrollbar::-webkit-scrollbar-thumb { @apply bg-primary-500/50 rounded-full; }
 .dark .custom-scrollbar::-webkit-scrollbar-thumb { @apply bg-primary-600/70; }
+
+/* react-doc-viewer normally sizes itself to document content; preview needs full modal height. */
+.windhub-doc-viewer,
+.windhub-doc-viewer > div,
+.windhub-doc-viewer iframe {
+  min-height: 100% !important;
+}
+
+.windhub-doc-viewer iframe {
+  height: 100% !important;
+}

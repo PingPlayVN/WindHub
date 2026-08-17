@@ -1,7 +1,16 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ClipboardPaste, Copy, Download, Edit2, Eye, FolderPlus, Link2, LockKeyhole, Scissors, Trash2, UnlockKeyhole } from 'lucide-react';
+
+const MenuItem = ({ icon: Icon, label, shortcut, onClick, danger }) => (
+  <button type="button" onClick={onClick} className={`w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium transition-colors ${danger ? 'text-red-400 hover:bg-red-500/10 hover:text-red-300' : 'text-slate-300 hover:bg-primary-500/15 hover:text-primary-400'}`}>
+    <span className="flex items-center gap-3"><Icon size={16} /><span>{label}</span></span>
+    {shortcut && <span className="text-xs text-slate-600 font-mono tracking-widest">{shortcut}</span>}
+  </button>
+);
+
+const Divider = () => <div className="h-px bg-white/10 my-1.5 mx-3" />;
 
 export default function ContextMenu({
   contextMenu, setContextMenu, selectedItems, isAdmin,
@@ -47,25 +56,6 @@ export default function ContextMenu({
   };
 
   // Nút bấm đồng nhất giao diện Dark Hacker
-  const MenuItem = ({ icon: Icon, label, shortcut, onClick, danger }) => (
-    <button
-      onClick={onClick}
-      className={`w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium transition-colors ${
-        danger
-          ? 'text-red-400 hover:bg-red-500/10 hover:text-red-300'
-          : 'text-slate-300 hover:bg-primary-500/15 hover:text-primary-400'
-      }`}
-    >
-      <div className="flex items-center gap-3">
-        <Icon size={16} />
-        <span>{label}</span>
-      </div>
-      {shortcut && <span className="text-xs text-slate-600 font-mono tracking-widest">{shortcut}</span>}
-    </button>
-  );
-
-  const Divider = () => <div className="h-px bg-white/10 my-1.5 mx-3" />;
-
   // Dùng createPortal để menu luôn đè lên trên cùng, không bị giới hạn bởi component cha
   return createPortal(
     <AnimatePresence>

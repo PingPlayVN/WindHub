@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, X, FileArchive } from 'lucide-react';
+import { LayoutDashboard, FileArchive } from 'lucide-react';
 import { useUIStore } from '@/store/useUIStore';
 import { useThemeStore } from '@/store/useThemeStore';
 import { AnimatePresence, motion } from 'framer-motion';

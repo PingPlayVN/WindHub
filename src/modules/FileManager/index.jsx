@@ -9,7 +9,7 @@ import { collection, addDoc, deleteDoc, doc, updateDoc, onSnapshot, query } from
 import { db } from '@/services/firebase';
 import ContextMenu from './components/ContextMenu';
 import Breadcrumb from './components/Breadcrumb';
-import FileModals from './components/FileModals';
+import FileModals from './components/FileModals/index.jsx';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/store/useAuthStore';
 
@@ -321,6 +321,7 @@ export default function FileManager() {
 
   const handlePreview = (item) => {
     if (item.isLocked && !isAdmin) return toast.error('File này đã bị khóa');
+    setViewerEngine('microsoft');
     setPreviewFile(item);
   };
   const handleCopyLink = async (item) => {
