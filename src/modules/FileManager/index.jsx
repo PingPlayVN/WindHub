@@ -5,7 +5,7 @@ import {
   Image as ImageIcon, Video, Globe, Music, 
   Folder as FolderIcon, FolderPlus, Link as LinkIcon, FileText, ClipboardPaste, MoreVertical, LockKeyhole
 } from 'lucide-react';
-import { collection, addDoc, deleteDoc, doc, updateDoc, onSnapshot, query } from 'firebase/firestore';
+import { collection, addDoc, deleteDoc, doc, updateDoc, onSnapshot, query, setDoc } from 'firebase/firestore';
 import { db } from '@/services/firebase';
 import ContextMenu from './components/ContextMenu';
 import Breadcrumb from './components/Breadcrumb';
@@ -27,8 +27,9 @@ export default function FileManager() {
   const [isAdding, setIsAdding] = useState(false);
   const [viewerEngine, setViewerEngine] = useState('microsoft');
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortByFolder, setSortByFolder] = useState({});
-  const sortBy = sortByFolder[currentFolder.id] || 'newest';
+  const [globalSort, setGlobalSort] = useState({}); // Mặc định từ Firebase
+  const [localSort, setLocalSort] = useState({});   // Ghi đè cục bộ trong phiên
+  const effectiveSort = localSort[currentFolder.id] || globalSort[currentFolder.id] || 'newest';
 
   // --- STATE TÍNH NĂNG WINDOWS ---
   const [contextMenu, setContextMenu] = useState(null);
@@ -38,6 +39,15 @@ export default function FileManager() {
   const [selectedItems, setSelectedItems] = useState(new Set()); 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [loadError, setLoadError] = useState('');
+
+  useEffect(() => {
+    const unsubSort = onSnapshot(doc(db, 'windhub_settings', 'sort_config'), (docSnap) => {
+      if (docSnap.exists()) {
+        setGlobalSort(docSnap.data()); // Chỉ đồng bộ vào state gốc
+      }
+    });
+    return () => unsubSort();
+  }, []);
 
   // 1. TẢI DỮ LIỆU TỪ FIREBASE
   useEffect(() => {
@@ -60,12 +70,12 @@ export default function FileManager() {
     return filtered.sort((a, b) => {
       if (a.type === 'folder' && b.type !== 'folder') return -1;
       if (a.type !== 'folder' && b.type === 'folder') return 1;
-      if (sortBy === 'oldest') return (a.timestamp || 0) - (b.timestamp || 0);
-      if (sortBy === 'name-asc') return (a.name || '').localeCompare(b.name || '', 'vi');
-      if (sortBy === 'name-desc') return (b.name || '').localeCompare(a.name || '', 'vi');
+      if (effectiveSort === 'oldest') return (a.timestamp || 0) - (b.timestamp || 0);
+      if (effectiveSort === 'name-asc') return (a.name || '').localeCompare(b.name || '', 'vi');
+      if (effectiveSort === 'name-desc') return (b.name || '').localeCompare(a.name || '', 'vi');
       return (b.timestamp || 0) - (a.timestamp || 0);
     });
-  }, [allFiles, currentFolder.id, searchTerm, sortBy]);
+  }, [allFiles, currentFolder.id, searchTerm, effectiveSort]);
 
   const getDescendantIds = (rootIds) => {
     const ids = new Set(rootIds);
@@ -84,8 +94,30 @@ export default function FileManager() {
     return ids;
   };
 
-  const handleSortChange = (nextSort) => {
-    setSortByFolder((current) => ({ ...current, [currentFolder.id]: nextSort }));
+  // Dành cho thanh tìm kiếm (Tất cả User): Đổi sắp xếp tạm thời trong phiên
+  const handleLocalSortChange = (nextSort) => {
+    setLocalSort((current) => ({ ...current, [currentFolder.id]: nextSort }));
+  };
+
+  // Dành cho Context Menu (Chỉ Admin): Cài đặt mặc định lên Firebase
+  const handleGlobalSortChange = async (nextSort) => {
+    if (!isAdmin) return;
+    
+    // Xóa ghi đè local (nếu có) để admin thấy ngay thay đổi gốc mới cài
+    setLocalSort((current) => {
+      const newLocal = { ...current };
+      delete newLocal[currentFolder.id];
+      return newLocal;
+    });
+
+    try {
+      await setDoc(doc(db, 'windhub_settings', 'sort_config'), {
+        [currentFolder.id]: nextSort
+      }, { merge: true });
+      toast.success('Đã lưu sắp xếp mặc định hệ thống');
+    } catch (error) {
+      console.error("Lỗi khi đồng bộ sắp xếp:", error);
+    }
   };
 
   const wouldCreateFolderLoop = (targetFolderId, items) => items.some(
@@ -436,10 +468,10 @@ export default function FileManager() {
         {/* Nút Chọn Kiểu Sắp Xếp */}
         <div className="relative w-full sm:w-44 shrink-0 group">
           <select 
-            value={sortBy} 
-            onChange={(e) => handleSortChange(e.target.value)} 
-            aria-label="Sắp xếp file" 
-            className="w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-2.5 pr-10 text-sm text-slate-800 shadow-sm outline-none transition focus:border-primary-500 focus:ring-1 focus:ring-primary-500 dark:border-slate-800 dark:bg-[#111] dark:text-slate-100 cursor-pointer"
+             value={effectiveSort} 
+             onChange={(e) => handleLocalSortChange(e.target.value)} 
+             aria-label="Sắp xếp file" 
+             className="w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-2.5 pr-10 text-sm text-slate-800 shadow-sm outline-none transition focus:border-primary-500 focus:ring-1 focus:ring-primary-500 dark:border-slate-800 dark:bg-[#111] dark:text-slate-100 cursor-pointer"
           >
             <option value="newest">Mới nhất</option>
             <option value="oldest">Cũ nhất</option>
@@ -545,8 +577,8 @@ export default function FileManager() {
         onAddLink={() => setShowLinkModal(true)}
         handlePaste={handlePaste}
         hasClipboard={Boolean(clipboard)}
-        sortBy={sortBy}
-        onSortChange={handleSortChange}
+        sortBy={globalSort[currentFolder.id] || 'newest'}
+        onSortChange={handleGlobalSortChange}
       />
 
       <FileModals 
