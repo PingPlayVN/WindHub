@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@cyntler/react-doc-viewer": "^1.17.1",
+    "@embedpdf/react-pdf-viewer": "^2.15.0",
     "@uploadcare/react-uploader": "^1.17.0",
     "firebase": "^12.17.1",
     "framer-motion": "^13.1.0",

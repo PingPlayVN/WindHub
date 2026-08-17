@@ -2,11 +2,10 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { ExternalLink, FileText, Music, X } from 'lucide-react';
-import DocViewer, { DocViewerRenderers } from '@cyntler/react-doc-viewer';
+import { PDFViewer } from '@embedpdf/react-pdf-viewer';
 import mammoth from 'mammoth';
 import * as XLSX from 'xlsx';
 import JSZip from 'jszip';
-import '@cyntler/react-doc-viewer/dist/index.css';
 
 function LoadingState({ label = 'Đang tải bản xem trước…' }) {
   return <div className="flex h-full min-h-48 items-center justify-center p-8 text-sm text-slate-500">{label}</div>;
@@ -110,7 +109,7 @@ function LocalPptxViewer({ url }) {
 }
 
 function LocalDocumentViewer({ url, extension }) {
-  if (extension === 'pdf') return <DocViewer className="windhub-doc-viewer" documents={[{ uri: url, fileType: extension }]} pluginRenderers={DocViewerRenderers} prefetchMethod="GET" config={{ header: { disableHeader: true, disableFileName: true } }} style={{ width: '100%', height: '100%', minHeight: '100%' }} />;
+  if (extension === 'pdf') return <PDFViewer config={{ src: url, theme: { preference: 'dark' }, tabBar: 'never' }} className="h-full w-full" style={{ height: '100%', width: '100%' }} />;
   if (extension === 'docx') return <LocalDocxViewer key={url} url={url} />;
   if (['xlsx', 'xls', 'csv'].includes(extension)) return <LocalSpreadsheetViewer key={url} url={url} />;
   if (extension === 'pptx') return <LocalPptxViewer key={url} url={url} />;
