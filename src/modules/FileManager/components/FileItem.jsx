@@ -37,7 +37,28 @@ export default function FileItem({
       )}
 
       <div className={`${viewMode === 'grid' ? 'w-full aspect-square' : 'w-12 h-12 shrink-0'} flex items-center justify-center bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden ${file.type === 'folder' ? 'cursor-pointer' : 'cursor-default'}`}>
-        {file.type === 'image' ? <img src={file.url} alt={file.name} className="w-full h-full object-cover" loading="lazy" decoding="async" /> : getFileIcon(file.type)}
+        
+        {/* NẾU LÀ HÌNH ẢNH -> Lấy thẳng link ảnh làm hình thu nhỏ (dùng thủ thuật tham số Cloudinary nếu host trên đó) */}
+        {file.type === 'image' ? (
+          <img src={file.url} alt={file.name} className="w-full h-full object-cover" loading="lazy" decoding="async" />
+        ) 
+        
+        /* NẾU ĐÃ CÓ THUMBNAIL TỪ DATABASE (Video, PDF đã được người trước xem) */
+        : file.type === 'video' && file.thumbnailUrl ? (
+          <div className="relative w-full h-full">
+            <img src={file.thumbnailUrl} alt={file.name} className="w-full h-full object-cover" loading="lazy" />
+            {/* Chèn một lớp overlay mờ mờ và Icon gốc góc nhỏ để người dùng biết đây là file gì */}
+            <div className="absolute inset-0 bg-black/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+               {getFileIcon(file.type)}
+            </div>
+          </div>
+        ) 
+        
+        /* CÒN LẠI (Chưa có thumbnail hoặc là folder) -> Hiển thị icon mặc định */
+        : (
+          getFileIcon(file.type)
+        )}
+
       </div>
 
       <div className={`${viewMode === 'grid' ? 'w-full text-center' : 'flex-1 text-left min-w-0'} `}>

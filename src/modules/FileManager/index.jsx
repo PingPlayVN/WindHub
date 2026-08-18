@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
    Image as ImageIcon, Video, Globe, Music, 
-   Folder as FolderIcon, FolderPlus, Link as LinkIcon, FileText, ClipboardPaste, MoreVertical, LockKeyhole,
+   Folder as FolderIcon, FolderPlus, Link as LinkIcon, FileText, ClipboardPaste,
    LayoutGrid, List 
 } from 'lucide-react';
 import { collection, addDoc, deleteDoc, doc, updateDoc, onSnapshot, query, setDoc } from 'firebase/firestore';

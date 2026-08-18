@@ -7,6 +7,7 @@ import mammoth from 'mammoth';
 import * as XLSX from 'xlsx';
 import JSZip from 'jszip';
 import Loader from '@/components/ui/Loader';
+import { generateAndSaveVideoThumbnail } from '@/services/thumbnail';
 
 function LoadingState({ label = 'Đang chuẩn bị nội dung xem trước...' }) {
   return <Loader text={label} size="md" />;
@@ -129,7 +130,43 @@ export default function PreviewModal({ previewFile, setPreviewFile, viewerEngine
 
   const renderPreviewContent = () => {
     if (type === 'image') return mediaError ? null : <img key={url} src={url} alt={name} onError={() => setMediaError(true)} className="max-h-[75vh] max-w-full rounded-xl object-contain shadow-[0_0_30px_rgba(0,0,0,0.5)]" />;
-    if (type === 'video') return mediaError ? null : <video src={url} controls autoPlay onError={() => setMediaError(true)} className="max-h-[75vh] w-full rounded-xl bg-black outline-none" />;
+    if (type === 'video') {
+      return mediaError ? null : (
+        <video 
+          src={url} 
+          controls 
+          autoPlay 
+          crossOrigin="anonymous" // Quan trọng để canvas không bị lỗi CORS
+          onError={() => setMediaError(true)} 
+          onLoadedData={(e) => {
+            // CHỈ CHỤP KHI FILE NÀY CHƯA CÓ THUMBNAIL
+            if (!previewFile.thumbnailUrl) {
+              const videoEl = e.target;
+          
+              // Chờ video chạy đến giây thứ 1 để không bị chụp màn hình đen thui
+              setTimeout(() => {
+                try {
+                  const canvas = document.createElement('canvas');
+                  // Thumbnail không cần to, 320px là đủ
+                  canvas.width = 320; 
+                  canvas.height = (videoEl.videoHeight / videoEl.videoWidth) * 320;
+              
+                  const ctx = canvas.getContext('2d');
+                  ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+              
+                  canvas.toBlob((blob) => {
+                    if (blob) generateAndSaveVideoThumbnail(previewFile.id, blob);
+                  }, 'image/jpeg', 0.7); // Nén jpeg 70%
+                } catch {
+                  console.log("Không thể chụp thumbnail (Có thể do lỗi CORS của host video)");
+                }
+              }, 1000);
+            }
+          }}
+          className="max-h-[75vh] w-full rounded-xl bg-black outline-none" 
+        />
+      );
+    }
     if (type === 'audio') return <div className="flex w-full max-w-md flex-col items-center justify-center rounded-2xl border border-white/5 bg-[#111] p-12 shadow-2xl"><div className="mb-8 flex h-24 w-24 items-center justify-center rounded-full bg-primary-500/20 text-primary-500"><Music size={48} /></div><audio src={url} controls autoPlay className="w-full" /></div>;
     if (type !== 'document') return <UnavailablePreview url={url} isLocked={isLocked} />;
     const extension = url.split('?')[0].split('.').pop()?.toLowerCase() || '';
@@ -166,6 +203,24 @@ export default function PreviewModal({ previewFile, setPreviewFile, viewerEngine
       </div>
     );
   };
+
   const fallback = mediaError || !url;
-  return createPortal(<div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-6"><motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setPreviewFile(null)} className="absolute inset-0 bg-black/80 backdrop-blur-sm" /><motion.div initial={{ opacity: 0, scale: 0.9, y: 15 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ type: 'spring', duration: 0.4, bounce: 0.3 }} className="relative z-10 flex h-[85vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-primary-500/20 bg-[#0a0a0a] shadow-[0_0_50px_rgba(234,88,12,0.1)]"><div className="flex shrink-0 items-center justify-between border-b border-white/5 bg-[#0f0f0f] px-5 py-3"><h3 className="truncate pr-4 text-base font-semibold text-white">{name}</h3><div className="flex shrink-0 items-center gap-2">{!isLocked && <a href={url} target="_blank" rel="noreferrer" className="rounded-xl p-2 text-slate-400 transition-all hover:bg-primary-500/10 hover:text-primary-500" title="Mở trong thẻ mới"><ExternalLink size={20} /></a>}<button type="button" onClick={() => setPreviewFile(null)} className="ml-1 rounded-xl p-2 text-slate-400 transition-all hover:bg-red-500/10 hover:text-red-500" title="Đóng (Esc)"><X size={20} /></button></div></div><div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-black">{fallback ? <UnavailablePreview url={url} isLocked={isLocked} message="Không thể tải bản xem trước. Hãy mở hoặc tải tệp để thử lại." /> : renderPreviewContent()}</div></motion.div></div>, document.body);
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-6">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setPreviewFile(null)} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+      <motion.div initial={{ opacity: 0, scale: 0.9, y: 15 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ type: 'spring', duration: 0.4, bounce: 0.3 }} className="relative z-10 flex h-[85vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-primary-500/20 bg-[#0a0a0a] shadow-[0_0_50px_rgba(234,88,12,0.1)]">
+        <div className="flex shrink-0 items-center justify-between border-b border-white/5 bg-[#0f0f0f] px-5 py-3">
+          <h3 className="truncate pr-4 text-base font-semibold text-white">{name}</h3>
+          <div className="flex shrink-0 items-center gap-2">
+            {!isLocked && <a href={url} target="_blank" rel="noreferrer" className="rounded-xl p-2 text-slate-400 transition-all hover:bg-primary-500/10 hover:text-primary-500" title="Mở trong thẻ mới"><ExternalLink size={20} /></a>}
+            <button type="button" onClick={() => setPreviewFile(null)} className="ml-1 rounded-xl p-2 text-slate-400 transition-all hover:bg-red-500/10 hover:text-red-500" title="Đóng (Esc)"><X size={20} /></button>
+          </div>
+        </div>
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-black">
+          {fallback ? <UnavailablePreview url={url} isLocked={isLocked} message="Không thể tải bản xem trước. Hãy mở hoặc tải tệp để thử lại." /> : renderPreviewContent()}
+        </div>
+      </motion.div>
+    </div>, 
+    document.body
+  );
 }
