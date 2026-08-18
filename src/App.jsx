@@ -8,6 +8,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useUIStore } from '@/store/useUIStore';
 
 import MainLayout from '@/components/layout/MainLayout';
+import Loader from '@/components/ui/Loader';
 const Home = lazy(() => import('@/pages/Home'));
 const FileManager = lazy(() => import('@/modules/FileManager'));
 const LoginModal = lazy(() => import('@/modules/Auth/LoginModal'));
@@ -35,17 +36,18 @@ function App() {
 
   return (
     <MotionConfig reducedMotion="user" transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}>
-    <MainLayout>
-      {/* Thêm Toaster vào đây, richColors giúp thông báo có màu sắc sinh động */}
+      <MainLayout>
         <Toaster position="top-right" richColors theme={theme} />
         {isLoginOpen && <Suspense fallback={null}><LoginModal open={isLoginOpen} onClose={closeLogin} /></Suspense>}
-      <Suspense fallback={<div className="flex h-full items-center justify-center" aria-label="Đang tải nội dung"><div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600" /></div>}>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/files" element={<FileManager />} />
-        </Routes>
-      </Suspense>
-    </MainLayout>
+        
+        {/* THAY THẾ SUSPENSE FALLBACK BẰNG LOADER MỚI */}
+        <Suspense fallback={<Loader fullScreen text="Đang tải ứng dụng..." />}>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/files" element={<FileManager />} />
+          </Routes>
+        </Suspense>
+      </MainLayout>
     </MotionConfig>
   );
 }

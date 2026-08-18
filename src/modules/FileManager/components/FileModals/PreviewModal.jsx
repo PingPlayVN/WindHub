@@ -6,9 +6,10 @@ import { PDFViewer } from '@embedpdf/react-pdf-viewer';
 import mammoth from 'mammoth';
 import * as XLSX from 'xlsx';
 import JSZip from 'jszip';
+import Loader from '@/components/ui/Loader';
 
-function LoadingState({ label = 'Đang tải bản xem trước…' }) {
-  return <div className="flex h-full min-h-48 items-center justify-center p-8 text-sm text-slate-500">{label}</div>;
+function LoadingState({ label = 'Đang chuẩn bị nội dung xem trước...' }) {
+  return <Loader text={label} size="md" />;
 }
 
 function UnavailablePreview({ url, isLocked, message = 'Định dạng này chưa hỗ trợ xem trước trực tiếp.' }) {

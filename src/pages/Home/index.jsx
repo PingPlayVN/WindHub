@@ -5,6 +5,7 @@ import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { db } from '@/services/firebase';
 import { HardDrive, Image as ImageIcon, FileText, Video, Clock } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import Loader from '@/components/ui/Loader';
 
 export default function Home() {
   const [stats, setStats] = useState({ total: 0, image: 0, document: 0, video: 0, raw: 0 });
@@ -54,9 +55,7 @@ export default function Home() {
       </div>
 
       {loading ? (
-        <div className="flex-1 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
+        <Loader text="Đang tổng hợp dữ liệu..." size="lg" />
       ) : error ? (
         <div className="flex flex-1 items-center justify-center rounded-2xl border border-red-200 bg-red-50 p-6 text-center text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
           {error}
