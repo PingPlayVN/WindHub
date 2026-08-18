@@ -42,7 +42,6 @@ export default function FileManager() {
   const [isAdding, setIsAdding] = useState(false);
   const [viewerEngine, setViewerEngine] = useState('microsoft');
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState('all');
   const [globalSort, setGlobalSort] = useState({}); // Mặc định từ Firebase
   const [localSort, setLocalSort] = useState({});
   // Ghi đè trong phiên
@@ -116,10 +115,7 @@ export default function FileManager() {
       const matchFolder = (f.parentId || 'root') === currentFolder.id;
       const matchSearch = !normalizedSearchTerm || f.name?.toLocaleLowerCase().includes(normalizedSearchTerm);
       
-      // Logic phân loại: Nếu đang chọn 'all' hoặc là 'folder' thì bỏ qua, ngược lại check đúng type admin đã gán
-      const matchType = filterType === 'all' || f.type === 'folder' || f.type === filterType;
-
-      return matchFolder && matchSearch && matchType;
+      return matchFolder && matchSearch;
     });
 
     return filtered.sort((a, b) => {
@@ -130,7 +126,7 @@ export default function FileManager() {
       if (effectiveSort === 'name-desc') return (b.name || '').localeCompare(a.name || '', 'vi');
       return (b.timestamp || 0) - (a.timestamp || 0);
     });
-  }, [allFiles, currentFolder.id, searchTerm, effectiveSort, filterType]);
+  }, [allFiles, currentFolder.id, searchTerm, effectiveSort]);
 
   const getDescendantIds = (rootIds) => {
     const ids = new Set(rootIds);
@@ -605,27 +601,6 @@ export default function FileManager() {
             placeholder="Tìm kiếm trong thư mục hiện tại..."
             className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 shadow-sm outline-none transition focus:border-primary-500 focus:ring-1 focus:ring-primary-500 dark:border-slate-800 dark:bg-[#111] dark:text-slate-100 placeholder:text-slate-600"
           />
-        </div>
-
-        {/* Ô Phân loại Tab */}
-        <div className="relative w-full sm:w-36 shrink-0 group">
-          <select
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
-              aria-label="Phân loại file"
-              className="w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-2.5 pr-10 text-sm text-slate-800 shadow-sm outline-none transition focus:border-primary-500 focus:ring-1 focus:ring-primary-500 dark:border-slate-800 dark:bg-[#111] dark:text-slate-100 cursor-pointer"
-          >
-            <option value="all">Tất cả tab</option>
-            <option value="video">Video</option>
-            <option value="image">Hình ảnh</option>
-            <option value="document">Tài liệu</option>
-            <option value="raw">File khác</option>
-          </select>
-          <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-slate-500 group-hover:text-primary-500 transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="m6 9 6 6 6-6"/>
-            </svg>
-          </div>
         </div>
 
         {/* Nút Chọn Kiểu Sắp Xếp */}
