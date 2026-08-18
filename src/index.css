@@ -56,3 +56,20 @@
 .windhub-doc-viewer iframe {
   height: 100% !important;
 }
+
+.file-name-marquee {
+  display: inline-block;
+  min-width: 100%;
+}
+
+.file-name-marquee--active {
+  display: inline-flex;
+  min-width: max-content;
+  gap: 2rem;
+  animation: file-name-marquee 7s linear infinite;
+}
+
+@keyframes file-name-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(var(--marquee-distance)); }
+}

@@ -1,11 +1,22 @@
 // src/modules/FileManager/components/FileItem.jsx
 import { motion } from 'framer-motion';
 import { MoreVertical, LockKeyhole } from 'lucide-react';
+import { useRef, useState } from 'react';
 
 export default function FileItem({
   file, viewMode, isSelected, isRenaming, renameText, setRenameText, handleRenameSubmit,
   handleDragStart, handleDragOver, handleDrop, handleItemClick, handleContextMenu, getFileIcon
 }) {
+  const [marqueeDistance, setMarqueeDistance] = useState(0);
+  const nameRef = useRef(null);
+
+  const handleCardEnter = () => {
+    const nameElement = nameRef.current;
+    if (!nameElement) return;
+    const overflow = nameElement.scrollWidth - nameElement.clientWidth;
+    setMarqueeDistance(overflow > 0 ? nameElement.scrollWidth + 32 : 0);
+  };
+
   return (
     <motion.div
       layout
@@ -20,6 +31,8 @@ export default function FileItem({
       onDragStart={(e) => handleDragStart(e, file)}
       onDragOver={handleDragOver}
       onDrop={(e) => handleDrop(e, file)}
+      onMouseEnter={handleCardEnter}
+      onMouseLeave={() => setMarqueeDistance(0)}
       onClick={(e) => { e.stopPropagation(); handleItemClick(e, file); }}
       onContextMenu={(e) => { e.stopPropagation(); handleContextMenu(e, file); }}
       className={`group relative bg-slate-50 dark:bg-slate-800/50 border-2 ${isSelected ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 shadow-md' : 'border-transparent hover:border-primary-300 dark:hover:border-primary-700'} rounded-xl transition-colors select-none ${viewMode === 'grid' ? 'p-4 flex flex-col items-center gap-3' : 'p-3 flex flex-row items-center gap-4'}`}
@@ -48,9 +61,6 @@ export default function FileItem({
           <div className="relative w-full h-full">
             <img src={file.thumbnailUrl} alt={file.name} className="w-full h-full object-cover" loading="lazy" />
             {/* Chèn một lớp overlay mờ mờ và Icon gốc góc nhỏ để người dùng biết đây là file gì */}
-            <div className="absolute inset-0 bg-black/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-               {getFileIcon(file.type)}
-            </div>
           </div>
         ) 
         
@@ -67,8 +77,8 @@ export default function FileItem({
             <input autoFocus type="text" value={renameText} title={renameText} onFocus={(e) => e.currentTarget.select()} onChange={e => setRenameText(e.target.value)} onBlur={(e) => handleRenameSubmit(e, file.id)} className={`w-full min-w-0 text-sm font-medium bg-white dark:bg-slate-900 border border-blue-500 rounded px-2 py-1 focus:outline-none ${viewMode === 'grid' ? 'text-center' : 'text-left'}`} />
           </form>
         ) : (
-          <div className="overflow-hidden whitespace-nowrap px-1 text-sm font-medium leading-5 text-slate-700 dark:text-slate-200" title={file.name}>
-            <span className="file-name-marquee">{file.name}</span>
+          <div ref={nameRef} className="overflow-hidden whitespace-nowrap px-1 text-sm font-medium leading-5 text-slate-700 dark:text-slate-200" title={file.name}>
+            <span style={{ '--marquee-distance': `-${marqueeDistance}px` }} className={marqueeDistance > 0 ? 'file-name-marquee file-name-marquee--active' : 'file-name-marquee'}><span>{file.name}</span>{marqueeDistance > 0 && <span aria-hidden="true">{file.name}</span>}</span>
           </div>
         )}
       </div>
