@@ -35,3 +35,32 @@ export const generateAndSaveVideoThumbnail = async (fileId, imageBlob) => {
     console.error('Lỗi khi tạo thumbnail:', error);
   }
 };
+
+// Upload trực tiếp từ một URL (Dùng cho Google Drive Thumbnail)
+export const uploadUrlToCloudinary = async (fileId, sourceUrl) => {
+  try {
+    const formData = new FormData();
+    // Đưa thẳng URL cho Cloudinary, server của họ sẽ tự kéo ảnh về (né lỗi CORS)
+    formData.append('file', sourceUrl); 
+    formData.append('upload_preset', UPLOAD_PRESET);
+
+    const response = await fetch(CLOUDINARY_URL, {
+      method: 'POST',
+      body: formData,
+    });
+
+    const data = await response.json();
+    if (!data.secure_url) throw new Error('Upload failed');
+
+    const thumbnailUrl = data.secure_url.replace('/upload/', '/upload/w_300,q_auto,f_auto/');
+    await updateDoc(doc(db, 'windhub_files', fileId), {
+      thumbnailUrl: thumbnailUrl
+    });
+
+    console.log('Đã lấy Thumbnail từ GG Drive và lưu lên Cloudinary!');
+    return thumbnailUrl;
+  } catch (error) {
+    console.error('Lỗi khi upload thumbnail từ URL:', error);
+    return null;
+  }
+};

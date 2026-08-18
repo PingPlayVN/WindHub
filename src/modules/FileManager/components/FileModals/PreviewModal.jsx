@@ -129,37 +129,46 @@ export default function PreviewModal({ previewFile, setPreviewFile, viewerEngine
   const { type, url, name, isLocked } = previewFile;
 
   const renderPreviewContent = () => {
+    const isGDrive = url.includes('drive.google.com') || url.includes('docs.google.com');
+
+    // 1. NẾU LÀ "FILE KHÁC" (raw) -> LUÔN HIỆN POPUP CÓ NÚT "MỞ TỆP" NHƯ DROPBOX
+    if (type !== 'document' && type !== 'image' && type !== 'video' && type !== 'audio') {
+      return <UnavailablePreview url={url} isLocked={isLocked} />;
+    }
+
+    // 2. XỬ LÝ GOOGLE DRIVE TRONG TAB ẢNH & VIDEO (Ép dùng iframe để không bị lỗi thẻ img/video)
+    if (isGDrive && (type === 'image' || type === 'video')) {
+      return (
+        <div className="flex h-full w-full flex-col p-4 sm:p-5">
+          <div className="relative min-h-0 w-full flex-1 overflow-hidden rounded-xl border border-white/10 bg-[#111] shadow-inner">
+            <iframe src={url} className="absolute inset-0 h-full w-full border-0 bg-[#f9fafb] dark:bg-black" allow="autoplay; fullscreen" title="Google Drive Preview" />
+          </div>
+        </div>
+      );
+    }
+
+    // 3. XỬ LÝ ẢNH, VIDEO, AUDIO BÌNH THƯỜNG
     if (type === 'image') return mediaError ? null : <img key={url} src={url} alt={name} onError={() => setMediaError(true)} className="max-h-[75vh] max-w-full rounded-xl object-contain shadow-[0_0_30px_rgba(0,0,0,0.5)]" />;
+    
     if (type === 'video') {
       return mediaError ? null : (
         <video 
-          src={url} 
-          controls 
-          autoPlay 
-          crossOrigin="anonymous" // Quan trọng để canvas không bị lỗi CORS
+          src={url} controls autoPlay crossOrigin="anonymous" 
           onError={() => setMediaError(true)} 
           onLoadedData={(e) => {
-            // CHỈ CHỤP KHI FILE NÀY CHƯA CÓ THUMBNAIL
             if (!previewFile.thumbnailUrl) {
               const videoEl = e.target;
-          
-              // Chờ video chạy đến giây thứ 1 để không bị chụp màn hình đen thui
               setTimeout(() => {
                 try {
                   const canvas = document.createElement('canvas');
-                  // Thumbnail không cần to, 320px là đủ
                   canvas.width = 320; 
                   canvas.height = (videoEl.videoHeight / videoEl.videoWidth) * 320;
-              
                   const ctx = canvas.getContext('2d');
                   ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
-              
                   canvas.toBlob((blob) => {
                     if (blob) generateAndSaveVideoThumbnail(previewFile.id, blob);
-                  }, 'image/jpeg', 0.7); // Nén jpeg 70%
-                } catch {
-                  console.log("Không thể chụp thumbnail (Có thể do lỗi CORS của host video)");
-                }
+                  }, 'image/jpeg', 0.7);
+                } catch { console.log("Lỗi tạo thumbnail nội bộ"); }
               }, 1000);
             }
           }}
@@ -167,41 +176,57 @@ export default function PreviewModal({ previewFile, setPreviewFile, viewerEngine
         />
       );
     }
+
     if (type === 'audio') return <div className="flex w-full max-w-md flex-col items-center justify-center rounded-2xl border border-white/5 bg-[#111] p-12 shadow-2xl"><div className="mb-8 flex h-24 w-24 items-center justify-center rounded-full bg-primary-500/20 text-primary-500"><Music size={48} /></div><audio src={url} controls autoPlay className="w-full" /></div>;
-    if (type !== 'document') return <UnavailablePreview url={url} isLocked={isLocked} />;
-    const extension = url.split('?')[0].split('.').pop()?.toLowerCase() || '';
-    const locallySupported = ['pdf', 'txt', 'docx', 'xlsx', 'xls', 'csv', 'pptx'].includes(extension);
-    const localName = extension === 'docx' ? 'Trình đọc DOCX' : ['xlsx', 'xls', 'csv'].includes(extension) ? 'Bảng tính cục bộ' : extension === 'pptx' ? 'Slide cục bộ' : extension === 'pdf' ? 'PDF cục bộ' : 'Văn bản cục bộ';
-    const frameUrl = viewerEngine === 'google' ? `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true` : `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
-    return (
-      <div className="flex h-full w-full flex-col p-4 sm:p-5">
-        <div className="mb-3 flex shrink-0 flex-wrap justify-end gap-2">
-          {locallySupported && <button type="button" onClick={() => setViewerEngine('local')} className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${viewerEngine === 'local' ? 'bg-primary-600 text-white shadow-lg shadow-primary-600/30' : 'bg-slate-800 text-slate-400 hover:text-white'}`}>{localName}</button>}
-          <button type="button" onClick={() => setViewerEngine('microsoft')} className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${viewerEngine === 'microsoft' ? 'bg-primary-600 text-white shadow-lg shadow-primary-600/30' : 'bg-slate-800 text-slate-400 hover:text-white'}`}>Microsoft Viewer</button>
-          <button type="button" onClick={() => setViewerEngine('google')} className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${viewerEngine === 'google' ? 'bg-primary-600 text-white shadow-lg shadow-primary-600/30' : 'bg-slate-800 text-slate-400 hover:text-white'}`}>Google Viewer</button>
+
+    // 4. XỬ LÝ TÀI LIỆU CÓ HÀNG NÚT BẤM CHỌN CHẾ ĐỘ XEM
+    if (type === 'document') {
+      const extension = url.split('?')[0].split('.').pop()?.toLowerCase() || '';
+      const locallySupported = ['pdf', 'txt', 'docx', 'xlsx', 'xls', 'csv', 'pptx'].includes(extension);
+      
+      const activeEngine = (isGDrive && viewerEngine === 'microsoft') ? 'gdrive' : viewerEngine;
+
+      const localName = extension === 'docx' ? 'Trình xem DOCX' : ['xlsx', 'xls', 'csv'].includes(extension) ? 'Bảng tính Excel' : extension === 'pptx' ? 'Slide Trình chiếu' : extension === 'pdf' ? 'PDF Viewer' : 'Trình xem Nội bộ';
+      const frameUrl = activeEngine === 'google' ? `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true` : `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
+
+      return (
+        <div className="flex h-full w-full flex-col p-4 sm:p-5">
+          <div className="mb-3 flex shrink-0 flex-wrap justify-end gap-2">
+            {/* KIỂM TRA: NẾU LÀ G DRIVE THÌ CHỈ HIỆN 1 NÚT DUY NHẤT, NGƯỢC LẠI HIỆN TOÀN BỘ CÁC NÚT KHÁC */}
+            {isGDrive ? (
+              <button type="button" className="rounded-lg px-3 py-1.5 text-xs font-medium bg-primary-600 text-white shadow-lg shadow-primary-600/30 cursor-default">
+                Google Drive Preview
+              </button>
+            ) : (
+              <>
+                {locallySupported && (
+                  <button type="button" onClick={() => setViewerEngine('local')} className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${activeEngine === 'local' ? 'bg-primary-600 text-white shadow-lg shadow-primary-600/30' : 'bg-slate-800 text-slate-400 hover:text-white'}`}>
+                    {localName}
+                  </button>
+                )}
+                <button type="button" onClick={() => setViewerEngine('microsoft')} className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${activeEngine === 'microsoft' ? 'bg-primary-600 text-white shadow-lg shadow-primary-600/30' : 'bg-slate-800 text-slate-400 hover:text-white'}`}>Microsoft Viewer</button>
+                <button type="button" onClick={() => setViewerEngine('google')} className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${activeEngine === 'google' ? 'bg-primary-600 text-white shadow-lg shadow-primary-600/30' : 'bg-slate-800 text-slate-400 hover:text-white'}`}>Google Viewer</button>
+              </>
+            )}
+          </div>
+          
+          <div className="relative min-h-0 w-full flex-1 overflow-auto rounded-xl border border-white/5 bg-[#0a0a0a] shadow-inner">
+            {activeEngine === 'gdrive' ? (
+              <iframe src={url} className="absolute inset-0 h-full w-full border-0 bg-[#f9fafb] dark:bg-black" allow="autoplay; fullscreen" title="Google Drive Preview" />
+            ) : activeEngine === 'local' && locallySupported ? (
+              <LocalDocumentViewer url={url} extension={extension} />
+            ) : (
+              <>
+                <iframe key={`${activeEngine}-${url}`} src={frameUrl} className="h-full w-full border-0 bg-white" title="Xem trước tài liệu" />
+                {activeEngine === 'google' && (
+                  <div className="absolute top-0 right-0 w-16 h-14 bg-transparent z-50 cursor-default" title="Tính năng này bị ẩn" onClick={(e) => e.stopPropagation()} />
+                )}
+              </>
+            )}
+          </div>
         </div>
-        
-        {/* Container phải có class relative để định vị lớp tàng hình */}
-        <div className="relative min-h-0 w-full flex-1 overflow-auto rounded-xl border border-white/5 bg-[#0a0a0a] shadow-inner">
-          {viewerEngine === 'local' && locallySupported ? (
-            <LocalDocumentViewer url={url} extension={extension} />
-          ) : (
-            <>
-              <iframe key={`${viewerEngine}-${url}`} src={frameUrl} className="h-full w-full border-0 bg-white" title="Xem trước tài liệu" />
-              
-              {/* LỚP ÁO TÀNG HÌNH CHE NÚT POP-OUT CỦA GOOGLE VIEWER */}
-              {viewerEngine === 'google' && (
-                <div 
-                  className="absolute top-0 right-0 w-16 h-14 bg-transparent z-50 cursor-default" 
-                  title="Tính năng này đã bị khóa"
-                  onClick={(e) => e.stopPropagation()}
-                />
-              )}
-            </>
-          )}
-        </div>
-      </div>
-    );
+      );
+    }
   };
 
   const fallback = mediaError || !url;

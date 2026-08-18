@@ -1,9 +1,9 @@
 // src/modules/FileManager/index.jsx
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-   Image as ImageIcon, Video, Globe, Music, 
-   Folder as FolderIcon, FolderPlus, Link as LinkIcon, FileText, ClipboardPaste,
+import {
+    Image as ImageIcon, Video, Globe, Music,
+    Folder as FolderIcon, FolderPlus, Link as LinkIcon, FileText, ClipboardPaste,
    LayoutGrid, List 
 } from 'lucide-react';
 import { collection, addDoc, deleteDoc, doc, updateDoc, onSnapshot, query, setDoc } from 'firebase/firestore';
@@ -13,15 +13,26 @@ import Breadcrumb from './components/Breadcrumb';
 import FileModals from './components/FileModals/index.jsx';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/store/useAuthStore';
-
 // Import module FileItem
 import FileItem from './components/FileItem';
+import { uploadUrlToCloudinary } from '@/services/thumbnail';
 
 export default function FileManager() {
   const { isAdmin } = useAuthStore();
   const [allFiles, setAllFiles] = useState([]);
-  const [currentFolder, setCurrentFolder] = useState({ id: 'root', name: 'Trang chủ' });
-  const [path, setPath] = useState([{ id: 'root', name: 'Trang chủ' }]);
+  
+  // 1. Khai báo danh sách không gian (Tabs) độc lập hoàn toàn
+  const TABS = [
+    { id: 'video', label: 'Video', rootId: 'root_video' },
+    { id: 'image', label: 'Hình ảnh', rootId: 'root_image' },
+    { id: 'document', label: 'Tài liệu', rootId: 'root_document' },
+    { id: 'other', label: 'File khác', rootId: 'root_other' },
+  ];
+
+  // 2. Cập nhật state mặc định khởi tạo từ Tab đầu tiên
+  const [activeTab, setActiveTab] = useState(TABS[0].id);
+  const [currentFolder, setCurrentFolder] = useState({ id: TABS[0].rootId, name: TABS[0].label });
+  const [path, setPath] = useState([{ id: TABS[0].rootId, name: TABS[0].label }]);
   
   const [previewFile, setPreviewFile] = useState(null);
   const [showFolderModal, setShowFolderModal] = useState(false);
@@ -31,8 +42,10 @@ export default function FileManager() {
   const [isAdding, setIsAdding] = useState(false);
   const [viewerEngine, setViewerEngine] = useState('microsoft');
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState('all');
   const [globalSort, setGlobalSort] = useState({}); // Mặc định từ Firebase
-  const [localSort, setLocalSort] = useState({});   // Ghi đè cục bộ trong phiên
+  const [localSort, setLocalSort] = useState({});
+  // Ghi đè trong phiên
   const effectiveSort = localSort[currentFolder.id] || globalSort[currentFolder.id] || 'newest';
   const [viewMode, setViewMode] = useState('grid'); // Dạng hiển thị: 'grid' hoặc 'list'
 
@@ -45,16 +58,25 @@ export default function FileManager() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [loadError, setLoadError] = useState('');
 
+  // Hàm xử lý chuyển không gian làm việc
+  const handleTabChange = (tab) => {
+    setActiveTab(tab.id);
+    setCurrentFolder({ id: tab.rootId, name: tab.label });
+    setPath([{ id: tab.rootId, name: tab.label }]);
+    setSelectedItems(new Set()); // Xóa các file đang chọn nếu có
+    setSearchTerm(''); // Xóa nội dung tìm kiếm khi đổi tab
+  };
+
   useEffect(() => {
     const unsubSort = onSnapshot(doc(db, 'windhub_settings', 'sort_config'), (docSnap) => {
       if (docSnap.exists()) {
-        setGlobalSort(docSnap.data()); // Chỉ đồng bộ vào state gốc
+        setGlobalSort(docSnap.data()); // Chỉ đồng bộ state gốc
       }
     });
     return () => unsubSort();
   }, []);
 
-  // 1. TẢI DỮ LIỆU TỪ FIREBASE
+  // 1. TẢI FIREBASE
   useEffect(() => {
     const q = query(collection(db, 'windhub_files'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -65,13 +87,41 @@ export default function FileManager() {
     return () => unsubscribe();
   }, []);
 
-  // [TỐI ƯU HÓA] Sử dụng useMemo thay vì useState + useEffect để tính toán currentFiles
+  // Hỗ trợ ép link Dropbox và Google Drive thành link tải trực tiếp
+  const formatDownloadLink = (url, currentTab) => {
+    try {
+      const parsedUrl = new URL(url);
+      if (parsedUrl.hostname.includes('dropbox.com')) {
+        parsedUrl.searchParams.set('dl', '1');
+        return parsedUrl.href;
+      }
+      // Bắt cả drive và docs.google.com
+      if (parsedUrl.hostname.includes('drive.google.com') || parsedUrl.hostname.includes('docs.google.com')) {
+        const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+        if (match && match[1]) {
+          if (currentTab === 'other') {
+            return `https://drive.google.com/uc?export=download&id=${match[1]}`;
+          }
+          return `https://drive.google.com/file/d/${match[1]}/preview`;
+        }
+      }
+      return url;
+    } catch { return url; }
+  };
+
+  // [TỐI ƯU] Sử dụng useMemo thay vì useState + useEffect để tính toán currentFiles
   const currentFiles = useMemo(() => {
     const normalizedSearchTerm = searchTerm.trim().toLocaleLowerCase();
-    const filtered = allFiles.filter((f) => (
-      (f.parentId || 'root') === currentFolder.id
-      && (!normalizedSearchTerm || f.name?.toLocaleLowerCase().includes(normalizedSearchTerm))
-    ));
+    const filtered = allFiles.filter((f) => {
+      const matchFolder = (f.parentId || 'root') === currentFolder.id;
+      const matchSearch = !normalizedSearchTerm || f.name?.toLocaleLowerCase().includes(normalizedSearchTerm);
+      
+      // Logic phân loại: Nếu đang chọn 'all' hoặc là 'folder' thì bỏ qua, ngược lại check đúng type admin đã gán
+      const matchType = filterType === 'all' || f.type === 'folder' || f.type === filterType;
+
+      return matchFolder && matchSearch && matchType;
+    });
+
     return filtered.sort((a, b) => {
       if (a.type === 'folder' && b.type !== 'folder') return -1;
       if (a.type !== 'folder' && b.type === 'folder') return 1;
@@ -80,12 +130,11 @@ export default function FileManager() {
       if (effectiveSort === 'name-desc') return (b.name || '').localeCompare(a.name || '', 'vi');
       return (b.timestamp || 0) - (a.timestamp || 0);
     });
-  }, [allFiles, currentFolder.id, searchTerm, effectiveSort]);
+  }, [allFiles, currentFolder.id, searchTerm, effectiveSort, filterType]);
 
   const getDescendantIds = (rootIds) => {
     const ids = new Set(rootIds);
     let foundNewItem = true;
-
     while (foundNewItem) {
       foundNewItem = false;
       allFiles.forEach((item) => {
@@ -95,20 +144,19 @@ export default function FileManager() {
         }
       });
     }
-
     return ids;
   };
 
-  // Dành cho thanh tìm kiếm (Tất cả User): Đổi sắp xếp tạm thời trong phiên
+  // Dành cho thanh tìm kiếm (Từ User): Lọc tạm thời trong phiên
   const handleLocalSortChange = (nextSort) => {
     setLocalSort((current) => ({ ...current, [currentFolder.id]: nextSort }));
   };
 
-  // Dành cho Context Menu (Chỉ Admin): Cài đặt mặc định lên Firebase
+  // Dành cho Context Menu (Chỉ Admin): Cập nhật lên Firebase
   const handleGlobalSortChange = async (nextSort) => {
     if (!isAdmin) return;
     
-    // Xóa ghi đè local (nếu có) để admin thấy ngay thay đổi gốc mới cài
+    // Xóa ghi đè local (nếu admin thấy ngay thay đổi)
     setLocalSort((current) => {
       const newLocal = { ...current };
       delete newLocal[currentFolder.id];
@@ -119,7 +167,7 @@ export default function FileManager() {
       await setDoc(doc(db, 'windhub_settings', 'sort_config'), {
         [currentFolder.id]: nextSort
       }, { merge: true });
-      toast.success('Đã lưu sắp xếp mặc định hệ thống');
+      toast.success('Đã cập nhật đồng bộ');
     } catch (error) {
       console.error("Lỗi khi đồng bộ sắp xếp:", error);
     }
@@ -139,19 +187,20 @@ export default function FileManager() {
   // 2. LOGIC CÁC PHÍM TẮT (KEYBOARD SHORTCUTS)
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Bỏ qua nếu đang gõ chữ vào input/textarea hoặc đang mở bảng thông báo
+      // Bỏ qua nếu đang gõ vào input/textarea hoặc đang mở bảng thông báo
       if (
         e.target.tagName === 'INPUT' || 
         e.target.tagName === 'TEXTAREA' ||
         renamingItem || showFolderModal || showDeleteModal || previewFile
       ) return;
+
       if (!isAdmin) return;
 
       if (e.key === 'Delete') {
         if (selectedItems.size > 0) setShowDeleteModal(true);
       } 
       else if (e.key === 'a' && (e.ctrlKey || e.metaKey)) {
-        e.preventDefault(); // Chặn bôi đen văn bản của trình duyệt
+        e.preventDefault(); // Chống bôi đen văn bản của trình duyệt
         setSelectedItems(new Set(currentFiles.map(f => f.id)));
       } 
       else if (e.key === 'c' && (e.ctrlKey || e.metaKey)) {
@@ -171,20 +220,22 @@ export default function FileManager() {
         }
       }
     };
-
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedItems, currentFiles, clipboard, renamingItem, showFolderModal, showDeleteModal, previewFile, isAdmin]);
 
-  // 3. CÁC HÀM XỬ LÝ DỮ LIỆU
-  const detectFileType = (url) => {
+  // 3. CÁC HÀM TẠO
+  const detectFileType = (url, currentTab) => {
     try {
       const ext = url.split('.').pop().toLowerCase().split('?')[0];
       if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext)) return 'image';
       if (['mp4', 'webm', 'ogg', 'mov'].includes(ext)) return 'video';
       if (['mp3', 'wav', 'flac'].includes(ext)) return 'audio';
       if (['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'txt', 'csv'].includes(ext)) return 'document';
+      
+      // Nếu không có đuôi file (VD: Google Drive Preview) -> Ưu tiên gán type theo Tab hiện tại
+      if (currentTab && currentTab !== 'all' && currentTab !== 'other') return currentTab;
       return 'raw';
     } catch { return 'raw'; }
   };
@@ -193,22 +244,47 @@ export default function FileManager() {
     e.preventDefault();
     if (!isAdmin) return toast.error('Chỉ admin mới có quyền quản lý file');
     if (!linkInput.trim()) return;
+
     let normalizedUrl;
     try {
       const parsedUrl = new URL(linkInput.trim());
       if (!['http:', 'https:'].includes(parsedUrl.protocol)) throw new Error('Unsupported protocol');
-      normalizedUrl = parsedUrl.href;
+      normalizedUrl = formatDownloadLink(parsedUrl.href, activeTab);
     } catch {
-      toast.error('Liên kết phải bắt đầu bằng http:// hoặc https://');
+      toast.error('Liên kết phải đúng định dạng http:// hoặc https://');
       return;
     }
     setIsAdding(true);
-    let name = linkInput.split('/').pop().split('?')[0] || ('Tài_nguyên_' + Math.floor(Math.random() * 1000));
+
+    let extractedName = linkInput.split('/').pop().split('?')[0];
+    let driveId = null;
+
+    if (linkInput.includes('drive.google.com') || linkInput.includes('docs.google.com')) {
+      const match = linkInput.match(/\/d\/([a-zA-Z0-9_-]+)/) || linkInput.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+      if (match && match[1]) {
+         driveId = match[1];
+         extractedName = `Google_Drive_${driveId}`;
+      }
+    } else {
+      extractedName = decodeURIComponent(extractedName || ('File_' + Math.floor(Math.random() * 10000)));
+    }
+
     try {
-      await addDoc(collection(db, 'windhub_files'), {
-        name: decodeURIComponent(name), url: normalizedUrl, type: detectFileType(normalizedUrl), parentId: currentFolder.id,
-        createdAt: new Date().toLocaleDateString('vi-VN'), timestamp: Date.now()
+      const docRef = await addDoc(collection(db, 'windhub_files'), {
+        name: extractedName, 
+        url: normalizedUrl, 
+        type: detectFileType(normalizedUrl, activeTab), 
+        parentId: currentFolder.id,
+        createdAt: new Date().toLocaleDateString('vi-VN'), 
+        timestamp: Date.now()
       });
+
+      // TỰ ĐỘNG BÓC THUMBNAIL TỪ DRIVE VÀ ĐẨY LÊN CLOUDINARY
+      if (driveId && ['video', 'image', 'document'].includes(activeTab)) {
+         const driveThumbUrl = `https://drive.google.com/thumbnail?id=${driveId}&sz=w800`;
+         uploadUrlToCloudinary(docRef.id, driveThumbUrl); // Chạy ngầm, không await để không block UI
+      }
+
       setLinkInput('');
       setShowLinkModal(false);
       toast.success('Đã thêm tài nguyên');
@@ -219,6 +295,7 @@ export default function FileManager() {
     e.preventDefault();
     if (!isAdmin) return toast.error('Chỉ admin mới có quyền quản lý file');
     if (!folderName.trim()) return;
+
     try {
       await addDoc(collection(db, 'windhub_files'), {
         name: folderName, type: 'folder', parentId: currentFolder.id,
@@ -261,6 +338,7 @@ export default function FileManager() {
     let y = e.clientY;
     if (window.innerWidth - x < 220) x = window.innerWidth - 220;
     if (window.innerHeight - y < 260) y = Math.max(8, window.innerHeight - 260);
+
     setSelectedItems(new Set());
     setContextMenu({ x, y, item: null });
   };
@@ -270,20 +348,23 @@ export default function FileManager() {
     if (!selectedItems.has(item.id)) setSelectedItems(new Set([item.id]));
     e.dataTransfer.setData('text/plain', item.id);
   };
-  
+
   const handleDragOver = (e) => e.preventDefault();
-  
+
   const handleDrop = async (e, targetFolder) => {
     e.preventDefault();
     if (!isAdmin) return;
     if (targetFolder.type !== 'folder') return;
     const draggedItemId = e.dataTransfer.getData('text/plain');
+
     const idsToMove = selectedItems.has(draggedItemId) ? selectedItems : new Set([draggedItemId]);
     const itemsToMove = allFiles.filter((file) => idsToMove.has(file.id));
+
     if (wouldCreateFolderLoop(targetFolder.id, itemsToMove)) {
       toast.error('Không thể di chuyển thư mục vào chính nó hoặc thư mục con');
       return;
     }
+
     try {
       await Promise.all(Array.from(idsToMove).map(id => {
         if (id === targetFolder.id) return Promise.resolve(); 
@@ -298,21 +379,24 @@ export default function FileManager() {
   function handleCopy() {
     if (!isAdmin) return;
     setClipboard({ action: 'copy', items: allFiles.filter(f => selectedItems.has(f.id)) });
-    toast.success('Đã sao chép mục đã chọn');
+    toast.success('Đã sao chép bản tạm');
   }
+
   function handleCut() {
     if (!isAdmin) return;
     setClipboard({ action: 'cut', items: allFiles.filter(f => selectedItems.has(f.id)) });
-    toast.success('Đã cắt mục đã chọn');
+    toast.success('Đã cắt');
   }
 
   async function handlePaste() {
     if (!isAdmin) return;
     if (!clipboard || !clipboard.items) return;
+
     if (clipboard.action === 'cut' && wouldCreateFolderLoop(currentFolder.id, clipboard.items)) {
       toast.error('Không thể di chuyển thư mục vào chính nó hoặc thư mục con');
       return;
     }
+
     try {
       await Promise.all(clipboard.items.map(async (item) => {
         if (clipboard.action === 'cut') {
@@ -329,7 +413,7 @@ export default function FileManager() {
   }
 
   function startRename(item) { setRenamingItem(item.id); setRenameText(item.name); }
-  
+
   const handleRenameSubmit = async (e, id) => {
     e.preventDefault();
     if (!isAdmin) return;
@@ -351,16 +435,17 @@ export default function FileManager() {
   };
 
   const handleDownload = (item) => {
-    // Nếu file bị khóa, cấm tất cả mọi người tải về (kể cả Admin)
-    if (item.isLocked) return toast.error('Tệp tin này đã bị khóa, không thể tải xuống!');
+    // Nếu file bị khóa, cấm tải (kể cả Admin)
+    if (item.isLocked) return toast.error('Tập tin này đang khóa, không thể tải xuống!');
     window.open(item.url, '_blank', 'noopener,noreferrer');
   };
 
   const handlePreview = (item) => {
-    //if (item.isLocked && !isAdmin) return toast.error('File này đã bị khóa');
+    //if (item.isLocked && !isAdmin) return toast.error('File này đang khóa');
     setViewerEngine('microsoft');
     setPreviewFile(item);
   };
+
   const handleCopyLink = async (item) => {
     if (!isAdmin) return;
     try {
@@ -370,19 +455,35 @@ export default function FileManager() {
       toast.error('Không thể sao chép liên kết');
     }
   };
+
   const startEditLink = async (item) => {
     if (!isAdmin) return;
-    const nextUrl = window.prompt('Nhap lien ket moi', item.url);
+    const nextUrl = window.prompt('Nhập liên kết mới', item.url);
     if (nextUrl === null || nextUrl.trim() === item.url) return;
     try {
       const parsedUrl = new URL(nextUrl.trim());
       if (!['http:', 'https:'].includes(parsedUrl.protocol)) throw new Error('Unsupported protocol');
-      await updateDoc(doc(db, 'windhub_files', item.id), { url: parsedUrl.href, type: detectFileType(parsedUrl.href) });
+      
+      const finalUrl = formatDownloadLink(parsedUrl.href, activeTab); 
+      
+      await updateDoc(doc(db, 'windhub_files', item.id), { 
+        url: finalUrl, 
+        type: detectFileType(finalUrl, activeTab) 
+      });
+
+      // BÓC THUMBNAIL NẾU LÀ LINK DRIVE VÀ CHƯA CÓ THUMBNAIL TỪ TRƯỚC
+      if ((finalUrl.includes('drive.google.com') || finalUrl.includes('docs.google.com')) && ['video', 'image', 'document'].includes(activeTab) && !item.thumbnailUrl) {
+         const match = finalUrl.match(/\/d\/([a-zA-Z0-9_-]+)/) || finalUrl.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+         if (match && match[1]) {
+             const driveThumbUrl = `https://drive.google.com/thumbnail?id=${match[1]}&sz=w800`;
+             uploadUrlToCloudinary(item.id, driveThumbUrl);
+         }
+      }
+
       toast.success('Đã cập nhật liên kết');
-    } catch {
-      toast.error('Liên kết không hợp lệ');
-    }
+    } catch { toast.error('Liên kết không hợp lệ'); }
   };
+
   const handleToggleLock = async (item) => {
     if (!isAdmin) return;
     try {
@@ -398,6 +499,7 @@ export default function FileManager() {
     setCurrentFolder({ id: folder.id, name: folder.name });
     setPath([...path, { id: folder.id, name: folder.name }]);
   };
+
   const handleNavigateTo = (index) => {
     const newPath = path.slice(0, index + 1);
     setPath(newPath);
@@ -423,7 +525,7 @@ export default function FileManager() {
       {/* Header */}
       <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between bg-white dark:bg-zinc-950 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-zinc-800 gap-4 z-10">
         <div className="shrink-0">
-          <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Quản lý Tài nguyên</h2>
+          <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Quản lý tài nguyên</h2>
         </div>
         
         <div className="hidden">
@@ -442,7 +544,7 @@ export default function FileManager() {
           </AnimatePresence>
           
           <button disabled={!isAdmin} onClick={() => setShowFolderModal(true)} className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl font-medium hover:bg-slate-200 transition-colors flex items-center justify-center gap-2 whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50">
-            <FolderPlus size={18} /> Tạo Thư mục
+            <FolderPlus size={18} /> Tạo Thư Mục
           </button>
           
           <form onSubmit={handleAddLink} className="flex flex-1 sm:w-80 relative shadow-sm">
@@ -454,11 +556,46 @@ export default function FileManager() {
       </div>
 
       <Breadcrumb path={path} handleNavigateTo={handleNavigateTo} />
+
+      <div className="flex w-full flex-col gap-3 xl:flex-row xl:items-stretch">
       
-      {/* KHU VỰC TÌM KIẾM VÀ SẮP XẾP */}
-      <div className="flex flex-col gap-3 sm:flex-row w-full z-10">
+      {/* THANH TAB PHÂN KHÔNG GIAN RIÊNG BIỆT (UPGRADED UI & ANIMATION) */}
+      <div className="flex w-full shrink-0 overflow-x-auto rounded-2xl border border-slate-200 bg-white/80 p-1.5 shadow-sm backdrop-blur-xl dark:border-white/10 dark:bg-[#0d0d0d]/90 dark:shadow-[0_12px_30px_rgba(0,0,0,0.25)] custom-scrollbar xl:w-[430px]">
+        {TABS.map((tab) => {
+          const isActive = activeTab === tab.id;
+            
+          return (
+            <button
+              key={tab.id}
+              onClick={() => handleTabChange(tab)}
+              // Nút được làm relative để chứa animation trượt bên dưới
+              className={`relative min-w-24 flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors duration-300 whitespace-nowrap outline-none ${
+                isActive
+                  ? 'text-slate-800 dark:text-white'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+              }`}
+              style={{ WebkitTapHighlightColor: 'transparent' }} // Chống nháy xanh trên mobile
+            >
+              {/* HIỆU ỨNG TRƯỢT BẰNG FRAMER MOTION */}
+              {isActive && (
+                <motion.div
+                  layoutId="active-tab-indicator" // layoutId giống nhau giúp framer-motion tự nội suy hiệu ứng trượt giữa các tab
+                  className="absolute inset-0 rounded-xl border border-primary-500/30 bg-primary-50 shadow-[0_3px_12px_rgba(234,88,12,0.12)] dark:bg-primary-500/15 dark:shadow-[0_4px_16px_rgba(234,88,12,0.16)]"
+                  transition={{ type: "spring", stiffness: 400, damping: 30 }} // Độ nảy animation
+                />
+              )}
+                
+              {/* Chữ của tab cần z-index để nổi lên trên nền animation */}
+              <span className="relative z-10">{tab.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* KHU VỰC TÌM KIẾM VÀ LỌC */}
+      <div className="flex w-full flex-1 flex-col gap-3 sm:flex-row xl:gap-2 z-10">
         
-        {/* Ô Tìm Kiếm */}
+        {/* Tìm Kiếm */}
         <div className="relative flex-1">
           <span className="sr-only">Tìm kiếm trong thư mục hiện tại</span>
           <input
@@ -470,21 +607,42 @@ export default function FileManager() {
           />
         </div>
 
+        {/* Ô Phân loại Tab */}
+        <div className="relative w-full sm:w-36 shrink-0 group">
+          <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+              aria-label="Phân loại file"
+              className="w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-2.5 pr-10 text-sm text-slate-800 shadow-sm outline-none transition focus:border-primary-500 focus:ring-1 focus:ring-primary-500 dark:border-slate-800 dark:bg-[#111] dark:text-slate-100 cursor-pointer"
+          >
+            <option value="all">Tất cả tab</option>
+            <option value="video">Video</option>
+            <option value="image">Hình ảnh</option>
+            <option value="document">Tài liệu</option>
+            <option value="raw">File khác</option>
+          </select>
+          <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-slate-500 group-hover:text-primary-500 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m6 9 6 6 6-6"/>
+            </svg>
+          </div>
+        </div>
+
         {/* Nút Chọn Kiểu Sắp Xếp */}
         <div className="relative w-full sm:w-44 shrink-0 group">
-          <select 
-             value={effectiveSort} 
-             onChange={(e) => handleLocalSortChange(e.target.value)} 
-             aria-label="Sắp xếp file" 
-             className="w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-2.5 pr-10 text-sm text-slate-800 shadow-sm outline-none transition focus:border-primary-500 focus:ring-1 focus:ring-primary-500 dark:border-slate-800 dark:bg-[#111] dark:text-slate-100 cursor-pointer"
+          <select
+              value={effectiveSort}
+              onChange={(e) => handleLocalSortChange(e.target.value)}
+              aria-label="Sắp xếp file"
+              className="w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-2.5 pr-10 text-sm text-slate-800 shadow-sm outline-none transition focus:border-primary-500 focus:ring-1 focus:ring-primary-500 dark:border-slate-800 dark:bg-[#111] dark:text-slate-100 cursor-pointer"
           >
             <option value="newest">Mới nhất</option>
             <option value="oldest">Cũ nhất</option>
-            <option value="name-asc">Tên A–Z</option>
-            <option value="name-desc">Tên Z–A</option>
+            <option value="name-asc">Từ A-Z</option>
+            <option value="name-desc">Từ Z-A</option>
           </select>
           
-          {/* Icon Mũi tên Custom cho đẹp thay vì mũi tên mặc định của trình duyệt */}
+          {/* Icon Mũi tên Custom cho đẹp thay vì mặc định của trình duyệt */}
           <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-slate-500 group-hover:text-primary-500 transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="m6 9 6 6 6-6"/>
@@ -494,21 +652,23 @@ export default function FileManager() {
         
         {/* Nút Chọn Kiểu Xem (Mới) */}
         <div className="flex items-center bg-white dark:bg-[#111] border border-slate-200 dark:border-slate-800 rounded-xl p-1 shadow-sm shrink-0">
-          <button 
-             onClick={() => setViewMode('grid')}
+          <button
+              onClick={() => setViewMode('grid')}
              className={`p-2 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-slate-100 dark:bg-slate-800 text-primary-500' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
              title="Dạng lưới"
           >
              <LayoutGrid size={18} />
           </button>
-          <button 
-             onClick={() => setViewMode('list')}
+          <button
+              onClick={() => setViewMode('list')}
              className={`p-2 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-slate-100 dark:bg-slate-800 text-primary-500' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
              title="Dạng danh sách"
           >
              <List size={18} />
           </button>
         </div>
+      </div>
+
       </div>
 
       {/* Lưới hiển thị */}
@@ -528,7 +688,7 @@ export default function FileManager() {
           /* THÊM ANIMATE PRESENCE MODE="WAIT" Ở ĐÂY */
           <AnimatePresence mode="wait">
             <motion.div 
-              // Dùng key={viewMode} để ép render lại và chạy hiệu ứng mượt mà khi đổi Grid/List
+              // Dùng key={viewMode} để ép render lại toàn bộ lưới/list mượt mà khi đổi Grid/List
               key={viewMode}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -538,20 +698,20 @@ export default function FileManager() {
             >
               <AnimatePresence>
                 {currentFiles.map((file) => (
-                   <FileItem
-                      key={file.id}
-                      file={file}
+                   <FileItem 
+                      key={file.id} 
+                      file={file} 
                       viewMode={viewMode}
-                      isSelected={selectedItems.has(file.id)}
-                      isRenaming={renamingItem === file.id}
-                      renameText={renameText}
-                      setRenameText={setRenameText}
-                      handleRenameSubmit={handleRenameSubmit}
-                      handleDragStart={handleDragStart}
-                      handleDragOver={handleDragOver}
-                      handleDrop={handleDrop}
-                      handleItemClick={handleItemClick}
-                      handleContextMenu={handleContextMenu}
+                      isSelected={selectedItems.has(file.id)} 
+                      isRenaming={renamingItem === file.id} 
+                      renameText={renameText} 
+                      setRenameText={setRenameText} 
+                      handleRenameSubmit={handleRenameSubmit} 
+                      handleDragStart={handleDragStart} 
+                      handleDragOver={handleDragOver} 
+                      handleDrop={handleDrop} 
+                      handleItemClick={handleItemClick} 
+                      handleContextMenu={handleContextMenu} 
                       getFileIcon={getFileIcon}
                    />
                 ))}
@@ -590,6 +750,7 @@ export default function FileManager() {
         previewFile={previewFile} setPreviewFile={setPreviewFile} 
         viewerEngine={viewerEngine} setViewerEngine={setViewerEngine}
       />
+
     </motion.div>
   );
 }

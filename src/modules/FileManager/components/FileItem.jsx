@@ -51,10 +51,16 @@ export default function FileItem({
 
       <div className={`${viewMode === 'grid' ? 'w-full aspect-square' : 'w-12 h-12 shrink-0'} flex items-center justify-center bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden ${file.type === 'folder' ? 'cursor-pointer' : 'cursor-default'}`}>
         
-        {/* NẾU LÀ HÌNH ẢNH -> Lấy thẳng link ảnh làm hình thu nhỏ (dùng thủ thuật tham số Cloudinary nếu host trên đó) */}
-        {file.type === 'image' ? (
-          <img src={file.url} alt={file.name} className="w-full h-full object-cover" loading="lazy" decoding="async" />
+        {/* NẾU ĐÃ CÓ THUMBNAIL (Bất kể Video, Ảnh hay Tài liệu) -> HIỂN THỊ */}
+        {file.thumbnailUrl ? (
+          <div className="relative w-full h-full">
+            <img src={file.thumbnailUrl} alt={file.name} className="w-full h-full object-cover bg-white dark:bg-[#111]" loading="lazy" />
+          </div>
         ) 
+        /* NẾU LÀ ẢNH THƯỜNG (Link direct đuôi .jpg, .png không phải GG Drive) -> Tải trực tiếp */
+        : file.type === 'image' && !file.url.includes('drive.google.com') && !file.url.includes('docs.google.com') ? (
+          <img src={file.url} alt={file.name} className="w-full h-full object-cover bg-white dark:bg-[#111]" loading="lazy" decoding="async" />
+        )
         
         /* NẾU ĐÃ CÓ THUMBNAIL TỪ DATABASE (Video, PDF đã được người trước xem) */
         : file.type === 'video' && file.thumbnailUrl ? (
