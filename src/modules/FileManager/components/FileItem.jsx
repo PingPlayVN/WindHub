@@ -44,7 +44,7 @@ export default function FileItem({
       </div>
       
       {file.isLocked && (
-        <div className={`absolute rounded-lg bg-slate-900/80 p-1.5 text-white shadow-sm ${viewMode === 'grid' ? 'top-2 left-2' : 'left-3'}`}>
+        <div className={`absolute z-10 rounded-lg bg-slate-900/80 p-1.5 text-white shadow-sm ${viewMode === 'grid' ? 'top-2 left-2' : 'left-3'}`}>
           <LockKeyhole size={14} />
         </div>
       )}
