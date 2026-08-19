@@ -124,8 +124,8 @@ export default function FileManager() {
       if (a.type === 'folder' && b.type !== 'folder') return -1;
       if (a.type !== 'folder' && b.type === 'folder') return 1;
       if (effectiveSort === 'oldest') return (a.timestamp || 0) - (b.timestamp || 0);
-      if (effectiveSort === 'name-asc') return (a.name || '').localeCompare(b.name || '', 'vi');
-      if (effectiveSort === 'name-desc') return (b.name || '').localeCompare(a.name || '', 'vi');
+      if (effectiveSort === 'name-asc') return (a.name || '').localeCompare(b.name || '', 'vi', { numeric: true });
+if (effectiveSort === 'name-desc') return (b.name || '').localeCompare(a.name || '', 'vi', { numeric: true });
       return (b.timestamp || 0) - (a.timestamp || 0);
     });
   }, [allFiles, currentFolder.id, searchTerm, effectiveSort]);
@@ -202,14 +202,14 @@ export default function FileManager() {
         setSelectedItems(new Set(currentFiles.map(f => f.id)));
       } 
       else if (e.key === 'c' && (e.ctrlKey || e.metaKey)) {
-        if (selectedItems.size > 0) handleCopy();
+        if (selectedItems.size > 0) { e.preventDefault(); handleCopy(); }
       } 
       else if (e.key === 'x' && (e.ctrlKey || e.metaKey)) {
-        if (selectedItems.size > 0) handleCut();
+        if (selectedItems.size > 0) { e.preventDefault(); handleCut(); }
       } 
       else if (e.key === 'v' && (e.ctrlKey || e.metaKey)) {
-        if (clipboard && clipboard.items.length > 0) handlePaste();
-      } 
+        if (clipboard && clipboard.items.length > 0) { e.preventDefault(); handlePaste(); }
+      }
       else if (e.key === 'F2') {
         e.preventDefault();
         if (selectedItems.size === 1) {
@@ -321,24 +321,18 @@ export default function FileManager() {
 
   const handleContextMenu = (e, item) => {
     e.preventDefault();
-    let x = e.clientX; let y = e.clientY;
-    if (window.innerWidth - x < 200) x -= 180;
-    if (window.innerHeight - y < 480) y = Math.max(8, window.innerHeight - 480);
-    
+    // Bỏ 2 dòng tính toán trừ tọa độ x, y cứng nhắc đi, chỉ truyền tọa độ gốc
     if (!selectedItems.has(item.id)) setSelectedItems(new Set([item.id]));
-    setContextMenu({ x, y, item });
+    setContextMenu({ x: e.clientX, y: e.clientY, item });
   };
 
   const handleBackgroundContextMenu = (e) => {
     e.preventDefault();
     if (!isAdmin) return;
-    let x = e.clientX;
-    let y = e.clientY;
-    if (window.innerWidth - x < 220) x = window.innerWidth - 220;
-    if (window.innerHeight - y < 260) y = Math.max(8, window.innerHeight - 260);
-
+    
+    // Giao phó toàn bộ việc tính toán tọa độ cho component ContextMenu
     setSelectedItems(new Set());
-    setContextMenu({ x, y, item: null });
+    setContextMenu({ x: e.clientX, y: e.clientY, item: null });
   };
 
   // 5. KÉO THẢ (DRAG & DROP)
@@ -415,8 +409,17 @@ export default function FileManager() {
   const handleRenameSubmit = async (e, id) => {
     e.preventDefault();
     if (!isAdmin) return;
-    if (!renameText.trim()) { setRenamingItem(null); return; }
-    try { await updateDoc(doc(db, 'windhub_files', id), { name: renameText }); } 
+    
+    const targetItem = allFiles.find(f => f.id === id);
+    const newName = renameText.trim();
+    
+    // NẾU TÊN TRỐNG HOẶC KHÔNG THAY ĐỔI THÌ BỎ QUA LUÔN (ĐỠ TỐN REQUEST FIREBASE)
+    if (!newName || newName === targetItem?.name) { 
+      setRenamingItem(null); 
+      return; 
+    }
+
+    try { await updateDoc(doc(db, 'windhub_files', id), { name: newName }); } 
     catch (error) { console.error("Lỗi Rename:", error); }
     setRenamingItem(null);
   };
@@ -520,11 +523,7 @@ export default function FileManager() {
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="h-full flex flex-col gap-4 relative">
       
-      <FileManagerHeader 
-        isAdmin={isAdmin} clipboard={clipboard} handlePaste={handlePaste} 
-        setShowFolderModal={setShowFolderModal} handleAddLink={handleAddLink} 
-        linkInput={linkInput} setLinkInput={setLinkInput} isAdding={isAdding} 
-      />
+      <FileManagerHeader clipboard={clipboard} handlePaste={handlePaste} />
 
       <Breadcrumb path={path} handleNavigateTo={handleNavigateTo} />
 

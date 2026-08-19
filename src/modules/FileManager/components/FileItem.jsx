@@ -1,9 +1,9 @@
 // src/modules/FileManager/components/FileItem.jsx
 import { motion } from 'framer-motion';
 import { MoreVertical, LockKeyhole } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { memo, useRef, useState } from 'react';
 
-export default function FileItem({
+function FileItem({
   file, viewMode, isSelected, isRenaming, renameText, setRenameText, handleRenameSubmit,
   handleDragStart, handleDragOver, handleDrop, handleItemClick, handleContextMenu, getFileIcon
 }) {
@@ -91,3 +91,5 @@ export default function FileItem({
     </motion.div>
   );
 }
+
+export default memo(FileItem);
