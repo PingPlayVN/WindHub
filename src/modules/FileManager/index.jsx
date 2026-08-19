@@ -1,10 +1,9 @@
 // src/modules/FileManager/index.jsx
 import { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
     Image as ImageIcon, Video, Globe, Music,
-    Folder as FolderIcon, FolderPlus, Link as LinkIcon, FileText, ClipboardPaste,
-   LayoutGrid, List 
+    Folder as FolderIcon, FileText
 } from 'lucide-react';
 import { collection, addDoc, deleteDoc, doc, updateDoc, onSnapshot, query, setDoc } from 'firebase/firestore';
 import { db } from '@/services/firebase';
@@ -13,9 +12,12 @@ import Breadcrumb from './components/Breadcrumb';
 import FileModals from './components/FileModals/index.jsx';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/store/useAuthStore';
-// Import module FileItem
-import FileItem from './components/FileItem';
 import { uploadUrlToCloudinary } from '@/services/thumbnail';
+
+// Import các Module UI đã được tách ra
+import FileManagerHeader from './components/FileManagerHeader';
+import FileManagerToolbar from './components/FileManagerToolbar';
+import FileGrid from './components/FileGrid';
 
 export default function FileManager() {
   const { isAdmin } = useAuthStore();
@@ -518,202 +520,37 @@ export default function FileManager() {
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="h-full flex flex-col gap-4 relative">
       
-      {/* Header */}
-      <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between bg-white dark:bg-zinc-950 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-zinc-800 gap-4 z-10">
-        <div className="shrink-0">
-          <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Quản lý tài nguyên</h2>
-        </div>
-        
-        <div className="hidden">
-          <AnimatePresence>
-            {clipboard && (
-              <motion.button 
-                initial={{ scale: 0.8, opacity: 0, width: 0 }} 
-                animate={{ scale: 1, opacity: 1, width: 'auto' }} 
-                exit={{ scale: 0.8, opacity: 0, width: 0 }}
-                onClick={handlePaste} 
-                className="px-4 py-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-xl font-medium hover:bg-emerald-200 transition-colors flex items-center justify-center gap-2 whitespace-nowrap"
-              >
-                <ClipboardPaste size={18} /> Dán {clipboard.action === 'copy' ? '(Bản sao)' : '(Di chuyển)'}
-              </motion.button>
-            )}
-          </AnimatePresence>
-          
-          <button disabled={!isAdmin} onClick={() => setShowFolderModal(true)} className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl font-medium hover:bg-slate-200 transition-colors flex items-center justify-center gap-2 whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50">
-            <FolderPlus size={18} /> Tạo Thư Mục
-          </button>
-          
-          <form onSubmit={handleAddLink} className="flex flex-1 sm:w-80 relative shadow-sm">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><LinkIcon size={16} className="text-slate-400" /></div>
-            <input type="url" value={linkInput} onChange={(e) => setLinkInput(e.target.value)} placeholder="Dán link vào đây..." className="pl-10 pr-4 py-2 w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-l-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" required disabled={isAdding} />
-            <button type="submit" disabled={isAdding} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-r-xl font-medium transition-colors text-sm">Lưu</button>
-          </form>
-        </div>
-      </div>
+      <FileManagerHeader 
+        isAdmin={isAdmin} clipboard={clipboard} handlePaste={handlePaste} 
+        setShowFolderModal={setShowFolderModal} handleAddLink={handleAddLink} 
+        linkInput={linkInput} setLinkInput={setLinkInput} isAdding={isAdding} 
+      />
 
       <Breadcrumb path={path} handleNavigateTo={handleNavigateTo} />
 
-      <div className="flex w-full flex-col gap-3 xl:flex-row xl:items-stretch">
-      
-      {/* THANH TAB PHÂN KHÔNG GIAN RIÊNG BIỆT (UPGRADED UI & ANIMATION) */}
-      <div className="flex w-full shrink-0 overflow-x-auto rounded-2xl border border-slate-200 bg-white/80 p-1.5 shadow-sm backdrop-blur-xl dark:border-white/10 dark:bg-[#0d0d0d]/90 dark:shadow-[0_12px_30px_rgba(0,0,0,0.25)] custom-scrollbar xl:w-[430px]">
-        {TABS.map((tab) => {
-          const isActive = activeTab === tab.id;
-            
-          return (
-            <button
-              key={tab.id}
-              onClick={() => handleTabChange(tab)}
-              // Nút được làm relative để chứa animation trượt bên dưới
-              className={`relative min-w-24 flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors duration-300 whitespace-nowrap outline-none ${
-                isActive
-                  ? 'text-slate-800 dark:text-white'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-              }`}
-              style={{ WebkitTapHighlightColor: 'transparent' }} // Chống nháy xanh trên mobile
-            >
-              {/* HIỆU ỨNG TRƯỢT BẰNG FRAMER MOTION */}
-              {isActive && (
-                <motion.div
-                  layoutId="active-tab-indicator" // layoutId giống nhau giúp framer-motion tự nội suy hiệu ứng trượt giữa các tab
-                  className="absolute inset-0 rounded-xl border border-primary-500/30 bg-primary-50 shadow-[0_3px_12px_rgba(234,88,12,0.12)] dark:bg-primary-500/15 dark:shadow-[0_4px_16px_rgba(234,88,12,0.16)]"
-                  transition={{ type: "spring", stiffness: 400, damping: 30 }} // Độ nảy animation
-                />
-              )}
-                
-              {/* Chữ của tab cần z-index để nổi lên trên nền animation */}
-              <span className="relative z-10">{tab.label}</span>
-            </button>
-          );
-        })}
-      </div>
+      <FileManagerToolbar 
+        TABS={TABS} activeTab={activeTab} handleTabChange={handleTabChange}
+        searchTerm={searchTerm} setSearchTerm={setSearchTerm}
+        effectiveSort={effectiveSort} handleLocalSortChange={handleLocalSortChange}
+        viewMode={viewMode} setViewMode={setViewMode}
+      />
 
-      {/* KHU VỰC TÌM KIẾM VÀ LỌC */}
-      <div className="flex w-full flex-1 flex-row items-center gap-2 z-10">
-        
-        {/* Tìm Kiếm (Được ưu tiên chiều dài nhờ flex-1 và min-w-0) */}
-        <div className="relative flex-1 min-w-0">
-          <span className="sr-only">Tìm kiếm trong thư mục hiện tại</span>
-          <input
-            type="search"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Tìm kiếm..."
-            className="w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2 sm:px-4 sm:py-2.5 text-sm text-slate-800 shadow-sm outline-none transition focus:border-primary-500 focus:ring-1 focus:ring-primary-500 dark:border-slate-800 dark:bg-[#111] dark:text-slate-100 placeholder:text-slate-500 truncate"
-          />
-        </div>
-
-        {/* Nút Chọn Sắp xếp (Thu gọn trên mobile, tự mở rộng trên PC) */}
-        <div className="relative w-[100px] sm:w-44 shrink-0 group">
-          <select
-              value={effectiveSort}
-              onChange={(e) => handleLocalSortChange(e.target.value)}
-              aria-label="Sắp xếp file"
-              className="w-full appearance-none rounded-xl border border-slate-200 bg-white px-2 py-2 sm:px-4 sm:py-2.5 pr-6 sm:pr-10 text-xs sm:text-sm text-slate-800 shadow-sm outline-none transition focus:border-primary-500 focus:ring-1 focus:ring-primary-500 dark:border-slate-800 dark:bg-[#111] dark:text-slate-100 cursor-pointer truncate"
-          >
-            <option value="newest">Mới nhất</option>
-            <option value="oldest">Cũ nhất</option>
-            <option value="name-asc">Tên A-Z</option>
-            <option value="name-desc">Tên Z-A</option>
-          </select>
-          {/* Icon Mũi tên */}
-          <div className="absolute inset-y-0 right-2 sm:right-3 flex items-center pointer-events-none text-slate-500 group-hover:text-primary-500 transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="sm:w-4 sm:h-4">
-              <path d="m6 9 6 6 6-6"/>
-            </svg>
-          </div>
-        </div>
-                  
-        {/* Nút Chọn Kiểu Xem (Icon và padding được thu nhỏ gọn trên mobile) */}
-        <div className="flex items-center bg-white dark:bg-[#111] border border-slate-200 dark:border-slate-800 rounded-xl p-0.5 sm:p-1 shadow-sm shrink-0">
-          <button
-              onClick={() => setViewMode('grid')}
-              className={`p-1.5 sm:p-2 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-slate-100 dark:bg-slate-800 text-primary-500' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
-              title="Dạng lưới"
-          >
-             <LayoutGrid size={16} className="sm:w-[18px] sm:h-[18px]" />
-          </button>
-          <button
-              onClick={() => setViewMode('list')}
-              className={`p-1.5 sm:p-2 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-slate-100 dark:bg-slate-800 text-primary-500' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
-              title="Dạng danh sách"
-          >
-             <List size={16} className="sm:w-[18px] sm:h-[18px]" />
-          </button>
-        </div>
-
-      </div>
-
-      </div>
-
-      {/* Lưới hiển thị */}
-      <div 
-        className="flex-1 bg-white dark:bg-zinc-950 rounded-2xl shadow-sm border border-slate-200 dark:border-zinc-800 p-6 overflow-y-auto custom-scrollbar"
-        onClick={() => setSelectedItems(new Set())}
-        onContextMenu={handleBackgroundContextMenu}
-      >
-        {loadError ? (
-          <div className="flex h-full items-center justify-center text-center text-red-600 dark:text-red-400">{loadError}</div>
-        ) : currentFiles.length === 0 ? (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full flex flex-col items-center justify-center text-slate-400">
-            <FolderIcon size={64} className="mb-4 opacity-30" />
-            <p className="text-lg font-medium text-slate-600 dark:text-slate-300">Thư mục trống</p>
-          </motion.div>
-        ) : (
-          /* THÊM ANIMATE PRESENCE MODE="WAIT" Ở ĐÂY */
-          <AnimatePresence mode="wait">
-            <motion.div 
-              // Dùng key={viewMode} để ép render lại toàn bộ lưới/list mượt mà khi đổi Grid/List
-              key={viewMode}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.2 }}
-              className={viewMode === 'grid' ? "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6" : "flex flex-col gap-2"}
-            >
-              <AnimatePresence>
-                {currentFiles.map((file) => (
-                   <FileItem 
-                      key={file.id} 
-                      file={file} 
-                      viewMode={viewMode}
-                      isSelected={selectedItems.has(file.id)} 
-                      isRenaming={renamingItem === file.id} 
-                      renameText={renameText} 
-                      setRenameText={setRenameText} 
-                      handleRenameSubmit={handleRenameSubmit} 
-                      handleDragStart={handleDragStart} 
-                      handleDragOver={handleDragOver} 
-                      handleDrop={handleDrop} 
-                      handleItemClick={handleItemClick} 
-                      handleContextMenu={handleContextMenu} 
-                      getFileIcon={getFileIcon}
-                   />
-                ))}
-              </AnimatePresence>
-            </motion.div>
-          </AnimatePresence>
-        )}
-      </div>
+      <FileGrid 
+        loadError={loadError} currentFiles={currentFiles} viewMode={viewMode} 
+        selectedItems={selectedItems} setSelectedItems={setSelectedItems}
+        renamingItem={renamingItem} renameText={renameText} setRenameText={setRenameText} handleRenameSubmit={handleRenameSubmit}
+        handleDragStart={handleDragStart} handleDragOver={handleDragOver} handleDrop={handleDrop}
+        handleItemClick={handleItemClick} handleContextMenu={handleContextMenu} getFileIcon={getFileIcon}
+        handleBackgroundContextMenu={handleBackgroundContextMenu}
+      />
 
       <ContextMenu 
-        contextMenu={contextMenu} setContextMenu={setContextMenu}
-        setPreviewFile={setPreviewFile} startRename={startRename}
-        handleCopy={handleCopy} handleCut={handleCut}
-        setShowDeleteModal={setShowDeleteModal} 
-        selectedItems={selectedItems} 
-        handlePreview={handlePreview}
-        handleDownload={handleDownload} 
-        handleCopyLink={handleCopyLink}
-        isAdmin={isAdmin}
-        startEditLink={startEditLink}
-        handleToggleLock={handleToggleLock}
-        onCreateFolder={() => setShowFolderModal(true)}
-        onAddLink={() => setShowLinkModal(true)}
-        handlePaste={handlePaste}
-        hasClipboard={Boolean(clipboard)}
-        sortBy={globalSort[currentFolder.id] || 'newest'}
-        onSortChange={handleGlobalSortChange}
+        contextMenu={contextMenu} setContextMenu={setContextMenu} setPreviewFile={setPreviewFile} startRename={startRename}
+        handleCopy={handleCopy} handleCut={handleCut} setShowDeleteModal={setShowDeleteModal} selectedItems={selectedItems}
+        handlePreview={handlePreview} handleDownload={handleDownload} handleCopyLink={handleCopyLink} isAdmin={isAdmin}
+        startEditLink={startEditLink} handleToggleLock={handleToggleLock} onCreateFolder={() => setShowFolderModal(true)}
+        onAddLink={() => setShowLinkModal(true)} handlePaste={handlePaste} hasClipboard={Boolean(clipboard)}
+        sortBy={globalSort[currentFolder.id] || 'newest'} onSortChange={handleGlobalSortChange}
       />
 
       <FileModals 
@@ -722,10 +559,8 @@ export default function FileManager() {
         linkInput={linkInput} setLinkInput={setLinkInput} handleAddLink={handleAddLink}
         folderName={folderName} setFolderName={setFolderName} handleCreateFolder={handleCreateFolder}
         fileToDelete={showDeleteModal ? itemToDelete : null} setFileToDelete={() => setShowDeleteModal(false)} confirmDelete={confirmDelete}
-        previewFile={previewFile} setPreviewFile={setPreviewFile} 
-        viewerEngine={viewerEngine} setViewerEngine={setViewerEngine}
+        previewFile={previewFile} setPreviewFile={setPreviewFile} viewerEngine={viewerEngine} setViewerEngine={setViewerEngine}
       />
-
     </motion.div>
   );
 }
