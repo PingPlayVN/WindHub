@@ -12,9 +12,13 @@ export function useFileSelection({ handleOpenFolder, handlePreview, renamingItem
       return;
     }
 
+    setSelectedItems(new Set([item.id]));
+  };
+
+  const handleItemDoubleClick = (item) => {
+    if (renamingItem === item.id) return;
     if (item.type === 'folder') handleOpenFolder(item);
     else handlePreview(item);
-    setSelectedItems(new Set());
   };
 
   const handleDragStart = (event, item) => {
@@ -22,5 +26,5 @@ export function useFileSelection({ handleOpenFolder, handlePreview, renamingItem
     event.dataTransfer.setData('text/plain', item.id);
   };
 
-  return { handleItemClick, handleDragStart };
+  return { handleItemClick, handleItemDoubleClick, handleDragStart };
 }

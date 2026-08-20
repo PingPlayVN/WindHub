@@ -1,40 +1,42 @@
 import { useState } from 'react';
-import { addDoc, collection, updateDoc, doc } from 'firebase/firestore';
 import { toast } from 'sonner';
-import { db } from '@/services/firebase';
 import { wouldCreateFolderLoop } from '../utils/fileUtils';
+import { createFile, updateFile } from '../services/fileService';
 
 export function useFileClipboard({ isAdmin, allFiles, selectedItems, setSelectedItems, currentFolderId }) {
   const [clipboard, setClipboard] = useState(null);
+  const [isPasting, setIsPasting] = useState(false);
 
   const handleCopy = () => {
     if (!isAdmin) return;
-    setClipboard({ action: 'copy', items: allFiles.filter((file) => selectedItems.has(file.id)) });
+    setClipboard({ action: 'copy', itemIds: Array.from(selectedItems) });
     toast.success('Đã sao chép bản tạm');
   };
 
   const handleCut = () => {
     if (!isAdmin) return;
-    setClipboard({ action: 'cut', items: allFiles.filter((file) => selectedItems.has(file.id)) });
+    setClipboard({ action: 'cut', itemIds: Array.from(selectedItems) });
     toast.success('Đã cắt');
   };
 
   const handlePaste = async () => {
-    if (!isAdmin || !clipboard?.items) return;
-    if (clipboard.action === 'cut' && wouldCreateFolderLoop(allFiles, currentFolderId, clipboard.items)) {
+    if (!isAdmin || isPasting || !clipboard?.itemIds?.length) return;
+    const clipboardItems = allFiles.filter((file) => clipboard.itemIds.includes(file.id));
+    if (clipboard.action === 'cut' && wouldCreateFolderLoop(allFiles, currentFolderId, clipboardItems)) {
       toast.error('Không thể di chuyển thư mục vào chính nó hoặc thư mục con');
       return;
     }
 
     try {
-      await Promise.all(clipboard.items.map(async (item) => {
+      setIsPasting(true);
+      await Promise.all(clipboardItems.map(async (item) => {
         if (clipboard.action === 'cut') {
-          await updateDoc(doc(db, 'windhub_files', item.id), { parentId: currentFolderId });
+          await updateFile(item.id, { parentId: currentFolderId });
           return;
         }
         const dataToCopy = { ...item };
         delete dataToCopy.id;
-        await addDoc(collection(db, 'windhub_files'), {
+        await createFile({
           ...dataToCopy,
           name: `${dataToCopy.name} - Copy`,
           parentId: currentFolderId,
@@ -46,8 +48,11 @@ export function useFileClipboard({ isAdmin, allFiles, selectedItems, setSelected
       toast.success('Đã dán tài nguyên');
     } catch (error) {
       console.error('Lỗi Paste:', error);
+      toast.error('Không thể dán tài nguyên. Vui lòng thử lại.');
+    } finally {
+      setIsPasting(false);
     }
   };
 
-  return { clipboard, handleCopy, handleCut, handlePaste };
+  return { clipboard, isPasting, handleCopy, handleCut, handlePaste };
 }

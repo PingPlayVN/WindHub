@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { FolderPlus } from 'lucide-react';
 
-export default function CreateFolderModal({ setShowFolderModal, folderName, setFolderName, handleCreateFolder }) {
+export default function CreateFolderModal({ setShowFolderModal, folderName, setFolderName, handleCreateFolder, isCreating }) {
   const modalVariants = {
     hidden: { opacity: 0, scale: 0.9, y: 15 },
     visible: { opacity: 1, scale: 1, y: 0, transition: { type: 'spring', duration: 0.4, bounce: 0.3 } },
@@ -17,7 +17,7 @@ export default function CreateFolderModal({ setShowFolderModal, folderName, setF
           <input autoFocus type="text" value={folderName} onChange={e => setFolderName(e.target.value)} placeholder="Nhập tên thư mục..." className="w-full bg-[#111] border border-slate-800 text-white px-4 py-3 rounded-xl focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-all mb-6 placeholder:text-slate-600" />
           <div className="flex justify-end gap-3">
             <button type="button" onClick={() => setShowFolderModal(false)} className="px-4 py-2 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white transition-colors font-medium">Hủy</button>
-            <button type="submit" disabled={!folderName.trim()} className="px-5 py-2 bg-primary-600 hover:bg-primary-500 disabled:opacity-50 text-white rounded-xl font-medium transition-colors shadow-lg shadow-primary-600/20">Tạo mới</button>
+            <button type="submit" disabled={!folderName.trim() || isCreating} className="px-5 py-2 bg-primary-600 hover:bg-primary-500 disabled:opacity-50 text-white rounded-xl font-medium transition-colors shadow-lg shadow-primary-600/20">{isCreating ? 'Đang tạo...' : 'Tạo mới'}</button>
           </div>
         </form>
       </motion.div>

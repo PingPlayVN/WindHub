@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { toast } from 'sonner';
-import { db } from '@/services/firebase';
 import { detectFileType, formatDownloadLink, getDescendantIds, wouldCreateFolderLoop } from '../utils/fileUtils';
 import { uploadUrlToCloudinary } from '@/services/thumbnail';
+import { removeFile, updateFile } from '../services/fileService';
 
 export function useFileOrganization({ isAdmin, activeTab, allFiles, selectedItems, setSelectedItems }) {
   const [renamingItem, setRenamingItem] = useState(null);
@@ -27,12 +26,13 @@ export function useFileOrganization({ isAdmin, activeTab, allFiles, selectedItem
       await Promise.all(Array.from(idsToMove).map((id) => (
         id === targetFolder.id
           ? Promise.resolve()
-          : updateDoc(doc(db, 'windhub_files', id), { parentId: targetFolder.id })
+          : updateFile(id, { parentId: targetFolder.id })
       )));
       setSelectedItems(new Set());
       toast.success('Đã di chuyển tài nguyên');
     } catch (error) {
       console.error('Lỗi kéo thả:', error);
+      toast.error('Không thể di chuyển tài nguyên. Vui lòng thử lại.');
     }
   };
 
@@ -53,9 +53,10 @@ export function useFileOrganization({ isAdmin, activeTab, allFiles, selectedItem
     }
 
     try {
-      await updateDoc(doc(db, 'windhub_files', id), { name: newName });
+      await updateFile(id, { name: newName });
     } catch (error) {
       console.error('Lỗi Rename:', error);
+      toast.error('Không thể đổi tên tài nguyên. Vui lòng thử lại.');
     }
     setRenamingItem(null);
   };
@@ -64,11 +65,12 @@ export function useFileOrganization({ isAdmin, activeTab, allFiles, selectedItem
     if (!isAdmin) return;
     try {
       const idsToDelete = getDescendantIds(allFiles, Array.from(selectedItems));
-      await Promise.all(Array.from(idsToDelete).map((id) => deleteDoc(doc(db, 'windhub_files', id))));
+      await Promise.all(Array.from(idsToDelete).map((id) => removeFile(id)));
       setSelectedItems(new Set());
       toast.success('Đã xóa tài nguyên');
     } catch (error) {
       console.error('Lỗi xóa:', error);
+      toast.error('Không thể xóa tài nguyên. Vui lòng thử lại.');
     } finally {
       setShowDeleteModal(false);
     }
@@ -83,7 +85,7 @@ export function useFileOrganization({ isAdmin, activeTab, allFiles, selectedItem
       const parsedUrl = new URL(nextUrl.trim());
       if (!['http:', 'https:'].includes(parsedUrl.protocol)) throw new Error('Unsupported protocol');
       const finalUrl = formatDownloadLink(parsedUrl.href, activeTab);
-      await updateDoc(doc(db, 'windhub_files', item.id), {
+      await updateFile(item.id, {
         url: finalUrl,
         type: detectFileType(finalUrl, activeTab),
       });
@@ -102,7 +104,7 @@ export function useFileOrganization({ isAdmin, activeTab, allFiles, selectedItem
   const handleToggleLock = async (item) => {
     if (!isAdmin) return;
     try {
-      await updateDoc(doc(db, 'windhub_files', item.id), { isLocked: !item.isLocked });
+      await updateFile(item.id, { isLocked: !item.isLocked });
       toast.success(item.isLocked ? 'Đã mở khóa file' : 'Đã khóa file');
     } catch {
       toast.error('Không thể cập nhật trạng thái file');

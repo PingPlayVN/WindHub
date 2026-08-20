@@ -56,14 +56,14 @@ export default function FileManager() {
   const {
     showFolderModal, setShowFolderModal, folderName, setFolderName,
     showLinkModal, setShowLinkModal, linkInput, setLinkInput,
-    handleAddLink, handleCreateFolder,
+    isCreating, handleAddLink, handleCreateFolder,
   } = creation;
   const { previewFile, setPreviewFile, viewerEngine, setViewerEngine, handlePreview, handleDownload, handleCopyLink } = preview;
   const {
     renamingItem, renameText, setRenameText, showDeleteModal, setShowDeleteModal,
     handleDrop, startRename, handleRenameSubmit, confirmDelete, startEditLink, handleToggleLock,
   } = organization;
-  const { handleItemClick, handleDragStart } = useFileSelection({
+  const { handleItemClick, handleItemDoubleClick, handleDragStart } = useFileSelection({
     handleOpenFolder, handlePreview, renamingItem, setSelectedItems,
   });
 
@@ -117,6 +117,7 @@ export default function FileManager() {
       toast.success('Đã cập nhật đồng bộ');
     } catch (error) {
       console.error('Lỗi khi đồng bộ sắp xếp:', error);
+      toast.error('Không thể cập nhật cách sắp xếp. Vui lòng thử lại.');
     }
   };
 
@@ -166,7 +167,7 @@ export default function FileManager() {
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="min-h-0 h-full flex flex-col gap-4 relative">
       
-      <FileManagerHeader clipboard={clipboard} handlePaste={handlePaste} />
+      <FileManagerHeader />
 
       <Breadcrumb path={path} handleNavigateTo={handleNavigateTo} />
 
@@ -182,7 +183,7 @@ export default function FileManager() {
         selectedItems={selectedItems} setSelectedItems={setSelectedItems}
         renamingItem={renamingItem} renameText={renameText} setRenameText={setRenameText} handleRenameSubmit={handleRenameSubmit}
         handleDragStart={handleDragStart} handleDragOver={handleDragOver} handleDrop={handleDrop}
-        handleItemClick={handleItemClick} handleContextMenu={handleContextMenu} getFileIcon={getFileIcon}
+        handleItemClick={handleItemClick} handleItemDoubleClick={handleItemDoubleClick} handleContextMenu={handleContextMenu} getFileIcon={getFileIcon}
         handleBackgroundContextMenu={handleBackgroundContextMenu}
       />
 
@@ -191,7 +192,7 @@ export default function FileManager() {
         handleCopy={handleCopy} handleCut={handleCut} setShowDeleteModal={setShowDeleteModal} selectedItems={selectedItems}
         handlePreview={handlePreview} handleDownload={handleDownload} handleCopyLink={handleCopyLink} isAdmin={isAdmin}
         startEditLink={startEditLink} handleToggleLock={handleToggleLock} onCreateFolder={() => setShowFolderModal(true)}
-        onAddLink={() => setShowLinkModal(true)} handlePaste={handlePaste} hasClipboard={Boolean(clipboard)}
+        onAddLink={() => setShowLinkModal(true)} handlePaste={handlePaste} hasClipboard={Boolean(clipboard?.itemIds?.length)}
         sortBy={globalSort[currentFolder.id] || 'newest'} onSortChange={handleGlobalSortChange}
         handleShare={handleShare}
       />
@@ -199,6 +200,7 @@ export default function FileManager() {
       <FileModals 
         showFolderModal={showFolderModal} setShowFolderModal={setShowFolderModal}
         showLinkModal={showLinkModal} setShowLinkModal={setShowLinkModal}
+        isCreating={isCreating}
         linkInput={linkInput} setLinkInput={setLinkInput} handleAddLink={handleAddLink}
         folderName={folderName} setFolderName={setFolderName} handleCreateFolder={handleCreateFolder}
         fileToDelete={showDeleteModal ? itemToDelete : null} setFileToDelete={() => setShowDeleteModal(false)} confirmDelete={confirmDelete}

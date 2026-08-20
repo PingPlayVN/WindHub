@@ -5,7 +5,6 @@ export default function FileManagerHeader() {
         <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Quản lý tài nguyên</h2>
       </div>
       
-      {/* Khối chứa nút Dán đã được gỡ bỏ để giao diện gọn gàng hơn */}
     </div>
   );
 }

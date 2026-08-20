@@ -1,15 +1,15 @@
 import { useState } from 'react';
-import { addDoc, collection } from 'firebase/firestore';
 import { toast } from 'sonner';
-import { db } from '@/services/firebase';
 import { uploadUrlToCloudinary } from '@/services/thumbnail';
 import { detectFileType, formatDownloadLink } from '../utils/fileUtils';
+import { createFile } from '../services/fileService';
 
 export function useFileCreation({ isAdmin, activeTab, currentFolderId }) {
   const [showFolderModal, setShowFolderModal] = useState(false);
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [folderName, setFolderName] = useState('');
   const [linkInput, setLinkInput] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
 
   const handleAddLink = async (event) => {
     event.preventDefault();
@@ -39,7 +39,8 @@ export function useFileCreation({ isAdmin, activeTab, currentFolderId }) {
     }
 
     try {
-      const fileRef = await addDoc(collection(db, 'windhub_files'), {
+      setIsCreating(true);
+      const fileRef = await createFile({
         name: extractedName,
         url: normalizedUrl,
         type: detectFileType(normalizedUrl, activeTab),
@@ -57,6 +58,9 @@ export function useFileCreation({ isAdmin, activeTab, currentFolderId }) {
       toast.success('Đã thêm tài nguyên');
     } catch (error) {
       console.error('Lỗi:', error);
+      toast.error('Không thể thêm tài nguyên. Vui lòng thử lại.');
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -66,7 +70,8 @@ export function useFileCreation({ isAdmin, activeTab, currentFolderId }) {
     if (!folderName.trim()) return;
 
     try {
-      await addDoc(collection(db, 'windhub_files'), {
+      setIsCreating(true);
+      await createFile({
         name: folderName,
         type: 'folder',
         parentId: currentFolderId,
@@ -78,12 +83,15 @@ export function useFileCreation({ isAdmin, activeTab, currentFolderId }) {
       toast.success('Đã tạo thư mục');
     } catch (error) {
       console.error('Lỗi:', error);
+      toast.error('Không thể tạo thư mục. Vui lòng thử lại.');
+    } finally {
+      setIsCreating(false);
     }
   };
 
   return {
     showFolderModal, setShowFolderModal, folderName, setFolderName,
     showLinkModal, setShowLinkModal, linkInput, setLinkInput,
-    handleAddLink, handleCreateFolder,
+    isCreating, handleAddLink, handleCreateFolder,
   };
 }

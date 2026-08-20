@@ -5,7 +5,7 @@ import FileItem from './FileItem';
 export default function FileGrid({
   loadError, currentFiles, viewMode, selectedItems, setSelectedItems,
   renamingItem, renameText, setRenameText, handleRenameSubmit,
-  handleDragStart, handleDragOver, handleDrop, handleItemClick, handleContextMenu,
+  handleDragStart, handleDragOver, handleDrop, handleItemClick, handleItemDoubleClick, handleContextMenu,
   getFileIcon, handleBackgroundContextMenu
 }) {
   return (
@@ -39,7 +39,7 @@ export default function FileGrid({
                   isRenaming={renamingItem === file.id}
                   renameText={renameText} setRenameText={setRenameText} handleRenameSubmit={handleRenameSubmit}
                   handleDragStart={handleDragStart} handleDragOver={handleDragOver} handleDrop={handleDrop}
-                  handleItemClick={handleItemClick} handleContextMenu={handleContextMenu}
+                  handleItemClick={handleItemClick} handleItemDoubleClick={handleItemDoubleClick} handleContextMenu={handleContextMenu}
                   getFileIcon={getFileIcon}
                 />
               ))}

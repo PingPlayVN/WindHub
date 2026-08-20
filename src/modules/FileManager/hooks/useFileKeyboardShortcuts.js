@@ -30,7 +30,7 @@ export function useFileKeyboardShortcuts({
           handleCut();
         }
       } else if (event.key === 'v' && (event.ctrlKey || event.metaKey)) {
-        if (clipboard?.items?.length > 0) {
+        if (clipboard?.itemIds?.length > 0) {
           event.preventDefault();
           handlePaste();
         }

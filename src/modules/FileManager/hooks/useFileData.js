@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { collection, doc, onSnapshot, query, setDoc } from 'firebase/firestore';
-import { db } from '@/services/firebase';
+import { saveGlobalSort, subscribeToFiles, subscribeToSortConfig } from '../services/fileService';
 
 export function useFileData(currentFolderId, searchTerm) {
   const [allFiles, setAllFiles] = useState([]);
@@ -9,22 +8,14 @@ export function useFileData(currentFolderId, searchTerm) {
   const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
-    const unsubscribe = onSnapshot(doc(db, 'windhub_settings', 'sort_config'), (snapshot) => {
-      if (snapshot.exists()) setGlobalSort(snapshot.data());
-    });
-    return unsubscribe;
+    return subscribeToSortConfig(setGlobalSort);
   }, []);
 
   useEffect(() => {
-    const unsubscribe = onSnapshot(
-      query(collection(db, 'windhub_files')),
-      (snapshot) => {
-        setAllFiles(snapshot.docs.map((file) => ({ id: file.id, ...file.data() })));
-        setLoadError('');
-      },
-      () => setLoadError('Không thể tải tài nguyên. Vui lòng thử lại sau.'),
-    );
-    return unsubscribe;
+    return subscribeToFiles((files) => {
+      setAllFiles(files);
+      setLoadError('');
+    }, () => setLoadError('Không thể tải tài nguyên. Vui lòng thử lại sau.'));
   }, []);
 
   const effectiveSort = localSort[currentFolderId] || globalSort[currentFolderId] || 'newest';
@@ -58,7 +49,7 @@ export function useFileData(currentFolderId, searchTerm) {
       delete next[currentFolderId];
       return next;
     });
-    await setDoc(doc(db, 'windhub_settings', 'sort_config'), { [currentFolderId]: nextSort }, { merge: true });
+    await saveGlobalSort(currentFolderId, nextSort);
   };
 
   return {
@@ -67,7 +58,6 @@ export function useFileData(currentFolderId, searchTerm) {
     effectiveSort,
     globalSort,
     loadError,
-    setAllFiles,
     handleLocalSortChange,
     handleGlobalSortChange,
   };
