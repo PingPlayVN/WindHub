@@ -10,7 +10,7 @@ export default function FileGrid({
 }) {
   return (
     <div
-      className="flex-1 bg-white dark:bg-zinc-950 rounded-2xl shadow-sm border border-slate-200 dark:border-zinc-800 p-6 overflow-y-auto custom-scrollbar"
+      className="min-h-0 flex-1 bg-white dark:bg-zinc-950 rounded-2xl shadow-sm border border-slate-200 dark:border-zinc-800 p-6 overflow-y-auto custom-scrollbar"
       onClick={() => setSelectedItems(new Set())}
       onContextMenu={handleBackgroundContextMenu}
     >

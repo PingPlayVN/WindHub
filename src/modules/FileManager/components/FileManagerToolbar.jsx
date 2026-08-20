@@ -9,16 +9,16 @@ export default function FileManagerToolbar({
   viewMode, setViewMode
 }) {
   return (
-    <div className="flex w-full flex-col gap-3 xl:flex-row xl:items-stretch">
+    <div className="flex w-full flex-col gap-3 lg:flex-row lg:items-stretch">
       {/* THANH TAB PHÂN KHÔNG GIAN */}
-      <div className="flex w-full shrink-0 overflow-x-auto rounded-2xl border border-slate-200 bg-white/80 p-1.5 shadow-sm backdrop-blur-xl dark:border-white/10 dark:bg-[#111] dark:shadow-[0_12px_30px_rgba(0,0,0,0.25)] custom-scrollbar xl:w-max relative z-20 mb-3 xl:mb-0">
+      <div className="grid w-full shrink-0 grid-cols-4 overflow-hidden rounded-2xl border border-slate-200 bg-white/80 p-1.5 shadow-sm backdrop-blur-xl dark:border-white/10 dark:bg-[#111] dark:shadow-[0_12px_30px_rgba(0,0,0,0.25)] lg:flex lg:w-2/5 lg:max-w-[520px] relative z-20 mb-3 lg:mb-0">
         {TABS.map((tab) => {
           const isActive = activeTab === tab.id;
           return (
             <button
               key={tab.id}
               onClick={() => handleTabChange(tab)}
-              className={`relative px-5 py-2.5 rounded-xl text-sm font-bold transition-colors duration-300 whitespace-nowrap outline-none flex-1 xl:flex-none ${
+              className={`relative min-w-0 flex-1 px-1 py-2.5 text-center rounded-xl text-xs font-bold transition-colors duration-300 whitespace-nowrap outline-none sm:px-3 sm:text-sm lg:px-3 ${
                 isActive ? 'text-primary-600 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
               }`}
               style={{ WebkitTapHighlightColor: 'transparent' }}
