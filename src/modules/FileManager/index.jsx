@@ -1,6 +1,7 @@
 // src/modules/FileManager/index.jsx
-import { useState, useEffect } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useSearchParams } from 'react-router-dom';
 import ContextMenu from './components/ContextMenu';
 import Breadcrumb from './components/Breadcrumb';
 import FileModals from './components/FileModals/index.jsx';
@@ -19,11 +20,16 @@ import { useFilePreview } from './hooks/useFilePreview';
 import { useFileOrganization } from './hooks/useFileOrganization';
 import { useFileSelection } from './hooks/useFileSelection';
 import { useFileKeyboardShortcuts } from './hooks/useFileKeyboardShortcuts';
+import { useFileSharing } from './hooks/useFileSharing';
 import { getFileIcon } from './utils/fileIcons';
 
 export default function FileManager() {
   const { isAdmin } = useAuthStore();
-  const { TABS, activeTab, currentFolder, path, handleTabChange, handleOpenFolder, handleNavigateTo } = useFileNavigation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const {
+    TABS, activeTab, currentFolder, path, handleTabChange, handleOpenFolder,
+    handleOpenSharedFolder, handleNavigateTo,
+  } = useFileNavigation();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState('grid'); // Dạng hiển thị: 'grid' hoặc 'list'
@@ -31,6 +37,7 @@ export default function FileManager() {
   // --- STATE TÍNH NĂNG WINDOWS ---
   const [contextMenu, setContextMenu] = useState(null);
   const [selectedItems, setSelectedItems] = useState(new Set()); 
+  const processedShareRef = useRef('');
 
   const {
     allFiles, currentFiles, effectiveSort, globalSort, loadError,
@@ -45,6 +52,7 @@ export default function FileManager() {
   const organization = useFileOrganization({
     isAdmin, activeTab, allFiles, selectedItems, setSelectedItems,
   });
+  const { handleShare } = useFileSharing();
   const {
     showFolderModal, setShowFolderModal, folderName, setFolderName,
     showLinkModal, setShowLinkModal, linkInput, setLinkInput,
@@ -58,6 +66,49 @@ export default function FileManager() {
   const { handleItemClick, handleDragStart } = useFileSelection({
     handleOpenFolder, handlePreview, renamingItem, setSelectedItems,
   });
+
+  // --- LOGIC XỬ LÝ URL CHIA SẺ ---
+  useEffect(() => {
+    // Đợi Firebase load xong danh sách file
+    if (allFiles.length === 0) return;
+
+    const fileId = searchParams.get('fileId');
+    const folderId = searchParams.get('folderId');
+    const shareKey = `${fileId || ''}:${folderId || ''}`;
+
+    if (!fileId && !folderId) return;
+    if (processedShareRef.current === shareKey) return;
+    processedShareRef.current = shareKey;
+
+    const nextSearchParams = new URLSearchParams(searchParams);
+
+    if (fileId) {
+      const targetFile = allFiles.find(f => f.id === fileId);
+      if (targetFile && targetFile.type !== 'folder') {
+        handlePreview(targetFile); // Tự động mở Preview Modal
+      } else {
+        toast.error('File không tồn tại hoặc đã bị xóa!');
+      }
+      // Dọn dẹp URL sau khi xử lý xong (giúp việc F5 không bị lặp lại)
+      nextSearchParams.delete('fileId');
+    }
+
+    if (folderId) {
+      const targetFolder = allFiles.find(f => f.id === folderId);
+      if (targetFolder && targetFolder.type === 'folder') {
+        if (!handleOpenSharedFolder(targetFolder, allFiles)) {
+          toast.error('Không xác định được không gian của thư mục!');
+        }
+      } else {
+        toast.error('Thư mục không tồn tại hoặc đã bị xóa!');
+      }
+      nextSearchParams.delete('folderId');
+    }
+
+    if (nextSearchParams.toString() !== searchParams.toString()) {
+      setSearchParams(nextSearchParams, { replace: true });
+    }
+  }, [allFiles, searchParams, setSearchParams, handlePreview, handleOpenSharedFolder]);
 
   const handleGlobalSortChange = async (nextSort) => {
     if (!isAdmin) return;
@@ -142,6 +193,7 @@ export default function FileManager() {
         startEditLink={startEditLink} handleToggleLock={handleToggleLock} onCreateFolder={() => setShowFolderModal(true)}
         onAddLink={() => setShowLinkModal(true)} handlePaste={handlePaste} hasClipboard={Boolean(clipboard)}
         sortBy={globalSort[currentFolder.id] || 'newest'} onSortChange={handleGlobalSortChange}
+        handleShare={handleShare}
       />
 
       <FileModals 

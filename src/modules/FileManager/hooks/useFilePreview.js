@@ -1,14 +1,14 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 
 export function useFilePreview({ isAdmin }) {
   const [previewFile, setPreviewFile] = useState(null);
   const [viewerEngine, setViewerEngine] = useState('microsoft');
 
-  const handlePreview = (item) => {
+  const handlePreview = useCallback((item) => {
     setViewerEngine('microsoft');
     setPreviewFile(item);
-  };
+  }, []);
 
   const handleDownload = (item) => {
     if (item.isLocked) return toast.error('Tập tin này đang khóa, không thể tải xuống!');

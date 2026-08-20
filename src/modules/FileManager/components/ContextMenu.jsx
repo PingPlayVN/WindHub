@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ClipboardPaste, Copy, Download, Edit2, Eye, FolderPlus, Link2, 
-  LockKeyhole, Scissors, Trash2, UnlockKeyhole, ChevronDown, Check // <-- Thêm 2 icon này
+  LockKeyhole, Scissors, Trash2, UnlockKeyhole, ChevronDown, Check, Share2
 } from 'lucide-react';
 
 const MenuItem = ({ icon: Icon, label, shortcut, onClick, danger }) => (
@@ -20,6 +20,7 @@ export default function ContextMenu({
   handlePreview, handleDownload, handleCopyLink, startRename, startEditLink,
   handleToggleLock, handleCopy, handleCut, setShowDeleteModal,
   onCreateFolder, onAddLink, handlePaste, hasClipboard, sortBy, onSortChange,
+  handleShare
 }) {
   const menuRef = useRef(null);
   const [position, setPosition] = useState({ top: -1000, left: -1000 });
@@ -88,6 +89,11 @@ export default function ContextMenu({
           {isFile && !isMulti && (
             <MenuItem icon={Eye} label="Xem trước" onClick={action(() => handlePreview(item))} />
           )}
+
+          {/* NÚT CHIA SẺ MỚI (Bất kỳ ai cũng có thể copy link chia sẻ) */}
+          {hasItem && !isMulti && (
+            <MenuItem icon={Share2} label="Chia sẻ liên kết" onClick={action(() => handleShare(item))} />
+          )}
           
           {/* LUẬT MỚI: Nếu file bị khóa, KHÔNG AI được tải xuống (Kể cả Admin) */}
           {isFile && !isMulti && !item.isLocked && (
@@ -108,11 +114,15 @@ export default function ContextMenu({
           {/* CÁC CHỨC NĂNG DÀNH RIÊNG CHO ADMIN */}
           {isAdmin && (
             <>
-              {/* Click vào nền trống (hasItem = false) vẫn hiển thị chức năng này */}
-              <MenuItem icon={FolderPlus} label="Tạo thư mục" onClick={action(onCreateFolder)} />
-              <MenuItem icon={Link2} label="Dán liên kết" onClick={action(onAddLink)} />
-              {hasClipboard && (
-                <MenuItem icon={ClipboardPaste} label="Dán mục đã sao chép" shortcut="Ctrl+V" onClick={action(handlePaste)} />
+              {/* CHỈ HIỆN KHI CLICK VÀO VÙNG TRỐNG (!hasItem) */}
+              {!hasItem && (
+                <>
+                  <MenuItem icon={FolderPlus} label="Tạo thư mục" onClick={action(onCreateFolder)} />
+                  <MenuItem icon={Link2} label="Dán liên kết" onClick={action(onAddLink)} />
+                  {hasClipboard && (
+                    <MenuItem icon={ClipboardPaste} label="Dán sao chép" shortcut="Ctrl+V" onClick={action(handlePaste)} />
+                  )}
+                </>
               )}
 
               {/* Box Sắp xếp - Giao diện Custom Accordion */}
