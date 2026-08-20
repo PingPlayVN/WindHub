@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ClipboardPaste, Copy, Download, Edit2, Eye, FolderPlus, Link2, LockKeyhole, Scissors, Trash2, UnlockKeyhole } from 'lucide-react';
+import { 
+  ClipboardPaste, Copy, Download, Edit2, Eye, FolderPlus, Link2, 
+  LockKeyhole, Scissors, Trash2, UnlockKeyhole, ChevronDown, Check // <-- Thêm 2 icon này
+} from 'lucide-react';
 
 const MenuItem = ({ icon: Icon, label, shortcut, onClick, danger }) => (
   <button type="button" onClick={onClick} className={`w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium transition-colors ${danger ? 'text-red-400 hover:bg-red-500/10 hover:text-red-300' : 'text-slate-300 hover:bg-primary-500/15 hover:text-primary-400'}`}>
@@ -20,6 +23,16 @@ export default function ContextMenu({
 }) {
   const menuRef = useRef(null);
   const [position, setPosition] = useState({ top: -1000, left: -1000 });
+  const [isSortOpen, setIsSortOpen] = useState(false);
+
+  // Lưu lại giá trị contextMenu của lần render trước
+  const [prevContextMenu, setPrevContextMenu] = useState(contextMenu);
+  
+  // Nếu contextMenu thay đổi (người dùng click chỗ khác hoặc đóng menu)
+  if (contextMenu !== prevContextMenu) {
+    setPrevContextMenu(contextMenu); // Cập nhật lại giá trị đối chiếu
+    setIsSortOpen(false);            // Reset state ngay lập tức trong lần render này
+  }
 
   // Thuật toán chống tràn màn hình
   useEffect(() => {
@@ -102,21 +115,72 @@ export default function ContextMenu({
                 <MenuItem icon={ClipboardPaste} label="Dán mục đã sao chép" shortcut="Ctrl+V" onClick={action(handlePaste)} />
               )}
 
-              {/* Box Sắp xếp - Đã được thiết kế lại chuẩn Dark */}
-              <div className="px-4 py-2">
-                <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Sắp xếp thư mục</label>
-                <select
-                  value={sortBy}
-                  onChange={(event) => onSortChange(event.target.value)}
-                  onClick={(event) => event.stopPropagation()}
-                  className="w-full rounded-lg border border-slate-800 bg-[#111] px-2 py-2 text-sm text-slate-300 outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-colors cursor-pointer"
-                >
-                  <option value="newest">Mới nhất</option>
-                  <option value="oldest">Cũ nhất</option>
-                  <option value="name-asc">Tên A–Z</option>
-                  <option value="name-desc">Tên Z–A</option>
-                </select>
-              </div>
+              {/* Box Sắp xếp - Giao diện Custom Accordion */}
+                <div className="px-4 py-2">
+                  <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Sắp xếp</label>
+                  <div className="relative">
+                    {/* Nút Trigger */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation(); // Ngăn context menu đóng lại
+                        setIsSortOpen(!isSortOpen);
+                      }}
+                      className={`w-full flex items-center justify-between rounded-lg border bg-[#111] px-3 py-2 text-sm text-slate-300 outline-none transition-colors ${
+                        isSortOpen 
+                          ? 'border-primary-500 ring-1 ring-primary-500/50' 
+                          : 'border-slate-800 hover:border-primary-500/50'
+                      }`}
+                    >
+                      <span>
+                        {sortBy === 'newest' ? 'Mới nhất' : sortBy === 'oldest' ? 'Cũ nhất' : sortBy === 'name-asc' ? 'Tên A-Z' : 'Tên Z-A'}
+                      </span>
+                      <motion.div animate={{ rotate: isSortOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
+                        <ChevronDown size={14} className="text-slate-500" />
+                      </motion.div>
+                    </button>
+
+                    {/* Menu tùy chọn Accordion */}
+                    <AnimatePresence>
+                      {isSortOpen && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="mt-1 flex flex-col gap-1 rounded-lg border border-slate-800/80 bg-[#0a0a0a] p-1 shadow-inner">
+                            {[
+                              { id: 'newest', label: 'Mới nhất' },
+                              { id: 'oldest', label: 'Cũ nhất' },
+                              { id: 'name-asc', label: 'Tên A-Z' },
+                              { id: 'name-desc', label: 'Tên Z-A' },
+                            ].map((opt) => (
+                              <button
+                                key={opt.id}
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onSortChange(opt.id);
+                                  setIsSortOpen(false); // Chọn xong tự động thu gọn
+                                }}
+                                className={`flex items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium transition-colors ${
+                                  sortBy === opt.id
+                                    ? 'bg-primary-500/15 text-primary-400'
+                                    : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
+                                }`}
+                              >
+                                {opt.label}
+                                {sortBy === opt.id && <Check size={12} className="text-primary-500" />}
+                              </button>
+                            ))}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </div>
 
               <Divider />
 
