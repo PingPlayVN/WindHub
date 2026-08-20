@@ -34,7 +34,7 @@ function FileItem({
       onMouseEnter={handleCardEnter}
       onMouseLeave={() => setMarqueeDistance(0)}
       onClick={(e) => { e.stopPropagation(); handleItemClick(e, file); }}
-      onDoubleClick={(e) => { e.stopPropagation(); handleItemDoubleClick(file); }}
+      onDoubleClick={(e) => { e.stopPropagation(); handleItemDoubleClick?.(file); }}
       onContextMenu={(e) => { e.stopPropagation(); handleContextMenu(e, file); }}
       className={`group relative bg-slate-50 dark:bg-slate-800/50 border-2 ${isSelected ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 shadow-md' : 'border-transparent hover:border-primary-300 dark:hover:border-primary-700'} rounded-xl transition-colors select-none ${viewMode === 'grid' ? 'p-4 flex flex-col items-center gap-3' : 'p-3 flex flex-row items-center gap-4'}`}
     >

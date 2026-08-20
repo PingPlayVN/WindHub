@@ -63,7 +63,7 @@ export default function FileManager() {
     renamingItem, renameText, setRenameText, showDeleteModal, setShowDeleteModal,
     handleDrop, startRename, handleRenameSubmit, confirmDelete, startEditLink, handleToggleLock,
   } = organization;
-  const { handleItemClick, handleItemDoubleClick, handleDragStart } = useFileSelection({
+  const { handleItemClick, handleItemHover, handleDragStart } = useFileSelection({
     handleOpenFolder, handlePreview, renamingItem, setSelectedItems,
   });
 
@@ -183,7 +183,7 @@ export default function FileManager() {
         selectedItems={selectedItems} setSelectedItems={setSelectedItems}
         renamingItem={renamingItem} renameText={renameText} setRenameText={setRenameText} handleRenameSubmit={handleRenameSubmit}
         handleDragStart={handleDragStart} handleDragOver={handleDragOver} handleDrop={handleDrop}
-        handleItemClick={handleItemClick} handleItemDoubleClick={handleItemDoubleClick} handleContextMenu={handleContextMenu} getFileIcon={getFileIcon}
+        handleItemClick={handleItemClick} handleItemHover={handleItemHover} handleContextMenu={handleContextMenu} getFileIcon={getFileIcon}
         handleBackgroundContextMenu={handleBackgroundContextMenu}
       />
 

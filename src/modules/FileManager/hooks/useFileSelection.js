@@ -13,6 +13,8 @@ export function useFileSelection({ handleOpenFolder, handlePreview, renamingItem
     }
 
     setSelectedItems(new Set([item.id]));
+    if (item.type === 'folder') handleOpenFolder(item);
+    else handlePreview(item);
   };
 
   const handleItemDoubleClick = (item) => {
