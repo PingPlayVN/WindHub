@@ -11,6 +11,7 @@ import Loader from '@/components/ui/Loader';
 
 const Home = lazy(() => import('@/pages/Home'));
 const FileManager = lazy(() => import('@/modules/FileManager'));
+const Tools = lazy(() => import('@/pages/Tools'));
 const LoginModal = lazy(() => import('@/modules/Auth/LoginModal'));
 
 function App() {
@@ -80,6 +81,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/files" element={<FileManager />} />
+            <Route path="/tools" element={<Tools />} />
           </Routes>
         </Suspense>
       </MainLayout>

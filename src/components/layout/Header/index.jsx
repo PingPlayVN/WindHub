@@ -1,5 +1,6 @@
 import { useThemeStore } from '@/store/useThemeStore';
 import { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useUIStore } from '@/store/useUIStore';
 import { Sun, Moon, Menu, LogIn, LogOut, ShieldCheck, CircleHelp, X, Terminal } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -11,6 +12,8 @@ export default function Header() {
   const { theme, toggleTheme } = useThemeStore();
   const { toggleSidebar, openLogin } = useUIStore();
   const { user, isAdmin } = useAuthStore();
+  const location = useLocation();
+  const pageTitle = location.pathname === '/files' ? 'Quản lý File' : location.pathname === '/tools' ? 'Công cụ' : 'Tổng quan';
 
   const handleLogout = async () => {
     try {
@@ -60,7 +63,7 @@ export default function Header() {
             <Menu size={24} />
           </button>
           <span className="font-medium text-slate-700 dark:text-slate-200 hidden md:block">
-            Tổng quan
+            {pageTitle}
           </span>
         </div>
         

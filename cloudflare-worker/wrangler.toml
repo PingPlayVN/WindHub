@@ -1,0 +1,8 @@
+name = "fb-intel-proxy"
+main = "src/index.js"
+compatibility_date = "2026-09-03"
+workers_dev = true
+
+[vars]
+# Set this to your deployed WindHub origin in production. Keep * for local development.
+ALLOWED_ORIGIN = "*"
