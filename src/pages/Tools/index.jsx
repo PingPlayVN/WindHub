@@ -6,7 +6,7 @@ const tools = Object.values(toolModules).map((module) => module.default.tool).fi
 
 export default function Tools() {
   return (
-    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="min-h-full space-y-6">
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="tools-shell min-h-full space-y-6">
       <section className="relative overflow-hidden rounded-2xl border border-slate-800 bg-[#0b0e12] p-6 text-slate-100 shadow-xl md:p-8">
         <div className="pointer-events-none absolute inset-0 opacity-30 [background-image:linear-gradient(rgba(255,255,255,.06)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.06)_1px,transparent_1px)] [background-size:24px_24px]" />
         <div className="relative flex items-start gap-4">

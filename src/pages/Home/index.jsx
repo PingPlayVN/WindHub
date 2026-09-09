@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { db } from '@/services/firebase';
-import { HardDrive, Image as ImageIcon, FileText, Video, Clock, Globe, ShieldCheck } from 'lucide-react';
+import { HardDrive, Image as ImageIcon, FileText, Video, Clock, ShieldCheck } from 'lucide-react';
 import { FaGithub, FaYoutube } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import Loader from '@/components/ui/Loader';
@@ -54,7 +54,7 @@ export default function Home() {
   ];
 
   return (
-    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="h-full flex flex-col gap-6">
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="dashboard-shell h-full flex flex-col gap-6">
       <div className="bg-white dark:bg-slate-900 p-8 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
         <h1 className="text-3xl font-extrabold text-slate-800 dark:text-slate-100 mb-2">Xin chào, bạn là ai? Dù sao thì! 👋</h1>
         <p className="text-slate-500 dark:text-slate-400">Chào mừng bạn quay trở lại với hệ thống WindHub. Dưới đây là tổng quan tài nguyên của bạn.</p>

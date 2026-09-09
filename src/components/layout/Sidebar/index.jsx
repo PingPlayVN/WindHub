@@ -38,7 +38,7 @@ export default function Sidebar() {
                 animate={{ opacity: 1, rotateX: 0, scale: 1 }}
                 exit={{ opacity: 0, rotateX: -90, scale: 0.8 }}
                 transition={{ duration: 0.25 }}
-                className="flex items-center justify-center font-bold text-3xl tracking-tighter select-none cursor-pointer"
+                className="brand-mark flex items-center justify-center font-bold text-3xl tracking-tighter select-none cursor-pointer"
               >
                 <span className="text-white">Wind</span>
                 <span className="bg-[#ff9900] text-black px-1.5 py-0.5 ml-1 rounded-md leading-none">hub</span>
@@ -51,7 +51,7 @@ export default function Sidebar() {
               animate={{ opacity: 1, rotateX: 0, scale: 1 }}
               exit={{ opacity: 0, rotateX: -90, scale: 0.8 }}
               transition={{ duration: 0.25 }}
-              className="flex items-center justify-center select-none cursor-pointer"
+              className="brand-mark flex items-center justify-center select-none cursor-pointer"
             >
               {/* Giảm khoảng cách mr-2.5 xuống mr-1.5 để xích lại gần chữ */}
               <img 

@@ -166,7 +166,7 @@ export default function FileManager() {
     : allFiles.find(f => f.id === Array.from(selectedItems)[0]);
 
   return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="min-h-0 h-full flex flex-col gap-4 relative">
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="file-manager-shell min-h-0 h-full flex flex-col gap-4 relative">
       
       <FileManagerHeader />
 

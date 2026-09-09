@@ -1,7 +1,13 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap');
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
+  --font-sans: 'Manrope', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Space Grotesk', 'Manrope', ui-sans-serif, sans-serif;
+  --font-file: 'Plus Jakarta Sans', 'Manrope', ui-sans-serif, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+
   /* 1. MÀU CHỦ ĐẠO (PRIMARY): Chuyển sang dải màu CAM (Orange) */
   --color-primary-50: #fff7ed;
   --color-primary-100: #ffedd5;
@@ -33,11 +39,41 @@
 
 @layer base {
   body {
-    @apply bg-surface-light text-slate-800 antialiased transition-colors duration-300;
+    @apply bg-surface-light text-slate-800 font-sans antialiased transition-colors duration-300;
   }
   .dark body {
     @apply bg-surface-dark text-slate-200;
   }
+}
+
+.brand-mark,
+.dashboard-shell h1,
+.dashboard-shell h3 {
+  font-family: var(--font-display);
+}
+
+.dashboard-shell {
+  font-family: var(--font-sans);
+}
+
+.file-manager-shell {
+  font-family: var(--font-file);
+}
+
+.tools-shell {
+  font-family: var(--font-sans);
+}
+
+.tools-shell h1,
+.tools-shell h2,
+.tools-shell h3 {
+  font-family: var(--font-display);
+}
+
+.tools-shell h1,
+.tools-shell h2,
+.tools-shell h3 {
+  letter-spacing: -0.02em;
 }
 
 /* Đổi màu Thanh cuộn (Scrollbar) sang Cam cho đồng bộ */
@@ -167,11 +203,11 @@
 .nhost-card:hover .btn-icon, .nhost-card:focus-visible .btn-icon { color: #fff; background: rgba(255,255,255,.1); }
 .icon { width: 20px; height: 20px; }
 .card-body { display: block; }
-.repo-title { display: flex; align-items: center; margin: 0 0 12px; color: var(--tool-primary); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 24px; font-weight: 500; }
+.repo-title { display: flex; align-items: center; margin: 0 0 12px; color: var(--tool-primary); font-family: var(--font-mono); font-size: 24px; font-weight: 500; }
 .blinking-cursor { display: inline-block; width: 10px; height: 3px; margin-left: 6px; background: var(--tool-accent); animation: tool-blink 1s step-end infinite; box-shadow: 0 0 8px var(--tool-accent); }
 .repo-description { display: block; max-width: 540px; margin-bottom: 24px; color: var(--tool-secondary); font-size: 15px; line-height: 1.6; }
 .tag-wrapper { gap: 10px; flex-wrap: wrap; }
-.badge { padding: 4px 10px; border: 1px solid transparent; border-radius: 6px; color: var(--tool-primary); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; font-weight: 600; }
+.badge { padding: 4px 10px; border: 1px solid transparent; border-radius: 6px; color: var(--tool-primary); font-family: var(--font-mono); font-size: 12px; font-weight: 600; }
 .badge-js { border-color: rgba(247,223,30,.2); background: rgba(247,223,30,.1); color: #f7df1e; }
 .badge-ts { border-color: rgba(49,120,198,.2); background: rgba(49,120,198,.1); color: #63a7e8; }
 .badge-live { border-color: rgba(52,211,153,.25); background: rgba(52,211,153,.1); color: #34d399; }
