@@ -3,7 +3,8 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { db } from '@/services/firebase';
-import { HardDrive, Image as ImageIcon, FileText, Video, Clock } from 'lucide-react';
+import { HardDrive, Image as ImageIcon, FileText, Video, Clock, Globe, ShieldCheck } from 'lucide-react';
+import { FaGithub, FaYoutube } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import Loader from '@/components/ui/Loader';
 import { getStoredFilesInRoot } from '@/modules/FileManager/utils/fileUtils';
@@ -83,9 +84,31 @@ export default function Home() {
               ))}
             </div>
             
-            {/* Vùng gợi ý hoặc biểu đồ (Có thể thêm sau) */}
-            <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex items-center justify-center min-h-[250px]">
-               <p className="text-slate-400">Khu vực này có thể gắn biểu đồ hoạt động trong tương lai.</p>
+            {/* Thẻ Thông tin Dự án / Liên hệ */}
+            <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 min-h-[250px] flex flex-col relative overflow-hidden">
+              {/* Icon nền chìm (Watermark) */}
+              <div className="absolute -top-4 -right-4 p-4 opacity-[0.03] dark:opacity-10 pointer-events-none">
+                <ShieldCheck size={140} />
+              </div>
+  
+              <div className="relative z-10 flex flex-col h-full">
+                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-2">Về WindHub</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 max-w-[95%] leading-relaxed">
+                  Kho lưu trữ tập trung an toàn thuộc hệ sinh thái WindHub. Mọi tệp tin đều được duyệt và chia sẻ công khai bởi Admin. 
+                </p>
+
+                <div className="space-y-3 mt-auto">
+                  <a href="https://github.com/PingPlayVN" target="_blank" rel="noreferrer" className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-100 dark:border-slate-700/50 transition-colors group outline-none focus:ring-2 focus:ring-primary-500">
+                    <FaGithub size={18} className="text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white transition-colors" />
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Trịnh Gia Phong (GitHub)</span>
+                  </a>
+      
+                  <a href="https://www.youtube.com/@PingPlayVN" target="_blank" rel="noreferrer" className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-100 dark:border-slate-700/50 transition-colors group outline-none focus:ring-2 focus:ring-primary-500">
+                    <FaYoutube size={18} className="text-red-500 group-hover:scale-110 transition-transform" />
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Kênh YouTube</span>
+                  </a>
+                </div>
+              </div>
             </div>
           </div>
 
