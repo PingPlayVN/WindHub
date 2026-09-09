@@ -8,6 +8,10 @@ export function useFileOrganization({ isAdmin, activeTab, allFiles, selectedItem
   const [renamingItem, setRenamingItem] = useState(null);
   const [renameText, setRenameText] = useState('');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showEditLinkModal, setShowEditLinkModal] = useState(false);
+  const [editLinkItem, setEditLinkItem] = useState(null);
+  const [editLinkInput, setEditLinkInput] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const handleDrop = async (event, targetFolder) => {
     event.preventDefault();
@@ -76,28 +80,45 @@ export function useFileOrganization({ isAdmin, activeTab, allFiles, selectedItem
     }
   };
 
-  const startEditLink = async (item) => {
+  const startEditLink = (item) => {
     if (!isAdmin) return;
-    const nextUrl = window.prompt('Nhập liên kết mới', item.url);
-    if (nextUrl === null || nextUrl.trim() === item.url) return;
+    setEditLinkItem(item);
+    setEditLinkInput(item.url || '');
+    setShowEditLinkModal(true);
+  };
 
+  const handleSaveEditLink = async (event) => {
+    event.preventDefault();
+    if (!isAdmin || !editLinkItem || isUpdating) return;
+
+    const nextUrl = editLinkInput.trim();
+    if (!nextUrl || nextUrl === editLinkItem.url) {
+      setShowEditLinkModal(false);
+      return;
+    }
+
+    setIsUpdating(true);
     try {
-      const parsedUrl = new URL(nextUrl.trim());
+      const parsedUrl = new URL(nextUrl);
       if (!['http:', 'https:'].includes(parsedUrl.protocol)) throw new Error('Unsupported protocol');
       const finalUrl = formatDownloadLink(parsedUrl.href, activeTab);
-      await updateFile(item.id, {
+      await updateFile(editLinkItem.id, {
         url: finalUrl,
         type: detectFileType(finalUrl, activeTab),
       });
 
       if ((finalUrl.includes('drive.google.com') || finalUrl.includes('docs.google.com'))
-        && ['video', 'image', 'document'].includes(activeTab) && !item.thumbnailUrl) {
+        && ['video', 'image', 'document'].includes(activeTab) && !editLinkItem.thumbnailUrl) {
         const match = finalUrl.match(/\/d\/([a-zA-Z0-9_-]+)/) || finalUrl.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-        if (match?.[1]) uploadUrlToCloudinary(item.id, `https://drive.google.com/thumbnail?id=${match[1]}&sz=w800`);
+        if (match?.[1]) uploadUrlToCloudinary(editLinkItem.id, `https://drive.google.com/thumbnail?id=${match[1]}&sz=w800`);
       }
       toast.success('Đã cập nhật liên kết');
+      setShowEditLinkModal(false);
+      setEditLinkItem(null);
     } catch {
       toast.error('Liên kết không hợp lệ');
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -113,6 +134,7 @@ export function useFileOrganization({ isAdmin, activeTab, allFiles, selectedItem
 
   return {
     renamingItem, renameText, setRenameText, showDeleteModal, setShowDeleteModal,
-    handleDrop, startRename, handleRenameSubmit, confirmDelete, startEditLink, handleToggleLock,
+    showEditLinkModal, setShowEditLinkModal, editLinkItem, editLinkInput, setEditLinkInput, isUpdating,
+    handleDrop, startRename, handleRenameSubmit, confirmDelete, startEditLink, handleSaveEditLink, handleToggleLock,
   };
 }

@@ -6,6 +6,7 @@ import { db } from '@/services/firebase';
 import { HardDrive, Image as ImageIcon, FileText, Video, Clock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Loader from '@/components/ui/Loader';
+import { getStoredFilesInRoot } from '@/modules/FileManager/utils/fileUtils';
 
 export default function Home() {
   const [stats, setStats] = useState({ total: 0, image: 0, document: 0, video: 0, raw: 0 });
@@ -19,15 +20,19 @@ export default function Home() {
       const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       
       // Tính toán thống kê
-      const filesOnly = docs.filter((file) => file.type !== 'folder');
-      const newStats = { total: filesOnly.length, image: 0, document: 0, video: 0, raw: 0 };
-      filesOnly.forEach(file => {
-        if (newStats[file.type] !== undefined) {
-          newStats[file.type]++;
-        } else {
-          newStats.raw++;
-        }
-      });
+      const filesByRoot = {
+        video: getStoredFilesInRoot(docs, 'root_video'),
+        image: getStoredFilesInRoot(docs, 'root_image'),
+        document: getStoredFilesInRoot(docs, 'root_document'),
+        raw: getStoredFilesInRoot(docs, 'root_other'),
+      };
+      const newStats = {
+        total: Object.values(filesByRoot).reduce((total, files) => total + files.length, 0),
+        image: filesByRoot.image.length,
+        document: filesByRoot.document.length,
+        video: filesByRoot.video.length,
+        raw: filesByRoot.raw.length,
+      };
       
       setStats(newStats);
       setRecentFiles(docs.slice(0, 5)); // Lấy 5 file mới nhất

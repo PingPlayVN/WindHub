@@ -33,6 +33,10 @@ export function detectFileType(url, currentTab) {
   }
 }
 
+export function isStoredFile(file) {
+  return file?.type !== 'folder' && typeof file?.url === 'string' && file.url.trim().length > 0;
+}
+
 export function getDescendantIds(allFiles, rootIds) {
   const ids = new Set(rootIds);
   let foundNewItem = true;
@@ -46,6 +50,11 @@ export function getDescendantIds(allFiles, rootIds) {
     });
   }
   return ids;
+}
+
+export function getStoredFilesInRoot(allFiles, rootId) {
+  const descendantIds = getDescendantIds(allFiles, [rootId]);
+  return allFiles.filter((file) => descendantIds.has(file.id) && isStoredFile(file));
 }
 
 export function wouldCreateFolderLoop(allFiles, targetFolderId, items) {

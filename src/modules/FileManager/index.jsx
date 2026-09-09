@@ -61,7 +61,8 @@ export default function FileManager() {
   const { previewFile, setPreviewFile, viewerEngine, setViewerEngine, handlePreview, handleDownload, handleCopyLink } = preview;
   const {
     renamingItem, renameText, setRenameText, showDeleteModal, setShowDeleteModal,
-    handleDrop, startRename, handleRenameSubmit, confirmDelete, startEditLink, handleToggleLock,
+    showEditLinkModal, setShowEditLinkModal, editLinkInput, setEditLinkInput, isUpdating,
+    handleDrop, startRename, handleRenameSubmit, confirmDelete, startEditLink, handleSaveEditLink, handleToggleLock,
   } = organization;
   const { handleItemClick, handleItemHover, handleDragStart } = useFileSelection({
     handleOpenFolder, handlePreview, renamingItem, setSelectedItems,
@@ -202,6 +203,9 @@ export default function FileManager() {
         showLinkModal={showLinkModal} setShowLinkModal={setShowLinkModal}
         isCreating={isCreating}
         linkInput={linkInput} setLinkInput={setLinkInput} handleAddLink={handleAddLink}
+        showEditLinkModal={showEditLinkModal} setShowEditLinkModal={setShowEditLinkModal}
+        editLinkInput={editLinkInput} setEditLinkInput={setEditLinkInput}
+        handleSaveEditLink={handleSaveEditLink} isUpdating={isUpdating}
         folderName={folderName} setFolderName={setFolderName} handleCreateFolder={handleCreateFolder}
         fileToDelete={showDeleteModal ? itemToDelete : null} setFileToDelete={() => setShowDeleteModal(false)} confirmDelete={confirmDelete}
         previewFile={previewFile} setPreviewFile={setPreviewFile} viewerEngine={viewerEngine} setViewerEngine={setViewerEngine}
