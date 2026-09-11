@@ -12,11 +12,44 @@ import { db } from '@/services/firebase';
 
 const filesCollection = collection(db, 'windhub_files');
 const sortConfigDocument = doc(db, 'windhub_settings', 'sort_config');
+const FILE_CACHE_KEY = 'windhub_files_cache';
+
+function readCachedFiles() {
+  try {
+    const cachedValue = localStorage.getItem(FILE_CACHE_KEY);
+    if (!cachedValue) return [];
+    const parsed = JSON.parse(cachedValue);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeCachedFiles(files) {
+  try {
+    localStorage.setItem(FILE_CACHE_KEY, JSON.stringify(files));
+  } catch {
+    // Ignore cache write failures without breaking the app.
+  }
+}
 
 export function subscribeToFiles(onChange, onError) {
+  const cachedFiles = readCachedFiles();
+  if (cachedFiles.length) {
+    onChange(cachedFiles);
+  }
+
   return onSnapshot(query(filesCollection), (snapshot) => {
-    onChange(snapshot.docs.map((file) => ({ id: file.id, ...file.data() })));
-  }, onError);
+    const nextFiles = snapshot.docs.map((file) => ({ id: file.id, ...file.data() }));
+    writeCachedFiles(nextFiles);
+    onChange(nextFiles);
+  }, (error) => {
+    if (cachedFiles.length) {
+      onChange(cachedFiles);
+      return;
+    }
+    onError?.(error);
+  });
 }
 
 export function subscribeToSortConfig(onChange) {

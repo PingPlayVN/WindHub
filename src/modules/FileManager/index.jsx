@@ -40,7 +40,7 @@ export default function FileManager() {
   const processedShareRef = useRef('');
 
   const {
-    allFiles, currentFiles, effectiveSort, globalSort, loadError,
+    allFiles, currentFiles, effectiveSort, globalSort, loadError, isLoading,
     handleLocalSortChange, handleGlobalSortChange: updateGlobalSort,
   } = useFileData(currentFolder.id, searchTerm);
 
@@ -180,12 +180,13 @@ export default function FileManager() {
       />
 
       <FileGrid 
-        loadError={loadError} currentFiles={currentFiles} viewMode={viewMode} 
+        loadError={loadError} currentFiles={currentFiles} viewMode={viewMode} isLoading={isLoading}
         selectedItems={selectedItems} setSelectedItems={setSelectedItems}
         renamingItem={renamingItem} renameText={renameText} setRenameText={setRenameText} handleRenameSubmit={handleRenameSubmit}
         handleDragStart={handleDragStart} handleDragOver={handleDragOver} handleDrop={handleDrop}
         handleItemClick={handleItemClick} handleItemHover={handleItemHover} handleContextMenu={handleContextMenu} getFileIcon={getFileIcon}
         handleBackgroundContextMenu={handleBackgroundContextMenu}
+        onRetry={() => window.location.reload()}
       />
 
       <ContextMenu 

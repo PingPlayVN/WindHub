@@ -1,27 +1,34 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { saveGlobalSort, subscribeToFiles, subscribeToSortConfig } from '../services/fileService';
 
 export function useFileData(currentFolderId, searchTerm) {
+  const deferredSearchTerm = useDeferredValue(searchTerm);
   const [allFiles, setAllFiles] = useState([]);
   const [globalSort, setGlobalSort] = useState({});
   const [localSort, setLocalSort] = useState({});
   const [loadError, setLoadError] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     return subscribeToSortConfig(setGlobalSort);
   }, []);
 
   useEffect(() => {
+    setIsLoading(true);
     return subscribeToFiles((files) => {
       setAllFiles(files);
       setLoadError('');
-    }, () => setLoadError('Không thể tải tài nguyên. Vui lòng thử lại sau.'));
+      setIsLoading(false);
+    }, () => {
+      setLoadError('Không thể tải tài nguyên. Vui lòng thử lại sau.');
+      setIsLoading(false);
+    });
   }, []);
 
   const effectiveSort = localSort[currentFolderId] || globalSort[currentFolderId] || 'newest';
 
   const currentFiles = useMemo(() => {
-    const normalizedSearchTerm = searchTerm.trim().toLocaleLowerCase();
+    const normalizedSearchTerm = deferredSearchTerm.trim().toLocaleLowerCase();
     return allFiles
       .filter((file) => {
         const matchesFolder = (file.parentId || 'root') === currentFolderId;
@@ -36,7 +43,7 @@ export function useFileData(currentFolderId, searchTerm) {
         if (effectiveSort === 'name-desc') return (second.name || '').localeCompare(first.name || '', 'vi', { numeric: true });
         return (second.timestamp || 0) - (first.timestamp || 0);
       });
-  }, [allFiles, currentFolderId, effectiveSort, searchTerm]);
+  }, [allFiles, currentFolderId, deferredSearchTerm, effectiveSort]);
 
   const handleLocalSortChange = (nextSort) => {
     setLocalSort((current) => ({ ...current, [currentFolderId]: nextSort }));
@@ -58,6 +65,7 @@ export function useFileData(currentFolderId, searchTerm) {
     effectiveSort,
     globalSort,
     loadError,
+    isLoading,
     handleLocalSortChange,
     handleGlobalSortChange,
   };

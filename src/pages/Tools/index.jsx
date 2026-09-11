@@ -1,10 +1,35 @@
+import { lazy, Suspense, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Terminal, Wrench } from 'lucide-react';
 
-const toolModules = import.meta.glob('../../modules/Tools/*/index.jsx', { eager: true });
-const tools = Object.values(toolModules).map((module) => module.default.tool).filter(Boolean);
+const toolModules = import.meta.glob('../../modules/Tools/*/index.jsx');
+
+const toolEntries = Object.entries(toolModules).map(([path, importer]) => ({
+  path,
+  importer,
+}));
+
+function LazyToolCard({ toolPath, importer, index }) {
+  const Tool = lazy(async () => {
+    const module = await importer();
+    return { default: module.default?.tool?.Component || module.default };
+  });
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.08 }}>
+      <Suspense fallback={<div className="h-64 animate-pulse rounded-2xl border border-slate-800 bg-[#0b0e12]" />}>
+        <Tool />
+      </Suspense>
+    </motion.div>
+  );
+}
 
 export default function Tools() {
+  const tools = useMemo(() => toolEntries.map(({ path, importer }) => ({
+    id: path.split('/').slice(-2, -1)[0],
+    importer,
+  })), []);
+
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="tools-shell min-h-full space-y-6">
       <section className="relative overflow-hidden rounded-2xl border border-slate-800 bg-[#0b0e12] p-6 text-slate-100 shadow-xl md:p-8">
@@ -21,8 +46,8 @@ export default function Tools() {
       </section>
       {tools.length > 0 ? (
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-          {tools.map(({ id, Component }, index) => (
-            <motion.div key={id} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.08 }}><Component /></motion.div>
+          {tools.map(({ id, importer }, index) => (
+            <LazyToolCard key={id} toolPath={id} importer={importer} index={index} />
           ))}
         </div>
       ) : (
