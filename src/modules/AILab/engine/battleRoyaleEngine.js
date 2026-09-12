@@ -7,7 +7,6 @@ const BATTLE_MODES = [
   { id: 'survival', name: 'Sinh tồn tài nguyên', label: 'Tích trữ, mở rộng và sống sót' },
 ];
 
-const BATTLE_MODIFIERS = ['Tài nguyên khan hiếm', 'Bản đồ hẹp', 'Tốc độ tăng gấp đôi', 'Thông tin không đầy đủ', 'Phần thưởng lật ngược', 'Luật ưu tiên phòng thủ'];
 const STRATEGY_TEMPLATES = [
   { name: 'Nhà thám hiểm', style: 'liều lĩnh', attack: 0.9, defense: 0.35, adapt: 0.75 },
   { name: 'Nhà phân tích', style: 'tính toán', attack: 0.62, defense: 0.66, adapt: 0.86 },
@@ -18,6 +17,15 @@ const STRATEGY_TEMPLATES = [
   { name: 'Chiến lược gia', style: 'dài hạn', attack: 0.68, defense: 0.72, adapt: 0.8 },
   { name: 'Kẻ gây rối', style: 'khó đoán', attack: 0.84, defense: 0.38, adapt: 0.88 },
 ];
+
+const MODE_WEIGHTS = {
+  chess: { attack: 0.36, defense: 0.34, adapt: 0.3 },
+  xiangqi: { attack: 0.32, defense: 0.4, adapt: 0.28 },
+  'tic-tac-toe': { attack: 0.28, defense: 0.32, adapt: 0.4 },
+  'prisoners-dilemma': { attack: 0.22, defense: 0.24, adapt: 0.54 },
+  algorithm: { attack: 0.2, defense: 0.2, adapt: 0.6 },
+  survival: { attack: 0.24, defense: 0.48, adapt: 0.28 },
+};
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
@@ -38,26 +46,25 @@ function pickMode(gameType, random) {
   return BATTLE_MODES[Math.floor(random() * BATTLE_MODES.length)];
 }
 
-function scoreAgent(agent, mode, modifier, random, round) {
-  const primary = mode.id === 'algorithm' ? agent.strategy.adapt : mode.id === 'survival' ? agent.strategy.defense : agent.strategy.attack;
-  const modifierBonus = modifier.includes('phòng thủ') ? agent.strategy.defense : modifier.includes('Tốc độ') ? agent.strategy.attack : agent.strategy.adapt;
-  const explorationCost = agent.exploration * (modifier.includes('Thông tin') ? 6 : 2);
-  return Math.max(0, 45 + primary * 35 + modifierBonus * 16 + agent.learning * 14 - explorationCost + (random() - 0.5) * 22 + round * agent.strategy.adapt);
+function scoreAgent(agent, mode, random, round) {
+  const weights = MODE_WEIGHTS[mode.id] ?? MODE_WEIGHTS.chess;
+  const fit = agent.strategy.attack * weights.attack + agent.strategy.defense * weights.defense + agent.strategy.adapt * weights.adapt;
+  const explorationCost = agent.exploration * (1.5 + weights.adapt);
+  const learningBonus = agent.learning * (12 + weights.adapt * 8);
+  const winRate = agent.rounds ? agent.wins / agent.rounds : 0;
+  const comebackBonus = (1 - winRate) * 9;
+  const dominancePenalty = winRate * 11;
+  const streakPenalty = Math.max(0, agent.currentStreak - 1) * 14;
+  const longRunLearning = Math.log1p(round) * agent.strategy.adapt * 2;
+  return Math.max(0, 40 + fit * 58 + learningBonus + comebackBonus - dominancePenalty - streakPenalty - explorationCost + (random() - 0.5) * 12 + longRunLearning);
 }
 
-function getStrategyFit(template, mode, modifier) {
-  let fit = template.adapt;
-  if (mode.id === 'algorithm') fit += template.name === 'Tốc độ' ? 0.3 : template.adapt * 0.4;
-  if (mode.id === 'survival') fit += template.defense * 0.8;
-  if (mode.id === 'prisoners-dilemma') fit += template.adapt * 0.6;
-  if (modifier.includes('phòng thủ')) fit += template.defense;
-  if (modifier.includes('Tốc độ')) fit += template.attack;
-  if (modifier.includes('khan hiếm')) fit += template.defense * 0.5;
-  if (modifier.includes('lật ngược')) fit += template.adapt * 0.5;
-  return fit;
+function getStrategyFit(template, mode) {
+  const weights = MODE_WEIGHTS[mode.id] ?? MODE_WEIGHTS.chess;
+  return template.attack * weights.attack + template.defense * weights.defense + template.adapt * weights.adapt;
 }
 
-function updateLearning(agent, opponent, mode, modifier, won, random) {
+function updateLearning(agent, opponent, mode, won, random) {
   const reward = won ? 0.06 : -0.025;
   const learningGain = won ? 0.025 : 0.01;
   agent.learning = Number(clamp(agent.learning + learningGain, 0.1, 1).toFixed(3));
@@ -66,13 +73,16 @@ function updateLearning(agent, opponent, mode, modifier, won, random) {
   agent.strategy.defense = Number(clamp(agent.strategy.defense + reward + (opponent.strategy.defense - agent.strategy.defense) * 0.08 + (random() - 0.5) * 0.025, 0.1, 1).toFixed(3));
   agent.strategy.adapt = Number(clamp(agent.strategy.adapt + reward + (opponent.strategy.adapt - agent.strategy.adapt) * 0.1 + (random() - 0.5) * 0.025, 0.1, 1).toFixed(3));
 
-  const shouldChangeStyle = random() < (won ? 0.12 : 0.3) + agent.strategy.adapt * 0.12;
+  const currentFit = getStrategyFit(agent.strategy, mode);
+  const candidates = STRATEGY_TEMPLATES
+    .filter((template) => template.name !== agent.strategy.name)
+    .map((template) => ({ template, fit: getStrategyFit(template, mode) }))
+    .sort((left, right) => right.fit - left.fit);
+  const bestCandidate = candidates[0];
+  const improvement = (bestCandidate?.fit ?? currentFit) - currentFit;
+  const shouldChangeStyle = bestCandidate && improvement > 0.045 && (won ? random() < 0.18 : random() < 0.62);
   if (shouldChangeStyle) {
-    const candidates = STRATEGY_TEMPLATES
-      .filter((template) => template.name !== agent.strategy.name)
-      .map((template) => ({ template, fit: getStrategyFit(template, mode, modifier) + random() * 0.25 }))
-      .sort((left, right) => right.fit - left.fit);
-    const nextStyle = candidates[0]?.template;
+    const nextStyle = bestCandidate.template;
     if (nextStyle) {
       agent.strategy.name = nextStyle.name;
       agent.strategy.style = nextStyle.style;
@@ -88,7 +98,6 @@ function updateLearning(agent, opponent, mode, modifier, won, random) {
 export function createBattleRoyaleArena({ gameType = 'random', agentCount = 4, seed = Date.now() } = {}) {
   const random = randomFrom(seed);
   const mode = pickMode(gameType, random);
-  const modifier = BATTLE_MODIFIERS[Math.floor(random() * BATTLE_MODIFIERS.length)];
   const count = Math.min(8, Math.max(2, Number(agentCount) || 4));
   const agents = Array.from({ length: count }, (_, index) => {
     const template = STRATEGY_TEMPLATES[index];
@@ -103,6 +112,7 @@ export function createBattleRoyaleArena({ gameType = 'random', agentCount = 4, s
       losses: 0,
       draws: 0,
       rounds: 0,
+      currentStreak: 0,
       learning: Number((0.35 + random() * 0.35).toFixed(3)),
       lastAction: 'Đang chờ trận',
     };
@@ -112,12 +122,12 @@ export function createBattleRoyaleArena({ gameType = 'random', agentCount = 4, s
     seed,
     gameType,
     mode,
-    modifier,
     round: 0,
     status: 'ready',
     agents,
     scoreSeries: [{ round: 0, value: 0 }],
-    eventLog: [{ timeStamp: '00:00:00', message: `${mode.name}: trận mới với luật random “${modifier}”.`, type: 'info' }],
+    lastWinnerId: null,
+    eventLog: [{ timeStamp: '00:00:00', message: `${mode.name}: tất cả AI bắt đầu với cùng điều kiện thi đấu.`, type: 'info' }],
   };
 }
 
@@ -126,9 +136,12 @@ export function stepBattleRoyaleArena(arena) {
 
   const next = { ...arena, round: arena.round + 1, status: 'running', agents: arena.agents.map((agent) => ({ ...agent, strategy: { ...agent.strategy } })), eventLog: [...(arena.eventLog ?? [])] };
   const random = randomFrom((arena.seed ?? 7) + next.round * 97);
-  const scored = next.agents.map((agent) => ({ agent, battleScore: scoreAgent(agent, arena.mode, arena.modifier, random, next.round) })).sort((left, right) => right.battleScore - left.battleScore);
+  const scored = next.agents.map((agent) => ({ agent, battleScore: scoreAgent(agent, arena.mode, random, next.round) })).sort((left, right) => right.battleScore - left.battleScore);
   const winner = scored[0]?.agent;
   const runnerUp = scored[1]?.agent;
+  const averageElo = next.agents.reduce((sum, agent) => sum + agent.elo, 0) / Math.max(1, next.agents.length);
+  const fieldSize = Math.max(1, next.agents.length - 1);
+  const strategySnapshot = new Map(next.agents.map((agent) => [agent.id, { ...agent.strategy }]));
 
   scored.forEach(({ agent, battleScore }, index) => {
     agent.rounds += 1;
@@ -136,16 +149,22 @@ export function stepBattleRoyaleArena(arena) {
     agent.lastAction = index === 0 ? `Thắng vòng bằng chiến thuật ${agent.strategy.style}` : 'Đang học từ đối thủ mạnh hơn';
     if (index === 0) {
       agent.wins += 1;
-      agent.elo += Math.max(12, 28 - index * 3);
-      updateLearning(agent, runnerUp ?? agent, arena.mode, arena.modifier, true, random);
+      agent.currentStreak = Math.max(1, agent.currentStreak + 1);
+      const expected = 1 / (1 + 10 ** ((averageElo - agent.elo) / 400));
+      agent.elo = Math.round(1000 + (agent.elo - 1000) * 0.92 + 20 * (1 - expected));
+      updateLearning(agent, { strategy: strategySnapshot.get((runnerUp ?? agent).id) }, arena.mode, true, random);
     } else {
       agent.losses += 1;
-      agent.elo -= Math.max(3, Math.round(16 / (index + 1)));
-      updateLearning(agent, winner ?? agent, arena.mode, arena.modifier, false, random);
+      agent.currentStreak = 0;
+      const expected = 1 / (1 + 10 ** ((averageElo - agent.elo) / 400));
+      const actual = (fieldSize - index) / fieldSize;
+      agent.elo = Math.round(1000 + (agent.elo - 1000) * 0.92 + 20 * (actual - expected));
+      updateLearning(agent, { strategy: strategySnapshot.get((winner ?? agent).id) }, arena.mode, false, random);
     }
   });
 
-  next.agents.sort((left, right) => right.score - left.score || right.elo - left.elo);
+  next.agents.sort((left, right) => right.elo - left.elo || right.wins - left.wins || right.score - left.score);
+  next.lastWinnerId = winner?.id ?? null;
   next.scoreSeries = [...(arena.scoreSeries ?? []), { round: next.round, value: winner ? Number(winner.score.toFixed(1)) : 0 }].slice(-30);
   next.eventLog.unshift({ timeStamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }), message: `${winner?.name ?? 'AI'} thắng vòng ${next.round}; các AI khác đã cập nhật chiến thuật từ kết quả.`, type: 'success' });
   next.eventLog = next.eventLog.slice(0, 10);

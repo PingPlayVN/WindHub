@@ -27,12 +27,12 @@ test('battle rounds update rankings, Elo and learning parameters', () => {
   assert.ok(next.eventLog[0].message.includes('thắng vòng'));
 });
 
-test('AI styles adapt to the selected game and random rule over multiple rounds', () => {
+test('AI styles adapt to the selected game over multiple fair rounds', () => {
   const arena = createBattleRoyaleArena({ agentCount: 4, gameType: 'survival', seed: 21 });
   const initialStyles = new Map(arena.agents.map((agent) => [agent.id, agent.strategy.name]));
   const next = stepBattleRoyaleArena(stepBattleRoyaleArena(arena));
 
   assert.ok(next.agents.every((agent) => agent.strategy.version > 2));
   assert.ok(next.agents.some((agent) => agent.strategy.name !== initialStyles.get(agent.id) || agent.lastAction.includes('Đang học')));
-  assert.ok(next.modifier);
+  assert.equal(next.modifier, undefined);
 });
