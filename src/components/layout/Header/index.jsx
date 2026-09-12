@@ -13,7 +13,13 @@ export default function Header() {
   const { toggleSidebar, openLogin } = useUIStore();
   const { user, isAdmin } = useAuthStore();
   const location = useLocation();
-  const pageTitle = location.pathname === '/files' ? 'Quản lý File' : location.pathname === '/tools' ? 'Công cụ' : 'Tổng quan';
+  const pageTitle = location.pathname === '/files'
+    ? 'Quản lý File'
+    : location.pathname === '/tools'
+      ? 'Công cụ'
+      : location.pathname === '/ai-lab'
+        ? 'AI Battle'
+        : 'Tổng quan';
 
   const handleLogout = async () => {
     try {
