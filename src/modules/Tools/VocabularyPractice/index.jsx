@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { BookOpen, Brain, ClipboardPaste } from 'lucide-react';
 import useVocabulary from './hooks/useVocabulary';
@@ -26,11 +26,18 @@ export default function VocabularyPractice() {
     removeWord,
   } = useVocabulary();
   const [activeView, setActiveView] = useState('words');
+  const [activeBoardId, setActiveBoardId] = useState(boards[0]?.id || '');
   const [importBoardId, setImportBoardId] = useState(boards[0]?.id || '');
   const importBoard = boards.find((board) => board.id === importBoardId) || boards[0] || null;
   const selectedBoards = boards.filter((board) => selectedBoardIds.includes(board.id));
   const selectedWords = selectedBoards.flatMap((board) => board.words);
   const practiceKey = selectedBoardIds.slice().sort().join('|') || 'no-selected-boards';
+
+  useEffect(() => {
+    if (boards.length && !boards.some((board) => board.id === activeBoardId)) {
+      setActiveBoardId(boards[0].id);
+    }
+  }, [activeBoardId, boards]);
 
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-5 text-slate-100">
@@ -60,6 +67,8 @@ export default function VocabularyPractice() {
           {activeView === 'words' ? (
             <BoardManager
               boards={boards}
+              activeBoardId={activeBoardId}
+              onActiveBoardChange={setActiveBoardId}
               selectedBoardIds={selectedBoardIds}
               onToggleSelection={toggleBoardSelection}
               onCreateBoard={createBoard}
@@ -77,7 +86,7 @@ export default function VocabularyPractice() {
               onImport={addWords}
             />
           ) : (
-            <PracticePanel key={practiceKey} words={selectedWords} boards={selectedBoards} />
+            <PracticePanel key={practiceKey} words={selectedWords} boards={selectedBoards} onManageWords={() => setActiveView('words')} />
           )}
         </motion.div>
       </AnimatePresence>

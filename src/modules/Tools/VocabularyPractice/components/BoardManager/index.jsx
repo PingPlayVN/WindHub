@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check, ChevronDown, Layers3, Pencil, Plus, Trash2, X } from 'lucide-react';
 import WordForm from '../WordForm';
@@ -6,6 +6,8 @@ import WordList from '../WordList';
 
 export default function BoardManager({
   boards,
+  activeBoardId,
+  onActiveBoardChange,
   selectedBoardIds,
   onToggleSelection,
   onCreateBoard,
@@ -15,25 +17,28 @@ export default function BoardManager({
   onAddWord,
   onRemoveWord,
 }) {
-  const [activeBoardId, setActiveBoardId] = useState(boards[0]?.id || null);
   const [newBoardName, setNewBoardName] = useState('');
   const [editingBoardId, setEditingBoardId] = useState(null);
   const [editingBoardName, setEditingBoardName] = useState('');
   const [editingWord, setEditingWord] = useState(null);
   const activeBoard = boards.find((board) => board.id === activeBoardId) || boards[0] || null;
 
-  useEffect(() => {
-    if (!boards.some((board) => board.id === activeBoardId)) {
-      setActiveBoardId(boards[0]?.id || null);
-      setEditingWord(null);
-    }
-  }, [activeBoardId, boards]);
+  const activateBoard = (board) => {
+    onActiveBoardChange(board.id);
+    if (board.collapsed) onToggleCollapsed(board.id);
+    setEditingWord(null);
+  };
+
+  const handleBoardSurfaceClick = (event, board) => {
+    if (event.target.closest('button, input, textarea, select, form, a')) return;
+    activateBoard(board);
+  };
 
   const createBoard = (event) => {
     event.preventDefault();
     const boardId = onCreateBoard(newBoardName);
     if (!boardId) return;
-    setActiveBoardId(boardId);
+    onActiveBoardChange(boardId);
     setNewBoardName('');
     setEditingWord(null);
   };
@@ -63,10 +68,16 @@ export default function BoardManager({
                 key={board.id}
                 layout
                 initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
+                animate={{ opacity: 1, y: isActive ? -1 : 0, scale: isActive ? 1.005 : 1 }}
                 exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-                transition={{ duration: 0.2 }}
-                className={`overflow-hidden rounded-xl border bg-[#101319] ${isActive ? 'border-amber-400/50' : 'border-slate-800'}`}
+                transition={{
+                  layout: { duration: 0.2 },
+                  opacity: { duration: 0.2 },
+                  y: { type: 'spring', stiffness: 420, damping: 30 },
+                  scale: { type: 'spring', stiffness: 420, damping: 30 },
+                }}
+                onClick={(event) => handleBoardSurfaceClick(event, board)}
+                className={`overflow-hidden rounded-xl border bg-[#101319] transition-colors duration-300 ${isActive ? 'border-amber-400/70 shadow-[0_0_0_1px_rgba(251,191,36,0.12)]' : 'border-slate-800'}`}
               >
                 <div className="flex min-w-0 items-center gap-2 p-3 sm:gap-3">
                   <input
@@ -76,7 +87,7 @@ export default function BoardManager({
                     aria-label={`Chọn bảng ${board.name} để dò bài`}
                     className="h-4 w-4 shrink-0 accent-amber-400"
                   />
-                  <button type="button" onClick={() => { setActiveBoardId(board.id); setEditingWord(null); }} className="flex min-w-0 flex-1 items-center gap-2 text-left">
+                  <button type="button" onClick={() => activateBoard(board)} className="flex min-w-0 flex-1 items-center gap-2 text-left">
                     <Layers3 size={16} className={isActive ? 'shrink-0 text-amber-300' : 'shrink-0 text-slate-500'} />
                     <span className="min-w-0">
                       {editingBoardId === board.id ? (
@@ -113,14 +124,31 @@ export default function BoardManager({
                   {!board.collapsed && (
                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.22 }} className="overflow-hidden">
                       <div className="border-t border-slate-800 p-3 sm:p-4">
-                        {isActive ? (
-                          <div className="grid gap-4 xl:grid-cols-[minmax(240px,0.8fr)_minmax(0,1.2fr)]">
-                            <WordForm key={`${board.id}:${editingWord?.id || 'new'}`} word={editingWord} onSave={saveWord} onCancel={() => setEditingWord(null)} />
-                            <WordList words={board.words} onEdit={setEditingWord} onDelete={(wordId) => onRemoveWord(board.id, wordId)} />
-                          </div>
-                        ) : (
-                          <WordList words={board.words} onEdit={(word) => { setActiveBoardId(board.id); setEditingWord(word); }} onDelete={(wordId) => onRemoveWord(board.id, wordId)} />
-                        )}
+                        <AnimatePresence mode="wait" initial={false}>
+                          {isActive ? (
+                            <motion.div
+                              key={`editor-${board.id}`}
+                              initial={{ opacity: 0, y: 10, scale: 0.99 }}
+                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                              exit={{ opacity: 0, y: -6, scale: 0.995 }}
+                              transition={{ duration: 0.2, ease: 'easeOut' }}
+                              className="grid gap-4 xl:grid-cols-[minmax(240px,0.8fr)_minmax(0,1.2fr)]"
+                            >
+                              <WordForm key={`${board.id}:${editingWord?.id || 'new'}`} word={editingWord} onSave={saveWord} onCancel={() => setEditingWord(null)} />
+                              <WordList words={board.words} onEdit={setEditingWord} onDelete={(wordId) => onRemoveWord(board.id, wordId)} />
+                            </motion.div>
+                          ) : (
+                            <motion.div
+                              key={`preview-${board.id}`}
+                              initial={{ opacity: 0, y: 6 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -6 }}
+                              transition={{ duration: 0.16 }}
+                            >
+                              <WordList words={board.words} onEdit={(word) => { onActiveBoardChange(board.id); setEditingWord(word); }} onDelete={(wordId) => onRemoveWord(board.id, wordId)} />
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </div>
                     </motion.div>
                   )}

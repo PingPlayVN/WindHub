@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowRight, Check, RotateCw, Trophy } from 'lucide-react';
+import { ArrowRight, BookOpen, Check, RotateCw, Trophy } from 'lucide-react';
 import { getAcceptedAnswers, isAnswerCorrect } from '../../utils/answerUtils';
 
 const shuffle = (items) => {
@@ -50,7 +50,7 @@ function getMeme(type, count) {
   return { id: `${type}-${count}`, type, count, text, emoji };
 }
 
-export default function PracticePanel({ words, boards = [] }) {
+export default function PracticePanel({ words, boards = [], onManageWords }) {
   const [answer, setAnswer] = useState('');
   const [reaction, setReaction] = useState(null);
   const [session, setSession] = useState(() => makeSession(words));
@@ -163,6 +163,9 @@ export default function PracticePanel({ words, boards = [] }) {
       <div className="flex min-h-56 flex-col items-center justify-center rounded-xl border border-dashed border-slate-700 px-4 text-center">
         <p className="font-semibold text-slate-200">Chưa có từ để dò bài</p>
         <p className="mt-2 text-sm text-slate-500">Chọn ít nhất một bảng có từ vựng trong mục Bảng từ.</p>
+        <button type="button" onClick={onManageWords} className="mt-4 inline-flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-300 transition hover:border-amber-400/60 hover:text-amber-200">
+          <BookOpen size={15} /> Quay về bảng từ
+        </button>
       </div>
     );
   }
@@ -185,6 +188,7 @@ export default function PracticePanel({ words, boards = [] }) {
         <div className="flex flex-wrap justify-center gap-2">
           {session.phase === 'summary' && <button type="button" onClick={startRetry} className="rounded-lg bg-amber-400 px-4 py-2.5 text-sm font-bold text-black transition hover:bg-amber-300">Luyện lại từ sai</button>}
           <button type="button" onClick={startNewSession} className="inline-flex items-center gap-2 rounded-lg border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:bg-white/5"><RotateCw size={15} /> Lượt mới</button>
+          <button type="button" onClick={onManageWords} className="inline-flex items-center gap-2 rounded-lg border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-amber-400/60 hover:text-amber-200"><BookOpen size={15} /> Quay về bảng từ</button>
         </div>
       </motion.section>
     );
