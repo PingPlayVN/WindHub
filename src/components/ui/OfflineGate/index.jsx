@@ -47,10 +47,10 @@ export default function OfflineGate({ pageTitle, children }) {
       ) : (
         <motion.div key="offline" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="relative min-h-full">
           <OfflineSkeleton />
-          <div className="fixed inset-0 z-[500] flex items-center justify-center bg-black/65 p-4 backdrop-blur-sm">
+          <div className="mx-auto flex w-full justify-center px-4 py-6">
             <motion.section
-              role="alertdialog"
-              aria-modal="true"
+              role="status"
+              aria-live="polite"
               aria-labelledby="offline-title"
               aria-describedby="offline-description"
               initial={{ opacity: 0, y: 12, scale: 0.98 }}
