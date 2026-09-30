@@ -1,6 +1,6 @@
 // src/App.jsx
-import { lazy, Suspense, useEffect } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { lazy, Suspense, useEffect, useRef } from 'react';
+import { Routes, Route, useNavigate } from 'react-router-dom';
 import { applyTheme, useThemeStore } from '@/store/useThemeStore';
 import { Toaster, toast } from 'sonner'; // <-- Thêm import toast
 import { MotionConfig } from 'framer-motion';
@@ -18,10 +18,22 @@ const AIBattle = lazy(() => import('@/modules/AILab'));
 const LoginModal = lazy(() => import('@/modules/Auth/LoginModal'));
 
 function App() {
+  const navigate = useNavigate();
+  const checkedPwaLaunch = useRef(false);
   const { theme } = useThemeStore();
   const setAuth = useAuthStore((state) => state.setAuth);
   const isAdmin = useAuthStore((state) => state.isAdmin); // <-- Lấy thêm isAdmin từ store
   const { isLoginOpen, closeLogin } = useUIStore();
+
+  useEffect(() => {
+    if (checkedPwaLaunch.current) return;
+    checkedPwaLaunch.current = true;
+
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+    if (isStandalone && window.location.pathname === '/tools') {
+      navigate('/', { replace: true });
+    }
+  }, [navigate]);
 
   useEffect(() => {
     applyTheme(theme);
