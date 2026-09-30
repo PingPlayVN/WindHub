@@ -8,6 +8,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useUIStore } from '@/store/useUIStore';
 import MainLayout from '@/components/layout/MainLayout';
 import Loader from '@/components/ui/Loader';
+import OfflineGate from '@/components/ui/OfflineGate';
 
 const Home = lazy(() => import('@/pages/Home'));
 const FileManager = lazy(() => import('@/modules/FileManager'));
@@ -82,9 +83,9 @@ function App() {
         <Suspense fallback={<Loader fullScreen text="Đang tải dữ liệu..." />}>
           <Routes>
             <Route path="/" element={<Home />} />
-            <Route path="/files" element={<FileManager />} />
+            <Route path="/files" element={<OfflineGate pageTitle="Quản lý File"><FileManager /></OfflineGate>} />
             <Route path="/tools" element={<ToolsHub />} />
-            <Route path="/extensions" element={<Tools />} />
+            <Route path="/extensions" element={<OfflineGate pageTitle="Tiện ích"><Tools /></OfflineGate>} />
             <Route path="/ai-lab" element={<AIBattle />} />
           </Routes>
         </Suspense>
