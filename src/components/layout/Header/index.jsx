@@ -17,6 +17,8 @@ export default function Header() {
     ? 'Quản lý File'
     : location.pathname === '/tools'
       ? 'Công cụ'
+      : location.pathname === '/extensions'
+      ? 'Tiện ích'
       : location.pathname === '/ai-lab'
         ? 'AI Battle'
         : 'Tổng quan';

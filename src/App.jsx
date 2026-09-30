@@ -12,6 +12,7 @@ import Loader from '@/components/ui/Loader';
 const Home = lazy(() => import('@/pages/Home'));
 const FileManager = lazy(() => import('@/modules/FileManager'));
 const Tools = lazy(() => import('@/pages/Tools'));
+const ToolsHub = lazy(() => import('@/pages/ToolsHub'));
 const AIBattle = lazy(() => import('@/modules/AILab'));
 const LoginModal = lazy(() => import('@/modules/Auth/LoginModal'));
 
@@ -82,7 +83,8 @@ function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/files" element={<FileManager />} />
-            <Route path="/tools" element={<Tools />} />
+            <Route path="/tools" element={<ToolsHub />} />
+            <Route path="/extensions" element={<Tools />} />
             <Route path="/ai-lab" element={<AIBattle />} />
           </Routes>
         </Suspense>

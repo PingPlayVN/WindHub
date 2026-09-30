@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, FileArchive, Wrench, FlaskConical } from 'lucide-react';
+import { LayoutDashboard, FileArchive, Command, Wrench, FlaskConical } from 'lucide-react';
 import { useUIStore } from '@/store/useUIStore';
 import { useThemeStore } from '@/store/useThemeStore';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -92,8 +92,16 @@ export default function Sidebar() {
             onClick={closeSidebar}
             className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 ${isActive('/tools') ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-400 font-semibold' : 'hover:bg-slate-100 dark:hover:bg-zinc-900 text-slate-600 dark:text-slate-400'}`}
           >
-            <Wrench size={20} />
+            <Command size={20} />
             <span>Công cụ</span>
+          </Link>
+          <Link
+            to="/extensions"
+            onClick={closeSidebar}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 ${isActive('/extensions') ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-400 font-semibold' : 'hover:bg-slate-100 dark:hover:bg-zinc-900 text-slate-600 dark:text-slate-400'}`}
+          >
+            <Wrench size={20} />
+            <span>Tiện ích</span>
           </Link>
           <Link
             to="/ai-lab"
