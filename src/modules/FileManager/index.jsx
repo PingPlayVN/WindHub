@@ -1,5 +1,5 @@
 // src/modules/FileManager/index.jsx
-import { useRef, useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useSearchParams } from 'react-router-dom';
 import ContextMenu from './components/ContextMenu';
@@ -20,7 +20,7 @@ import { useFilePreview } from './hooks/useFilePreview';
 import { useFileOrganization } from './hooks/useFileOrganization';
 import { useFileSelection } from './hooks/useFileSelection';
 import { useFileKeyboardShortcuts } from './hooks/useFileKeyboardShortcuts';
-import { useFileSharing } from './hooks/useFileSharing';
+import { useFileSharing, useSharedItemLink } from './features/FileSharing';
 import { getFileIcon } from './utils/fileIcons';
 
 export default function FileManager() {
@@ -37,8 +37,6 @@ export default function FileManager() {
   // --- STATE TÍNH NĂNG WINDOWS ---
   const [contextMenu, setContextMenu] = useState(null);
   const [selectedItems, setSelectedItems] = useState(new Set()); 
-  const processedShareRef = useRef('');
-
   const {
     allFiles, currentFiles, effectiveSort, globalSort, loadError, isLoading,
     handleLocalSortChange, handleGlobalSortChange: updateGlobalSort,
@@ -52,7 +50,9 @@ export default function FileManager() {
   const organization = useFileOrganization({
     isAdmin, activeTab, allFiles, selectedItems, setSelectedItems,
   });
-  const { handleShare } = useFileSharing();
+  const {
+    shareItem, shareUrl, handleShare, closeShareDialog, copyShareUrl, shareNatively,
+  } = useFileSharing();
   const {
     showFolderModal, setShowFolderModal, folderName, setFolderName,
     showLinkModal, setShowLinkModal, linkInput, setLinkInput,
@@ -68,48 +68,10 @@ export default function FileManager() {
     handleOpenFolder, handlePreview, renamingItem, setSelectedItems,
   });
 
-  // --- LOGIC XỬ LÝ URL CHIA SẺ ---
-  useEffect(() => {
-    // Đợi Firebase load xong danh sách file
-    if (allFiles.length === 0) return;
-
-    const fileId = searchParams.get('fileId');
-    const folderId = searchParams.get('folderId');
-    const shareKey = `${fileId || ''}:${folderId || ''}`;
-
-    if (!fileId && !folderId) return;
-    if (processedShareRef.current === shareKey) return;
-    processedShareRef.current = shareKey;
-
-    const nextSearchParams = new URLSearchParams(searchParams);
-
-    if (fileId) {
-      const targetFile = allFiles.find(f => f.id === fileId);
-      if (targetFile && targetFile.type !== 'folder') {
-        handlePreview(targetFile); // Tự động mở Preview Modal
-      } else {
-        toast.error('File không tồn tại hoặc đã bị xóa!');
-      }
-      // Dọn dẹp URL sau khi xử lý xong (giúp việc F5 không bị lặp lại)
-      nextSearchParams.delete('fileId');
-    }
-
-    if (folderId) {
-      const targetFolder = allFiles.find(f => f.id === folderId);
-      if (targetFolder && targetFolder.type === 'folder') {
-        if (!handleOpenSharedFolder(targetFolder, allFiles)) {
-          toast.error('Không xác định được không gian của thư mục!');
-        }
-      } else {
-        toast.error('Thư mục không tồn tại hoặc đã bị xóa!');
-      }
-      nextSearchParams.delete('folderId');
-    }
-
-    if (nextSearchParams.toString() !== searchParams.toString()) {
-      setSearchParams(nextSearchParams, { replace: true });
-    }
-  }, [allFiles, searchParams, setSearchParams, handlePreview, handleOpenSharedFolder]);
+  useSharedItemLink({
+    allFiles, isLoading, loadError, searchParams, setSearchParams,
+    handlePreview, handleOpenSharedFolder,
+  });
 
   const handleGlobalSortChange = async (nextSort) => {
     if (!isAdmin) return;
@@ -210,6 +172,8 @@ export default function FileManager() {
         folderName={folderName} setFolderName={setFolderName} handleCreateFolder={handleCreateFolder}
         fileToDelete={showDeleteModal ? itemToDelete : null} setFileToDelete={() => setShowDeleteModal(false)} confirmDelete={confirmDelete}
         previewFile={previewFile} setPreviewFile={setPreviewFile} viewerEngine={viewerEngine} setViewerEngine={setViewerEngine}
+        shareItem={shareItem} shareUrl={shareUrl} closeShareDialog={closeShareDialog}
+        copyShareUrl={copyShareUrl} shareNatively={shareNatively}
       />
     </motion.div>
   );
