@@ -1,10 +1,41 @@
 import { ICE_SERVERS } from '../config/iceServers.js';
 
-const MAX_SIGNAL_SIZE = 1024 * 1024;
-const ICE_GATHERING_TIMEOUT_MS = 30000;
+const MAX_SIGNAL_SIZE = 64 * 1024;
+const ICE_GATHERING_TIMEOUT_MS = 15000;
 const LOW_WATERMARK = 128 * 1024;
 
-function parseSignal(signal, expectedType) {
+export function encodeSignalToken(description) {
+  if (!description || typeof description.sdp !== 'string' || !description.type) {
+    throw new Error('Mã ghép nối không hợp lệ.');
+  }
+  return `v1.${description.type}:${description.sdp}`;
+}
+
+export function decodeSignalToken(token) {
+  if (typeof token !== 'string' || !token.startsWith('v1.')) {
+    return token;
+  }
+
+  const compactValue = token.slice(3);
+  if (!compactValue) {
+    throw new Error('Mã ghép nối trống.');
+  }
+
+  const separatorIndex = compactValue.indexOf(':');
+  if (separatorIndex <= 0) {
+    throw new Error('Mã ghép nối không hợp lệ.');
+  }
+
+  const type = compactValue.slice(0, separatorIndex);
+  const sdp = compactValue.slice(separatorIndex + 1);
+  if (type !== 'offer' && type !== 'answer') {
+    throw new Error('Mã ghép nối không hợp lệ.');
+  }
+
+  return { version: 1, type, sdp };
+}
+
+export function parseSignal(signal, expectedType) {
   if (typeof signal !== 'string' || signal.length > MAX_SIGNAL_SIZE) {
     throw new Error('Mã kết nối không hợp lệ hoặc vượt quá giới hạn kích thước.');
   }
@@ -13,7 +44,11 @@ function parseSignal(signal, expectedType) {
   try {
     description = JSON.parse(signal);
   } catch {
-    throw new Error('Không đọc được mã kết nối. Hãy dán nguyên văn Offer hoặc Answer.');
+    try {
+      description = decodeSignalToken(signal);
+    } catch {
+      throw new Error('Không đọc được mã kết nối. Hãy dán nguyên văn Offer hoặc Answer.');
+    }
   }
 
   if (
@@ -122,14 +157,15 @@ export default class WebRTCCore {
     return () => this.messageListeners.delete(listener);
   }
 
-  async waitForIceGathering() {
+  async waitForIceGathering({ timeoutMs = ICE_GATHERING_TIMEOUT_MS, allowPartial = true } = {}) {
     if (this.peerConnection.iceGatheringState === 'complete') return;
 
     await new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         cleanup();
-        reject(new Error('Thu thập ICE quá thời gian. Hãy kiểm tra kết nối mạng và thử lại.'));
-      }, ICE_GATHERING_TIMEOUT_MS);
+        if (allowPartial) resolve();
+        else reject(new Error('Thu thập ICE quá thời gian. Hãy kiểm tra kết nối mạng và thử lại.'));
+      }, timeoutMs);
 
       const onGatheringStateChange = () => {
         if (this.peerConnection.iceGatheringState === 'complete') {
@@ -154,9 +190,16 @@ export default class WebRTCCore {
       this.createDataChannels();
       const offer = await this.peerConnection.createOffer();
       await this.peerConnection.setLocalDescription(offer);
-      await this.waitForIceGathering();
+
+      const payload = { version: 1, type: 'offer', sdp: this.peerConnection.localDescription.sdp };
+      try {
+        await this.waitForIceGathering({ allowPartial: true });
+      } catch {
+        // Chấp nhận SDP nhưng chưa thu thập hết ICE candidate; vẫn cho phép gửi mã để peer thử kết nối.
+      }
+
       this.setState('waiting');
-      return JSON.stringify({ version: 1, type: 'offer', sdp: this.peerConnection.localDescription.sdp });
+      return encodeSignalToken(payload);
     } catch (error) {
       this.setState('failed');
       throw error;
@@ -172,9 +215,16 @@ export default class WebRTCCore {
       this.createDataChannels();
       const answer = await this.peerConnection.createAnswer();
       await this.peerConnection.setLocalDescription(answer);
-      await this.waitForIceGathering();
+
+      const payload = { version: 1, type: 'answer', sdp: this.peerConnection.localDescription.sdp };
+      try {
+        await this.waitForIceGathering({ allowPartial: true });
+      } catch {
+        // Hãy vẫn trả về Answer ngay cả khi ICE gathering chưa hoàn tất.
+      }
+
       this.setState('connecting');
-      return JSON.stringify({ version: 1, type: 'answer', sdp: this.peerConnection.localDescription.sdp });
+      return encodeSignalToken(payload);
     } catch (error) {
       this.setState('failed');
       throw error;

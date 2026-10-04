@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import FileTransfer from '../src/modules/P2P/transfers/FileTransfer.js';
 import { decodeControl, encodeFileChunk } from '../src/modules/P2P/transfers/protocol.js';
+import { decodeSignalToken, encodeSignalToken, parseSignal } from '../src/modules/P2P/core/WebRTCCore.js';
 
 class FakeCore {
   constructor() {
@@ -63,4 +64,15 @@ test('ACK control updates outgoing transfer state', () => {
   transfer.receive(JSON.stringify({ type: 'ACK', fileId: 'file-2', chunkIndex: 0 }), 'windhub-control');
 
   assert.equal(transfer.outgoing.transferAcknowledged, true);
+});
+
+test('pairing token remains compact and reversible', () => {
+  const sdp = 'v=0\r\n' + 'a=ice-ufrag:abc\r\n'.repeat(220);
+  const description = { version: 1, type: 'offer', sdp };
+  const token = encodeSignalToken(description);
+
+  assert.match(token, /^v1\./);
+  assert.ok(token.length < JSON.stringify(description).length, `expected compact token: ${token.length} >= ${JSON.stringify(description).length}`);
+  assert.deepEqual(decodeSignalToken(token), description);
+  assert.deepEqual(parseSignal(token, 'offer'), { type: 'offer', sdp });
 });
