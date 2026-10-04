@@ -1,16 +1,37 @@
-# React + Vite
+# WindHub
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## P2P Share
 
-Currently, two official plugins are available:
+Mở màn hình **P2P Share** từ thanh điều hướng hoặc truy cập `/p2p`. WebRTC DataChannel truyền text và file trực tiếp giữa hai trình duyệt; ứng dụng không upload, lưu hoặc relay nội dung qua backend.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+### Ghép nối thủ công
 
-## React Compiler
+1. Trên thiết bị A, chọn **Create Connection** và đợi Offer xuất hiện sau khi ICE gathering hoàn tất.
+2. Copy Offer sang thiết bị B qua kênh riêng tư (QR, tin nhắn, hoặc clipboard).
+3. Trên B, dán Offer và chọn **Create Answer**; gửi Answer trở lại A.
+4. Trên A, dán Answer và chọn **Connect**. Đợi trạng thái **Connected** ở cả hai thiết bị.
+5. Dùng tab **Text** hoặc **File** để truyền dữ liệu. File có thể chọn bằng file picker hoặc kéo thả; người nhận tải file sau khi đã nhận đủ dữ liệu.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Offer và Answer chứa SDP cùng các ICE candidate thu thập được, nên có thể khá dài. Chỉ chia sẻ với peer tin cậy. Trang cần HTTPS hoặc localhost; STUN chỉ hỗ trợ tìm đường, không đảm bảo hoạt động trên mọi NAT/firewall.
 
-## Expanding the ESLint configuration
+### Cấu trúc
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- `src/modules/P2P/core/WebRTCCore.js`: RTCPeerConnection, DataChannel, SDP/ICE gathering, trạng thái và đóng kết nối.
+- `src/modules/P2P/pairing/ManualPairingAdapter.js`: adapter ghép nối thủ công; signaling tương lai có thể triển khai cùng giao diện.
+- `src/modules/P2P/transfers/TextTransfer.js`: message text có ID, timestamp và kiểm tra kích thước.
+- `src/modules/P2P/transfers/FileTransfer.js`: metadata, chunk 16 KiB, backpressure, tiến độ, tốc độ và hủy truyền.
+- `src/modules/P2P/config/iceServers.js`: cấu hình ICE/STUN tập trung; dễ bổ sung TURN trong tương lai.
+- `src/modules/P2P/index.jsx`: UI; không chứa logic WebRTC phức tạp trực tiếp.
+
+### Giới hạn hiện tại
+
+- STUN công khai chỉ giúp khám phá địa chỉ; một số mạng NAT/firewall cần TURN. TURN có thể relay lưu lượng và cần được cấu hình/cung cấp riêng; chưa bật ở phiên bản này.
+- Ghép nối cần copy/paste thủ công; không có auto reconnect và không có xác thực peer.
+- File giới hạn 1 GiB và được ghép trong bộ nhớ trình duyệt trước khi tải xuống; dung lượng thực tế phụ thuộc thiết bị.
+- Browser phải hỗ trợ WebRTC DataChannel; yêu cầu secure context (HTTPS hoặc localhost).
+- WebRTC đã có DTLS encryption nhưng chưa có PIN, QR verification, hoặc xác nhận trước khi nhận file.
+
+### Khi thêm signaling server
+
+Giữ nguyên `WebRTCCore` và các transfer service. Tạo adapter mới theo giao diện `createOffer()`, `createAnswer(offer)`, `acceptAnswer(answer)`, rồi chuyển SDP/ICE qua signaling transport mới. Không gửi file/text qua signaling; DataChannel vẫn là transport P2P chính.
+

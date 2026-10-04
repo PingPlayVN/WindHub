@@ -15,6 +15,7 @@ const FileManager = lazy(() => import('@/modules/FileManager'));
 const Tools = lazy(() => import('@/pages/Tools'));
 const ToolsHub = lazy(() => import('@/pages/ToolsHub'));
 const AIBattle = lazy(() => import('@/modules/AILab'));
+const P2P = lazy(() => import('@/modules/P2P'));
 const LoginModal = lazy(() => import('@/modules/Auth/LoginModal'));
 
 function App() {
@@ -99,6 +100,7 @@ function App() {
             <Route path="/tools" element={<ToolsHub />} />
             <Route path="/extensions" element={<OfflineGate pageTitle="Tiện ích"><Tools /></OfflineGate>} />
             <Route path="/ai-lab" element={<AIBattle />} />
+            <Route path="/p2p" element={<P2P />} />
           </Routes>
         </Suspense>
       </MainLayout>

@@ -24,6 +24,8 @@ export default function Header() {
       ? 'Tiện ích'
       : location.pathname === '/ai-lab'
         ? 'AI Battle'
+        : location.pathname === '/p2p'
+          ? 'P2P Share'
         : 'Tổng quan';
 
   const handleLogout = async () => {
