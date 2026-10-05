@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import FileTransfer from '../src/modules/P2P/transfers/FileTransfer.js';
 import { decodeControl, encodeFileChunk } from '../src/modules/P2P/transfers/protocol.js';
 import { decodeSignalToken, encodeSignalToken, parseSignal } from '../src/modules/P2P/core/WebRTCCore.js';
+import WebRTCCore from '../src/modules/P2P/core/WebRTCCore.js';
 
 class FakeCore {
   constructor() {
@@ -75,4 +76,65 @@ test('pairing token remains compact and reversible', () => {
   assert.ok(token.length < JSON.stringify(description).length, `expected compact token: ${token.length} >= ${JSON.stringify(description).length}`);
   assert.deepEqual(decodeSignalToken(token), description);
   assert.deepEqual(parseSignal(token, 'offer'), { type: 'offer', sdp });
+});
+
+test('answerer reuses offered data channels and includes gathered ICE in answer', async () => {
+  const previousPeerConnection = globalThis.RTCPeerConnection;
+  const listeners = new Map();
+  let createdChannels = 0;
+
+  class FakePeerConnection {
+    constructor() {
+      this.iceGatheringState = 'complete';
+      this.connectionState = 'new';
+      this.iceConnectionState = 'new';
+      this.signalingState = 'stable';
+      this.localDescription = null;
+    }
+
+    addEventListener(type, listener) {
+      listeners.set(type, listener);
+    }
+
+    removeEventListener() {}
+
+    createDataChannel() {
+      createdChannels += 1;
+      throw new Error('Answerer must reuse channels created by offerer.');
+    }
+
+    async setRemoteDescription(description) {
+      this.remoteDescription = description;
+    }
+
+    async createAnswer() {
+      return { type: 'answer', sdp: 'answer-sdp' };
+    }
+
+    async setLocalDescription(description) {
+      this.localDescription = { ...description, sdp: `${description.sdp}\r\na=candidate:gathered` };
+    }
+
+    close() {}
+  }
+
+  globalThis.RTCPeerConnection = FakePeerConnection;
+  try {
+    const core = new WebRTCCore();
+    const answerToken = await core.createAnswer(encodeSignalToken({
+      version: 1,
+      type: 'offer',
+      sdp: 'offer-sdp',
+    }));
+
+    assert.equal(createdChannels, 0);
+    assert.deepEqual(parseSignal(answerToken, 'answer'), {
+      type: 'answer',
+      sdp: 'answer-sdp\r\na=candidate:gathered',
+    });
+    core.close();
+  } finally {
+    if (previousPeerConnection === undefined) delete globalThis.RTCPeerConnection;
+    else globalThis.RTCPeerConnection = previousPeerConnection;
+  }
 });

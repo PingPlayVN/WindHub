@@ -6,13 +6,13 @@ Mở màn hình **P2P Share** từ thanh điều hướng hoặc truy cập `/p2
 
 ### Ghép nối thủ công
 
-1. Trên thiết bị A, chọn **Create Connection** và đợi Offer xuất hiện sau khi ICE gathering hoàn tất.
+1. Trên thiết bị A, chọn **Create Connection** và đợi Offer xuất hiện khi ICE gathering hoàn tất (tối đa 15 giây).
 2. Copy Offer sang thiết bị B qua kênh riêng tư (QR, tin nhắn, hoặc clipboard).
 3. Trên B, dán Offer và chọn **Create Answer**; gửi Answer trở lại A.
 4. Trên A, dán Answer và chọn **Connect**. Đợi trạng thái **Connected** ở cả hai thiết bị.
 5. Dùng tab **Text** hoặc **File** để truyền dữ liệu. File có thể chọn bằng file picker hoặc kéo thả; người nhận tải file sau khi đã nhận đủ dữ liệu.
 
-Offer và Answer chứa SDP cùng các ICE candidate thu thập được, nên có thể khá dài. Chỉ chia sẻ với peer tin cậy. Trang cần HTTPS hoặc localhost; STUN chỉ hỗ trợ tìm đường, không đảm bảo hoạt động trên mọi NAT/firewall.
+Offer và Answer chứa SDP cùng các ICE candidate thu thập được, nên có thể khá dài. Nếu ICE gathering vượt quá 15 giây, ứng dụng vẫn trả mã với candidate đã thu thập được đến lúc đó; một số mạng có thể cần thử lại hoặc cấu hình TURN. Chỉ chia sẻ mã với peer tin cậy. Trang cần HTTPS hoặc localhost; STUN chỉ hỗ trợ tìm đường, không đảm bảo hoạt động trên mọi NAT/firewall.
 
 ### Cấu trúc
 
@@ -34,4 +34,3 @@ Offer và Answer chứa SDP cùng các ICE candidate thu thập được, nên c
 ### Khi thêm signaling server
 
 Giữ nguyên `WebRTCCore` và các transfer service. Tạo adapter mới theo giao diện `createOffer()`, `createAnswer(offer)`, `acceptAnswer(answer)`, rồi chuyển SDP/ICE qua signaling transport mới. Không gửi file/text qua signaling; DataChannel vẫn là transport P2P chính.
-

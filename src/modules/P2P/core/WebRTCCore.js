@@ -191,15 +191,14 @@ export default class WebRTCCore {
       const offer = await this.peerConnection.createOffer();
       await this.peerConnection.setLocalDescription(offer);
 
-      const payload = { version: 1, type: 'offer', sdp: this.peerConnection.localDescription.sdp };
-      try {
-        await this.waitForIceGathering({ allowPartial: true });
-      } catch {
-        // Chấp nhận SDP nhưng chưa thu thập hết ICE candidate; vẫn cho phép gửi mã để peer thử kết nối.
-      }
+      await this.waitForIceGathering({ allowPartial: true });
 
       this.setState('waiting');
-      return encodeSignalToken(payload);
+      return encodeSignalToken({
+        version: 1,
+        type: 'offer',
+        sdp: this.peerConnection.localDescription.sdp,
+      });
     } catch (error) {
       this.setState('failed');
       throw error;
@@ -212,19 +211,17 @@ export default class WebRTCCore {
     this.setState('creating');
     try {
       await this.peerConnection.setRemoteDescription(offer);
-      this.createDataChannels();
       const answer = await this.peerConnection.createAnswer();
       await this.peerConnection.setLocalDescription(answer);
 
-      const payload = { version: 1, type: 'answer', sdp: this.peerConnection.localDescription.sdp };
-      try {
-        await this.waitForIceGathering({ allowPartial: true });
-      } catch {
-        // Hãy vẫn trả về Answer ngay cả khi ICE gathering chưa hoàn tất.
-      }
+      await this.waitForIceGathering({ allowPartial: true });
 
       this.setState('connecting');
-      return encodeSignalToken(payload);
+      return encodeSignalToken({
+        version: 1,
+        type: 'answer',
+        sdp: this.peerConnection.localDescription.sdp,
+      });
     } catch (error) {
       this.setState('failed');
       throw error;
@@ -243,7 +240,7 @@ export default class WebRTCCore {
       this.setState('connecting');
     } catch (error) {
       this.setState('failed');
-      throw new Error('Không thể áp dụng Answer. Hãy kiểm tra mã có thuộc Offer hiện tại không.');
+      throw new Error('Không thể áp dụng Answer. Hãy kiểm tra mã có thuộc Offer hiện tại không.', { cause: error });
     }
   }
 

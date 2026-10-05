@@ -64,7 +64,7 @@ export default function P2P() {
   const [offerInput, setOfferInput] = useState('');
   const [answerInput, setAnswerInput] = useState('');
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState('text');
+  const [activeTab, setActiveTab] = useState('file');
   const [text, setText] = useState('');
   const [messages, setMessages] = useState([]);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -276,8 +276,8 @@ export default function P2P() {
       {connected && (
         <section className="space-y-4">
           <div className="flex gap-2 border-b border-slate-200 dark:border-slate-800" role="tablist" aria-label="Chức năng truyền P2P">
-            <button type="button" role="tab" aria-selected={activeTab === 'text'} onClick={() => setActiveTab('text')} className={`inline-flex items-center gap-2 border-b-2 px-3 py-2 text-sm font-bold ${activeTab === 'text' ? 'border-amber-500 text-amber-700 dark:text-amber-400' : 'border-transparent text-slate-500'}`}><MessageSquare size={16} /> Text</button>
             <button type="button" role="tab" aria-selected={activeTab === 'file'} onClick={() => setActiveTab('file')} className={`inline-flex items-center gap-2 border-b-2 px-3 py-2 text-sm font-bold ${activeTab === 'file' ? 'border-amber-500 text-amber-700 dark:text-amber-400' : 'border-transparent text-slate-500'}`}><FileUp size={16} /> File</button>
+            <button type="button" role="tab" aria-selected={activeTab === 'text'} onClick={() => setActiveTab('text')} className={`inline-flex items-center gap-2 border-b-2 px-3 py-2 text-sm font-bold ${activeTab === 'text' ? 'border-amber-500 text-amber-700 dark:text-amber-400' : 'border-transparent text-slate-500'}`}><MessageSquare size={16} /> Text</button>
           </div>
 
           {activeTab === 'text' ? (
