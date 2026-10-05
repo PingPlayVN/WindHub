@@ -1,11 +1,14 @@
 import {
+  ACK_BATCH_BYTES,
+  ACK_BATCH_CHUNKS,
+  ACK_BATCH_INTERVAL_MS,
   HIGH_WATERMARK,
-  LOW_WATERMARK,
-  MAX_FILE_SIZE,
+  LEGACY_CHUNK_SIZE,
   MAX_CHUNK_SIZE,
+  MAX_FILE_SIZE,
   MIN_CHUNK_SIZE,
+  MAX_IN_FLIGHT_BYTES,
   PROGRESS_INTERVAL_MS,
-  TRANSFER_WINDOW_SIZE,
   decodeControl,
   decodeFileChunk,
   encodeControl,
@@ -13,7 +16,7 @@ import {
   validateFileMetadata,
 } from './protocol.js';
 
-const CONTROL_TYPES = new Set(['FILE_START', 'FILE_END', 'FILE_READY', 'CONTROL', 'ACK']);
+const CONTROL_TYPES = new Set(['FILE_START', 'FILE_END', 'FILE_READY', 'FILE_CONFIG', 'FILE_CONFIG_ACK', 'CONTROL', 'ACK']);
 const ACK_TIMEOUT_MS = 30_000;
 
 function makeFileId() {
@@ -32,9 +35,16 @@ export default class FileTransfer {
   }
 
   getAdaptiveChunkSize(bufferedAmount) {
-    if (bufferedAmount < LOW_WATERMARK) return MAX_CHUNK_SIZE;
-    if (bufferedAmount < HIGH_WATERMARK) return Math.min(MAX_CHUNK_SIZE, Math.max(MIN_CHUNK_SIZE, Math.round(bufferedAmount / 32)));
-    return MIN_CHUNK_SIZE;
+    const maxMessageSize = this.core.getMaxFileChunkSize?.() ?? MAX_CHUNK_SIZE;
+    if (maxMessageSize < MIN_CHUNK_SIZE) throw new Error('Kênh WebRTC không hỗ trợ kích thước chunk tối thiểu.');
+    const preferred = Math.min(MAX_CHUNK_SIZE, maxMessageSize, bufferedAmount > HIGH_WATERMARK ? LEGACY_CHUNK_SIZE : MAX_CHUNK_SIZE);
+    return preferred;
+  }
+
+  getLegacyChunkSize() {
+    const maxPayload = this.core.getMaxFileChunkSize?.() ?? LEGACY_CHUNK_SIZE;
+    if (maxPayload < MIN_CHUNK_SIZE) throw new Error('Kênh WebRTC không hỗ trợ kích thước chunk tối thiểu.');
+    return Math.min(LEGACY_CHUNK_SIZE, maxPayload);
   }
 
   async waitForBufferSpace(channel, transfer, bufferLimit = HIGH_WATERMARK) {
@@ -86,7 +96,7 @@ export default class FileTransfer {
     if (!fileChannel || fileChannel.readyState !== 'open') {
       throw new Error('Kênh truyền file chưa sẵn sàng. Hãy đợi kết nối ổn định rồi thử lại.');
     }
-    const initialChunkSize = this.getAdaptiveChunkSize(fileChannel?.bufferedAmount || 0);
+    const initialChunkSize = this.getLegacyChunkSize();
     const metadata = {
       type: 'FILE_START',
       fileId: makeFileId(),
@@ -105,6 +115,7 @@ export default class FileTransfer {
       cancelWaiters: new Set(),
       pendingAcks: new Map(),
       ready: null,
+      configuration: null,
       bytesSent: 0,
       lastProgressBytes: 0,
       lastReportedAt: performance.now(),
@@ -117,12 +128,10 @@ export default class FileTransfer {
       await this.waitForBufferSpace(fileChannel, transfer, HIGH_WATERMARK);
       if (transfer.cancelled) throw new DOMException('Đã hủy gửi file.', 'AbortError');
       const slice = file.slice(start, end);
-      const data = await slice.arrayBuffer();
-      if (transfer.cancelled) throw new DOMException('Đã hủy gửi file.', 'AbortError');
       const chunkMeta = { type: 'FILE_CHUNK', fileId: metadata.fileId, chunkIndex, chunkSize: metadata.chunkSize };
-      const acknowledgement = this.waitForAcknowledgement(transfer, chunkIndex, data.byteLength);
-      this.core.sendFile(encodeFileChunk(chunkMeta, data));
-      return { acknowledgement };
+      const acknowledgement = this.waitForAcknowledgement(transfer, chunkIndex, end - start);
+      this.core.sendFile(encodeFileChunk(chunkMeta, slice));
+      return { acknowledgement, byteLength: end - start };
     };
 
     try {
@@ -132,7 +141,27 @@ export default class FileTransfer {
         direction: 'send', fileId: metadata.fileId, fileName: file.name,
         fileSize: file.size, transferred: 0, speed: 0, status: 'preparing', chunkSize: metadata.chunkSize,
       });
-      await readyPromise;
+      const peerCapabilities = await readyPromise;
+      const selectedChunkSize = Math.min(
+        this.getAdaptiveChunkSize(fileChannel.bufferedAmount),
+        Number.isSafeInteger(peerCapabilities.maxChunkSize) ? peerCapabilities.maxChunkSize : LEGACY_CHUNK_SIZE,
+      );
+      if (selectedChunkSize !== metadata.chunkSize) {
+        const nextMetadata = {
+          ...metadata,
+          chunkSize: selectedChunkSize,
+          totalChunks: Math.ceil(file.size / selectedChunkSize),
+        };
+        const configurationPromise = this.waitForFileConfiguration(transfer, selectedChunkSize);
+        this.core.send(encodeControl({
+          type: 'FILE_CONFIG',
+          fileId: metadata.fileId,
+          chunkSize: nextMetadata.chunkSize,
+          totalChunks: nextMetadata.totalChunks,
+        }));
+        await configurationPromise;
+        Object.assign(metadata, nextMetadata);
+      }
       transfer.lastReportedAt = performance.now();
       this.onProgress({
         direction: 'send', fileId: metadata.fileId, fileName: file.name,
@@ -140,14 +169,24 @@ export default class FileTransfer {
       });
 
       const inFlight = [];
+      let inFlightBytes = 0;
       for (let chunkIndex = 0; chunkIndex < metadata.totalChunks; chunkIndex += 1) {
         const start = chunkIndex * metadata.chunkSize;
         const end = Math.min(start + metadata.chunkSize, file.size);
-        inFlight.push((await sendChunk(chunkIndex, start, end)).acknowledgement);
-        if (inFlight.length >= TRANSFER_WINDOW_SIZE) await inFlight.shift();
+        const chunkBytes = end - start;
+        while (inFlight.length && inFlightBytes + chunkBytes > MAX_IN_FLIGHT_BYTES) {
+          const acknowledged = await inFlight.shift();
+          inFlightBytes -= acknowledged.byteLength;
+        }
+        const packet = await sendChunk(chunkIndex, start, end);
+        inFlight.push(packet.acknowledgement.then(() => packet));
+        inFlightBytes += packet.byteLength;
       }
 
-      await Promise.all(inFlight);
+      while (inFlight.length) {
+        const acknowledged = await inFlight.shift();
+        inFlightBytes -= acknowledged.byteLength;
+      }
       if (transfer.cancelled) throw new DOMException('Đã hủy gửi file.', 'AbortError');
       this.core.send(encodeControl({ type: 'FILE_END', fileId: metadata.fileId }));
       this.onProgress({
@@ -180,6 +219,11 @@ export default class FileTransfer {
         transfer.ready.reject(new DOMException('Đã đóng truyền file.', 'AbortError'));
         transfer.ready = null;
       }
+      if (transfer.configuration) {
+        clearTimeout(transfer.configuration.timeout);
+        transfer.configuration.reject(new DOMException('Đã đóng truyền file.', 'AbortError'));
+        transfer.configuration = null;
+      }
       transfer.pendingAcks.forEach(({ reject, timeout }) => {
         clearTimeout(timeout);
         reject(new DOMException('Đã đóng truyền file.', 'AbortError'));
@@ -201,8 +245,14 @@ export default class FileTransfer {
         clearTimeout(this.outgoing.ready.timeout);
         this.outgoing.ready = null;
       }
+      if (this.outgoing.configuration) {
+        this.outgoing.configuration.reject(new DOMException('Đã hủy gửi file.', 'AbortError'));
+        clearTimeout(this.outgoing.configuration.timeout);
+        this.outgoing.configuration = null;
+      }
     }
     if (this.incoming?.metadata.fileId === fileId) {
+      clearTimeout(this.incoming.ackTimer);
       this.onProgress({
         direction: 'receive',
         fileId,
@@ -236,6 +286,8 @@ export default class FileTransfer {
       if (message.type === 'FILE_START') this.startReceive(message);
       else if (message.type === 'FILE_END') this.finishReceive(message);
       else if (message.type === 'FILE_READY') this.markReceiverReady(message);
+      else if (message.type === 'FILE_CONFIG') this.configureReceive(message);
+      else if (message.type === 'FILE_CONFIG_ACK') this.markFileConfigured(message);
       else if (message.type === 'CONTROL') this.receiveControl(message);
       else if (message.type === 'ACK') this.acknowledge(message);
     } catch (error) {
@@ -254,16 +306,23 @@ export default class FileTransfer {
       receivedBytes: 0,
       lastProgressBytes: 0,
       lastReportedAt: performance.now(),
+      lastAckedChunk: -1,
+      lastAckedBytes: 0,
+      ackTimer: null,
     };
     this.onProgress({
       direction: 'receive', fileId: metadata.fileId, fileName: metadata.fileName,
       fileSize: metadata.fileSize, transferred: 0, speed: 0, status: 'receiving', chunkSize: metadata.chunkSize,
     });
-    this.core.send(encodeControl({ type: 'FILE_READY', fileId: metadata.fileId }));
+    this.core.send(encodeControl({
+      type: 'FILE_READY',
+      fileId: metadata.fileId,
+      maxChunkSize: this.core.getMaxFileChunkSize?.() ?? MAX_CHUNK_SIZE,
+    }));
   }
 
   receiveChunk(frame) {
-    const { metadata, data } = decodeFileChunk(frame instanceof ArrayBuffer ? frame : frame.buffer.slice(frame.byteOffset, frame.byteOffset + frame.byteLength));
+    const { metadata, data } = decodeFileChunk(frame);
     const transfer = this.incoming;
     if (!transfer || metadata.fileId !== transfer.metadata.fileId) throw new Error('Chunk không thuộc file đang nhận.');
     if (metadata.chunkIndex !== transfer.nextChunk || metadata.chunkIndex >= transfer.metadata.totalChunks) {
@@ -273,7 +332,7 @@ export default class FileTransfer {
     const remaining = transfer.metadata.fileSize - transfer.receivedBytes;
     const expectedSize = Math.min(transfer.metadata.chunkSize, remaining);
     if (data.byteLength !== expectedSize || data.byteLength === 0) throw new Error('Kích thước chunk không hợp lệ.');
-    transfer.chunks.push(new Uint8Array(data));
+    transfer.chunks.push(data);
     transfer.receivedBytes += data.byteLength;
     transfer.nextChunk += 1;
 
@@ -291,10 +350,47 @@ export default class FileTransfer {
       transfer.lastProgressBytes = transfer.receivedBytes;
     }
 
+    this.scheduleAcknowledgement(transfer);
+  }
+
+  scheduleAcknowledgement(transfer) {
+    const chunksSinceAck = transfer.nextChunk - transfer.lastAckedChunk - 1;
+    const bytesSinceAck = transfer.receivedBytes - transfer.lastAckedBytes;
+    if (
+      transfer.nextChunk === transfer.metadata.totalChunks
+      || chunksSinceAck >= ACK_BATCH_CHUNKS
+      || bytesSinceAck >= ACK_BATCH_BYTES
+    ) {
+      this.sendCumulativeAcknowledgement(transfer);
+      return;
+    }
+
+    if (!transfer.ackTimer) {
+      transfer.ackTimer = setTimeout(() => {
+        transfer.ackTimer = null;
+        if (this.incoming !== transfer) return;
+        try {
+          this.sendCumulativeAcknowledgement(transfer);
+        } catch (error) {
+          this.onError(error);
+          this.cancelTransfer(transfer.metadata.fileId);
+        }
+      }, ACK_BATCH_INTERVAL_MS);
+    }
+  }
+
+  sendCumulativeAcknowledgement(transfer) {
+    const chunkIndex = transfer.nextChunk - 1;
+    if (chunkIndex <= transfer.lastAckedChunk) return;
+    clearTimeout(transfer.ackTimer);
+    transfer.ackTimer = null;
+    transfer.lastAckedChunk = chunkIndex;
+    transfer.lastAckedBytes = transfer.receivedBytes;
     this.core.send(encodeControl({
       type: 'ACK',
-      fileId: metadata.fileId,
-      chunkIndex: metadata.chunkIndex,
+      fileId: transfer.metadata.fileId,
+      chunkIndex,
+      receivedBytes: transfer.receivedBytes,
     }));
   }
 
@@ -309,6 +405,7 @@ export default class FileTransfer {
       throw new Error('File nhận chưa đầy đủ hoặc FILE_END không hợp lệ.');
     }
 
+    clearTimeout(transfer.ackTimer);
     const blob = new Blob(transfer.chunks, { type: transfer.metadata.mimeType });
     this.onReceived({ ...transfer.metadata, blob });
     this.onProgress({
@@ -323,9 +420,30 @@ export default class FileTransfer {
     if (message.action !== 'CANCEL' || typeof message.fileId !== 'string') {
       throw new Error('Lệnh điều khiển không hợp lệ.');
     }
-    if (this.outgoing?.metadata.fileId === message.fileId) this.outgoing.cancelled = true;
+    if (this.outgoing?.metadata.fileId === message.fileId) {
+      const outgoing = this.outgoing;
+      outgoing.cancelled = true;
+      outgoing.cancelWaiters.forEach((wake) => wake());
+      this.rejectPendingAcknowledgements(outgoing, new DOMException('Thiết bị nhận đã hủy truyền file.', 'AbortError'));
+      if (outgoing.ready) {
+        clearTimeout(outgoing.ready.timeout);
+        outgoing.ready.reject(new DOMException('Thiết bị nhận đã hủy truyền file.', 'AbortError'));
+        outgoing.ready = null;
+      }
+      if (outgoing.configuration) {
+        clearTimeout(outgoing.configuration.timeout);
+        outgoing.configuration.reject(new DOMException('Thiết bị nhận đã hủy truyền file.', 'AbortError'));
+        outgoing.configuration = null;
+      }
+      this.onProgress({
+        direction: 'send', fileId: outgoing.metadata.fileId, fileName: outgoing.fileName,
+        fileSize: outgoing.metadata.fileSize, transferred: outgoing.bytesSent,
+        speed: 0, status: 'cancelled', chunkSize: outgoing.metadata.chunkSize,
+      });
+    }
     if (this.incoming?.metadata.fileId === message.fileId) {
       const { metadata, receivedBytes } = this.incoming;
+      clearTimeout(this.incoming.ackTimer);
       this.incoming = null;
       this.onProgress({
         direction: 'receive', fileId: metadata.fileId, fileName: metadata.fileName,
@@ -344,7 +462,6 @@ export default class FileTransfer {
     promise.catch(() => {});
 
     const timeout = setTimeout(() => {
-      transfer.pendingAcks.delete(chunkIndex);
       rejectAck(new Error('Thiết bị nhận không xác nhận được dữ liệu. Kiểm tra kết nối rồi thử lại.'));
     }, ACK_TIMEOUT_MS);
     transfer.pendingAcks.set(chunkIndex, {
@@ -375,9 +492,9 @@ export default class FileTransfer {
       rejectReady(new Error('Thiết bị nhận không phản hồi. Hãy kiểm tra kết nối rồi thử lại.'));
     }, ACK_TIMEOUT_MS);
     transfer.ready = {
-      resolve: () => {
+      resolve: (capabilities) => {
         clearTimeout(timeout);
-        resolveReady();
+        resolveReady(capabilities);
       },
       reject: (error) => {
         clearTimeout(timeout);
@@ -393,7 +510,76 @@ export default class FileTransfer {
     const { resolve, timeout } = this.outgoing.ready;
     clearTimeout(timeout);
     this.outgoing.ready = null;
-    resolve();
+    resolve({
+      maxChunkSize: Number.isSafeInteger(message.maxChunkSize)
+        ? Math.min(MAX_CHUNK_SIZE, message.maxChunkSize)
+        : LEGACY_CHUNK_SIZE,
+    });
+  }
+
+  waitForFileConfiguration(transfer, chunkSize) {
+    let resolveConfigured;
+    let rejectConfigured;
+    const promise = new Promise((resolve, reject) => {
+      resolveConfigured = resolve;
+      rejectConfigured = reject;
+    });
+    promise.catch(() => {});
+    const timeout = setTimeout(() => {
+      transfer.configuration = null;
+      rejectConfigured(new Error('Thiết bị nhận không xác nhận cấu hình truyền file.'));
+    }, ACK_TIMEOUT_MS);
+    transfer.configuration = {
+      chunkSize,
+      resolve: () => {
+        clearTimeout(timeout);
+        resolveConfigured();
+      },
+      reject: (error) => {
+        clearTimeout(timeout);
+        rejectConfigured(error);
+      },
+      timeout,
+    };
+    return promise;
+  }
+
+  configureReceive(message) {
+    const transfer = this.incoming;
+    if (!transfer || message.fileId !== transfer.metadata.fileId || transfer.nextChunk !== 0) {
+      throw new Error('Cấu hình chunk không thuộc file đang nhận.');
+    }
+
+    const updatedMetadata = {
+      ...transfer.metadata,
+      chunkSize: message.chunkSize,
+      totalChunks: message.totalChunks,
+    };
+    validateFileMetadata(updatedMetadata);
+    const localMax = this.core.getMaxFileChunkSize?.() ?? MAX_CHUNK_SIZE;
+    if (updatedMetadata.chunkSize > localMax) {
+      throw new Error('Chunk được đề xuất vượt giới hạn của kết nối này.');
+    }
+
+    transfer.metadata = updatedMetadata;
+    this.core.send(encodeControl({
+      type: 'FILE_CONFIG_ACK',
+      fileId: message.fileId,
+      chunkSize: message.chunkSize,
+    }));
+  }
+
+  markFileConfigured(message) {
+    const transfer = this.outgoing;
+    const configuration = transfer?.configuration;
+    if (
+      !configuration
+      || message.fileId !== transfer.metadata.fileId
+      || message.chunkSize !== configuration.chunkSize
+    ) return;
+
+    transfer.configuration = null;
+    configuration.resolve();
   }
 
   rejectPendingAcknowledgements(transfer, error) {
@@ -406,14 +592,26 @@ export default class FileTransfer {
       !this.outgoing
       || this.outgoing.metadata.fileId !== message.fileId
       || !Number.isSafeInteger(message.chunkIndex)
+      || !Number.isSafeInteger(message.receivedBytes)
+      || message.chunkIndex < 0
+      || message.chunkIndex >= this.outgoing.metadata.totalChunks
+      || message.receivedBytes < this.outgoing.bytesSent
+      || message.receivedBytes > this.outgoing.metadata.fileSize
     ) return;
 
-    const pending = this.outgoing.pendingAcks.get(message.chunkIndex);
-    if (!pending) return;
     const transfer = this.outgoing;
-    transfer.pendingAcks.delete(message.chunkIndex);
-    transfer.bytesSent += pending.byteLength;
-    pending.resolve();
+    if (!transfer.pendingAcks.has(message.chunkIndex)) return;
+    const expectedBytes = Math.min(
+      (message.chunkIndex + 1) * transfer.metadata.chunkSize,
+      transfer.metadata.fileSize,
+    );
+    if (message.receivedBytes !== expectedBytes) return;
+    for (const [chunkIndex, pending] of transfer.pendingAcks) {
+      if (chunkIndex > message.chunkIndex) continue;
+      transfer.pendingAcks.delete(chunkIndex);
+      pending.resolve();
+    }
+    transfer.bytesSent = message.receivedBytes;
     const now = performance.now();
     if (now - transfer.lastReportedAt >= PROGRESS_INTERVAL_MS || transfer.bytesSent === transfer.metadata.fileSize) {
       const elapsed = Math.max((now - transfer.lastReportedAt) / 1000, 0.001);

@@ -14,7 +14,7 @@ Sau khi kết nối, dùng tab **File** hoặc **Text**. File có thể chọn b
 - `src/modules/P2P/pairing/SignalingClient.js`: presence, yêu cầu kết nối và chuyển tiếp SDP qua WebSocket.
 - `signaling-server/src/index.js`: signaling server; không lưu trạng thái bền vững và không relay file/text.
 - `src/modules/P2P/transfers/TextTransfer.js`: message text có ID, timestamp và kiểm tra kích thước.
-- `src/modules/P2P/transfers/FileTransfer.js`: handshake sẵn sàng, chunk đến 64 KiB, cửa sổ ACK, backpressure, tốc độ tức thời và hủy truyền.
+- `src/modules/P2P/transfers/FileTransfer.js`: chunk tối đa 256 KiB (đàm phán theo giới hạn SCTP), ACK tích lũy theo tối đa 4 chunk/1 MiB/100 ms, tối đa 8 MiB đang chờ ACK và backpressure DataChannel ở watermark 4/1 MiB.
 - `src/modules/P2P/config/iceServers.js`: cấu hình ICE/STUN tập trung; dễ bổ sung TURN trong tương lai.
 - `src/modules/P2P/index.jsx`: UI; không chứa logic WebRTC phức tạp trực tiếp.
 
@@ -24,6 +24,7 @@ Sau khi kết nối, dùng tab **File** hoặc **Text**. File có thể chọn b
 - Presence/signaling dùng bộ nhớ tạm của một tiến trình; khi Render free service ngủ hoặc khởi động lại, thiết bị sẽ tạm thời mất kết nối và cần đăng ký lại.
 - Danh sách thiết bị hiện online được chia sẻ với những người đang mở công cụ; tên thiết bị là tên tự chọn, không phải bằng chứng danh tính.
 - File giới hạn 1 GiB và được ghép trong bộ nhớ trình duyệt trước khi tải xuống; dung lượng thực tế phụ thuộc thiết bị.
+- Tuning mặc định của truyền file chưa được benchmark trên thiết bị Android/PC thực tế; thông lượng còn phụ thuộc mạng, trình duyệt và kết nối ICE được chọn.
 - Browser phải hỗ trợ WebRTC DataChannel; yêu cầu secure context (HTTPS hoặc localhost).
 - WebRTC đã có DTLS encryption nhưng chưa có PIN, QR verification, hoặc xác nhận trước khi nhận file.
 

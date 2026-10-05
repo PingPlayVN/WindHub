@@ -1,9 +1,8 @@
 import { ICE_SERVERS } from '../config/iceServers.js';
+import { LOW_WATERMARK, MAX_CHUNK_SIZE, MAX_FRAME_HEADER_BYTES, MIN_CHUNK_SIZE } from '../transfers/protocol.js';
 
 const MAX_SIGNAL_SIZE = 64 * 1024;
 const ICE_GATHERING_TIMEOUT_MS = 15000;
-const LOW_WATERMARK = 128 * 1024;
-
 export function encodeSignalToken(description) {
   if (!description || typeof description.sdp !== 'string' || !description.type) {
     throw new Error('Mã ghép nối không hợp lệ.');
@@ -93,6 +92,40 @@ export default class WebRTCCore {
 
   get channel() {
     return this.controlChannel;
+  }
+
+  getMaxFileChunkSize() {
+    const negotiatedMax = this.peerConnection.sctp?.maxMessageSize;
+    if (!Number.isFinite(negotiatedMax) || negotiatedMax === 0) return MAX_CHUNK_SIZE;
+    const maxPayload = negotiatedMax - MAX_FRAME_HEADER_BYTES;
+    if (maxPayload < MIN_CHUNK_SIZE) return 0;
+    return Math.min(MAX_CHUNK_SIZE, maxPayload);
+  }
+
+  async getConnectionStats() {
+    const stats = await this.peerConnection.getStats();
+    const reports = [...stats.values()];
+    const transport = reports.find((report) => report.type === 'transport' && report.selectedCandidatePairId);
+    const pair = (transport && stats.get(transport.selectedCandidatePairId))
+      || reports.find((report) => report.type === 'candidate-pair' && report.state === 'succeeded' && report.nominated);
+    if (!pair) return null;
+
+    const localCandidate = stats.get(pair.localCandidateId);
+    const remoteCandidate = stats.get(pair.remoteCandidateId);
+    const isRelay = localCandidate?.candidateType === 'relay' || remoteCandidate?.candidateType === 'relay';
+    return {
+      path: isRelay ? 'relay' : 'direct',
+      protocol: localCandidate?.protocol || remoteCandidate?.protocol || '',
+      localCandidateType: localCandidate?.candidateType || '',
+      remoteCandidateType: remoteCandidate?.candidateType || '',
+      bytesSent: pair.bytesSent || 0,
+      bytesReceived: pair.bytesReceived || 0,
+      packetsSent: pair.packetsSent || 0,
+      packetsReceived: pair.packetsReceived || 0,
+      retransmittedPacketsSent: pair.retransmittedPacketsSent || 0,
+      roundTripTime: pair.currentRoundTripTime || 0,
+      availableOutgoingBitrate: pair.availableOutgoingBitrate || null,
+    };
   }
 
   updateConnectionState() {

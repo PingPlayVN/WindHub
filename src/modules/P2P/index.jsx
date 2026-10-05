@@ -82,6 +82,7 @@ export default function P2P() {
   const [incomingRequest, setIncomingRequest] = useState(null);
   const [outgoingRequest, setOutgoingRequest] = useState(null);
   const [activePeer, setActivePeer] = useState(null);
+  const [connectionStats, setConnectionStats] = useState(null);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('file');
   const [text, setText] = useState('');
@@ -99,6 +100,7 @@ export default function P2P() {
     const core = new WebRTCCore({
       onStateChange: (nextStatus) => {
         setStatus(nextStatus);
+        if (nextStatus !== 'connected') setConnectionStats(null);
         if (['disconnected', 'failed', 'closed'].includes(nextStatus)) setActivePeer(null);
       },
       onMessage: () => {},
@@ -134,6 +136,26 @@ export default function P2P() {
       objectUrls.forEach((url) => URL.revokeObjectURL(url));
     };
   }, [createSession]);
+
+  useEffect(() => {
+    if (status !== 'connected') return undefined;
+
+    let active = true;
+    const readStats = async () => {
+      try {
+        const stats = await sessionRef.current?.pairing.core.getConnectionStats();
+        if (active) setConnectionStats(stats);
+      } catch (statsError) {
+        if (active) setError(`Không đọc được thống kê WebRTC: ${statsError.message}`);
+      }
+    };
+    readStats();
+    const timer = setInterval(readStats, 3000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [status]);
 
   useEffect(() => {
     if (!deviceName) return undefined;
@@ -335,6 +357,14 @@ export default function P2P() {
             <div>
               <p className="font-semibold text-slate-900 dark:text-white">{connectionLabels[status] || 'Idle'}</p>
               {connected && <p className="mt-0.5 text-sm text-emerald-700 dark:text-emerald-400">Đã kết nối với {activePeer?.name || 'thiết bị'}.</p>}
+              {connected && connectionStats && (
+                <p className="mt-0.5 text-xs text-slate-500">
+                  {connectionStats.path === 'direct' ? 'P2P trực tiếp' : 'Đang relay'}
+                  {connectionStats.protocol ? ` · ${connectionStats.protocol.toUpperCase()}` : ''}
+                  {connectionStats.roundTripTime ? ` · RTT ${Math.round(connectionStats.roundTripTime * 1000)} ms` : ''}
+                  {connectionStats.availableOutgoingBitrate ? ` · Ước tính tối đa ${formatSpeed(connectionStats.availableOutgoingBitrate / 8)}` : ''}
+                </p>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2 text-xs text-slate-500">

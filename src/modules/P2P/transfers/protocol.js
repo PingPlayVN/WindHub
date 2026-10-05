@@ -1,9 +1,14 @@
 export const MIN_CHUNK_SIZE = 16 * 1024;
-export const DEFAULT_CHUNK_SIZE = 32 * 1024;
-export const MAX_CHUNK_SIZE = 64 * 1024;
-export const HIGH_WATERMARK = 512 * 1024;
-export const LOW_WATERMARK = 128 * 1024;
-export const TRANSFER_WINDOW_SIZE = 8;
+export const LEGACY_CHUNK_SIZE = 64 * 1024;
+export const DEFAULT_CHUNK_SIZE = 256 * 1024;
+export const MAX_CHUNK_SIZE = 256 * 1024;
+export const HIGH_WATERMARK = 4 * 1024 * 1024;
+export const LOW_WATERMARK = 1 * 1024 * 1024;
+export const MAX_IN_FLIGHT_BYTES = 8 * 1024 * 1024;
+export const ACK_BATCH_CHUNKS = 4;
+export const ACK_BATCH_BYTES = 1 * 1024 * 1024;
+export const ACK_BATCH_INTERVAL_MS = 100;
+export const MAX_FRAME_HEADER_BYTES = 4096;
 export const PROGRESS_INTERVAL_MS = 150;
 export const MAX_FILE_SIZE = 1024 * 1024 * 1024;
 export const MAX_TEXT_SIZE = 1024 * 1024;
@@ -35,23 +40,36 @@ export function decodeControl(message) {
 }
 
 export function encodeFileChunk(metadata, data) {
-  const payload = data instanceof ArrayBuffer ? new Uint8Array(data) : new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
   const header = encoder.encode(JSON.stringify(metadata));
-  const frame = new Uint8Array(4 + header.length + payload.length);
-  new DataView(frame.buffer).setUint32(0, header.length, false);
-  frame.set(header, 4);
-  frame.set(payload, 4 + header.length);
+  const prefix = new Uint8Array(4 + header.length);
+  new DataView(prefix.buffer).setUint32(0, header.length, false);
+  prefix.set(header, 4);
+
+  if (typeof Blob !== 'undefined' && data instanceof Blob) {
+    return new Blob([prefix, data]);
+  }
+
+  const payload = data instanceof ArrayBuffer
+    ? new Uint8Array(data)
+    : new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+  const frame = new Uint8Array(prefix.length + payload.length);
+  frame.set(prefix);
+  frame.set(payload, prefix.length);
   return frame.buffer;
 }
 
 export function decodeFileChunk(frame) {
-  if (!(frame instanceof ArrayBuffer) || frame.byteLength < 5) {
+  const isArrayBuffer = frame instanceof ArrayBuffer;
+  const isView = ArrayBuffer.isView(frame);
+  if ((!isArrayBuffer && !isView) || frame.byteLength < 5) {
     throw new Error('Gói dữ liệu file không hợp lệ.');
   }
 
-  const bytes = new Uint8Array(frame);
-  const headerLength = new DataView(frame).getUint32(0, false);
-  if (headerLength === 0 || headerLength > 4096 || 4 + headerLength >= frame.byteLength) {
+  const buffer = isArrayBuffer ? frame : frame.buffer;
+  const byteOffset = isArrayBuffer ? 0 : frame.byteOffset;
+  const bytes = new Uint8Array(buffer, byteOffset, frame.byteLength);
+  const headerLength = new DataView(buffer, byteOffset, frame.byteLength).getUint32(0, false);
+  if (headerLength === 0 || headerLength > MAX_FRAME_HEADER_BYTES || 4 + headerLength >= frame.byteLength) {
     throw new Error('Metadata của chunk không hợp lệ.');
   }
 
@@ -71,7 +89,7 @@ export function decodeFileChunk(frame) {
     throw new Error('Metadata của chunk không hợp lệ.');
   }
 
-  return { metadata, data: bytes.slice(4 + headerLength) };
+  return { metadata, data: bytes.subarray(4 + headerLength) };
 }
 
 export function validateFileMetadata(metadata) {
