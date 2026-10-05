@@ -2,22 +2,17 @@
 
 ## P2P Share
 
-Mở màn hình **P2P Share** từ thanh điều hướng hoặc truy cập `/p2p`. WebRTC DataChannel truyền text và file trực tiếp giữa hai trình duyệt; ứng dụng không upload, lưu hoặc relay nội dung qua backend.
+Mở màn hình **P2P Share** từ thanh điều hướng hoặc truy cập `/p2p`. Lần đầu vào công cụ, đặt tên cho thiết bị; tên được lưu trong local storage và có thể đổi sau. Công cụ liệt kê thiết bị đang trực tuyến để gửi yêu cầu kết nối, thiết bị nhận phải chấp thuận trước khi bắt đầu.
 
-### Ghép nối thủ công
+WebRTC DataChannel truyền text và file trực tiếp giữa hai trình duyệt. Signaling server chỉ chuyển tiếp yêu cầu kết nối và Offer/Answer/ICE để thiết lập WebRTC; file và tin nhắn không được gửi qua server. Tên thiết bị không được xác thực danh tính, vì vậy chỉ chấp thuận thiết bị bạn nhận ra.
 
-1. Trên thiết bị A, chọn **Create Connection** và đợi Offer xuất hiện khi ICE gathering hoàn tất (tối đa 15 giây).
-2. Copy Offer sang thiết bị B qua kênh riêng tư (QR, tin nhắn, hoặc clipboard).
-3. Trên B, dán Offer và chọn **Create Answer**; gửi Answer trở lại A.
-4. Trên A, dán Answer và chọn **Connect**. Đợi trạng thái **Connected** ở cả hai thiết bị.
-5. Dùng tab **Text** hoặc **File** để truyền dữ liệu. File có thể chọn bằng file picker hoặc kéo thả; người nhận tải file sau khi đã nhận đủ dữ liệu.
-
-Offer và Answer chứa SDP cùng các ICE candidate thu thập được, nên có thể khá dài. Nếu ICE gathering vượt quá 15 giây, ứng dụng vẫn trả mã với candidate đã thu thập được đến lúc đó; một số mạng có thể cần thử lại hoặc cấu hình TURN. Chỉ chia sẻ mã với peer tin cậy. Trang cần HTTPS hoặc localhost; STUN chỉ hỗ trợ tìm đường, không đảm bảo hoạt động trên mọi NAT/firewall.
+Sau khi kết nối, dùng tab **File** hoặc **Text**. File có thể chọn bằng file picker hoặc kéo thả; người nhận tải file sau khi đã nhận đủ dữ liệu.
 
 ### Cấu trúc
 
 - `src/modules/P2P/core/WebRTCCore.js`: RTCPeerConnection, DataChannel, SDP/ICE gathering, trạng thái và đóng kết nối.
-- `src/modules/P2P/pairing/ManualPairingAdapter.js`: adapter ghép nối thủ công; signaling tương lai có thể triển khai cùng giao diện.
+- `src/modules/P2P/pairing/SignalingClient.js`: presence, yêu cầu kết nối và chuyển tiếp SDP qua WebSocket.
+- `signaling-server/src/index.js`: signaling server; không lưu trạng thái bền vững và không relay file/text.
 - `src/modules/P2P/transfers/TextTransfer.js`: message text có ID, timestamp và kiểm tra kích thước.
 - `src/modules/P2P/transfers/FileTransfer.js`: metadata, chunk 16 KiB, backpressure, tiến độ, tốc độ và hủy truyền.
 - `src/modules/P2P/config/iceServers.js`: cấu hình ICE/STUN tập trung; dễ bổ sung TURN trong tương lai.
@@ -26,11 +21,25 @@ Offer và Answer chứa SDP cùng các ICE candidate thu thập được, nên c
 ### Giới hạn hiện tại
 
 - STUN công khai chỉ giúp khám phá địa chỉ; một số mạng NAT/firewall cần TURN. TURN có thể relay lưu lượng và cần được cấu hình/cung cấp riêng; chưa bật ở phiên bản này.
-- Ghép nối cần copy/paste thủ công; không có auto reconnect và không có xác thực peer.
+- Presence/signaling dùng bộ nhớ tạm của một tiến trình; khi Render free service ngủ hoặc khởi động lại, thiết bị sẽ tạm thời mất kết nối và cần đăng ký lại.
+- Danh sách thiết bị hiện online được chia sẻ với những người đang mở công cụ; tên thiết bị là tên tự chọn, không phải bằng chứng danh tính.
 - File giới hạn 1 GiB và được ghép trong bộ nhớ trình duyệt trước khi tải xuống; dung lượng thực tế phụ thuộc thiết bị.
 - Browser phải hỗ trợ WebRTC DataChannel; yêu cầu secure context (HTTPS hoặc localhost).
 - WebRTC đã có DTLS encryption nhưng chưa có PIN, QR verification, hoặc xác nhận trước khi nhận file.
 
-### Khi thêm signaling server
+### Triển khai signaling server trên Render
 
-Giữ nguyên `WebRTCCore` và các transfer service. Tạo adapter mới theo giao diện `createOffer()`, `createAnswer(offer)`, `acceptAnswer(answer)`, rồi chuyển SDP/ICE qua signaling transport mới. Không gửi file/text qua signaling; DataChannel vẫn là transport P2P chính.
+1. Tạo một Blueprint trên Render từ repository; Render sẽ đọc `signaling-server/render.yaml`.
+2. Đặt biến `ALLOWED_ORIGINS` thành origin của website WindHub (ví dụ `https://your-windhub-site.example`), không thêm dấu `/` cuối. Có thể phân cách nhiều origin bằng dấu phẩy.
+3. Sau khi service được tạo, đặt `VITE_P2P_SIGNALING_URL` trong cấu hình build của frontend thành URL service, ví dụ `https://windhub-p2p-signaling.onrender.com`, rồi build/deploy lại frontend.
+4. Kiểm tra endpoint `https://<service>.onrender.com/health` trả về `{"ok":true}`.
+
+Render free tier có thể đưa service vào trạng thái ngủ khi không hoạt động; lần kết nối đầu sau thời gian nghỉ có thể phải đợi service khởi động. STUN công khai chỉ giúp khám phá địa chỉ; một số mạng NAT/firewall cần TURN. Trang cần HTTPS hoặc localhost.
+
+Chạy server và test cục bộ:
+
+```powershell
+npm install --prefix signaling-server
+npm --prefix signaling-server test
+npm --prefix signaling-server start
+```

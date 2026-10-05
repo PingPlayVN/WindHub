@@ -1,19 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Check,
-  Clipboard,
   Download,
   FileUp,
-  Link2,
+  Laptop,
   MessageSquare,
   RefreshCw,
   Send,
   ShieldCheck,
   X,
 } from 'lucide-react';
-import { toast } from 'sonner';
 import WebRTCCore from './core/WebRTCCore.js';
 import ManualPairingAdapter from './pairing/ManualPairingAdapter.js';
+import SignalingClient from './pairing/SignalingClient.js';
 import TextTransfer from './transfers/TextTransfer.js';
 import FileTransfer from './transfers/FileTransfer.js';
 import { MAX_FILE_SIZE, MAX_TEXT_SIZE } from './transfers/protocol.js';
@@ -49,20 +48,21 @@ function formatTime(timestamp) {
   return new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(timestamp);
 }
 
-function copyText(text) {
-  return navigator.clipboard.writeText(text);
-}
-
 export default function P2P() {
   const sessionRef = useRef(null);
   const fileInputRef = useRef(null);
   const objectUrlsRef = useRef([]);
+  const signalingRef = useRef(null);
   const [status, setStatus] = useState('idle');
   const [busy, setBusy] = useState(false);
-  const [offer, setOffer] = useState('');
-  const [answer, setAnswer] = useState('');
-  const [offerInput, setOfferInput] = useState('');
-  const [answerInput, setAnswerInput] = useState('');
+  const [deviceName, setDeviceName] = useState(() => window.localStorage.getItem('windhub-p2p-device-name') || '');
+  const [deviceNameInput, setDeviceNameInput] = useState(() => window.localStorage.getItem('windhub-p2p-device-name') || '');
+  const [editingDeviceName, setEditingDeviceName] = useState(!window.localStorage.getItem('windhub-p2p-device-name'));
+  const [signalingState, setSignalingState] = useState('offline');
+  const [devices, setDevices] = useState([]);
+  const [incomingRequest, setIncomingRequest] = useState(null);
+  const [outgoingRequest, setOutgoingRequest] = useState(null);
+  const [activePeer, setActivePeer] = useState(null);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('file');
   const [text, setText] = useState('');
@@ -78,7 +78,10 @@ export default function P2P() {
     sessionRef.current?.pairing.close();
 
     const core = new WebRTCCore({
-      onStateChange: setStatus,
+      onStateChange: (nextStatus) => {
+        setStatus(nextStatus);
+        if (['disconnected', 'failed', 'closed'].includes(nextStatus)) setActivePeer(null);
+      },
       onMessage: () => {},
     });
     const pairing = new ManualPairingAdapter(core);
@@ -112,6 +115,73 @@ export default function P2P() {
     };
   }, [createSession]);
 
+  useEffect(() => {
+    if (!deviceName) return undefined;
+    const endpoint = import.meta.env.VITE_P2P_SIGNALING_URL || 'https://windhub-p2p-signaling.onrender.com';
+    const client = new SignalingClient(endpoint, {
+      name: deviceName,
+      onStateChange: (nextState, message) => {
+        setSignalingState(nextState);
+        if (message) setError(message);
+        if (nextState === 'offline' || nextState === 'error') setDevices([]);
+      },
+      onMessage: async (message) => {
+        if (message.type === 'devices') {
+          setDevices(message.devices);
+        } else if (message.type === 'connection-request') {
+          setIncomingRequest(message);
+        } else if (message.type === 'request-expired') {
+          setIncomingRequest((current) => current?.requestId === message.requestId ? null : current);
+          setOutgoingRequest((current) => current?.requestId === message.requestId ? null : current);
+          setError('Yêu cầu kết nối đã hết hạn hoặc thiết bị kia đã ngoại tuyến.');
+        } else if (message.type === 'request-sent') {
+          setOutgoingRequest({ requestId: message.requestId, peer: message.to });
+        } else if (message.type === 'connection-response') {
+          setOutgoingRequest(null);
+          if (!message.accepted) {
+            setError(`${message.from.name} đã từ chối yêu cầu kết nối.`);
+            return;
+          }
+          setActivePeer(message.from);
+          setBusy(true);
+          try {
+            const signal = await sessionRef.current.pairing.createOffer();
+            client.send({ type: 'offer', targetId: message.from.id, signal });
+          } catch (connectionError) {
+            setError(connectionError.message || 'Không thể tạo kết nối WebRTC.');
+          } finally {
+            setBusy(false);
+          }
+        } else if (message.type === 'offer') {
+          setActivePeer(message.from);
+          setBusy(true);
+          try {
+            const signal = await sessionRef.current.pairing.createAnswer(message.signal);
+            client.send({ type: 'answer', targetId: message.from.id, signal });
+          } catch (connectionError) {
+            setError(connectionError.message || 'Không thể trả lời yêu cầu kết nối.');
+          } finally {
+            setBusy(false);
+          }
+        } else if (message.type === 'answer') {
+          try {
+            await sessionRef.current.pairing.acceptAnswer(message.signal);
+          } catch (connectionError) {
+            setError(connectionError.message || 'Không thể hoàn tất kết nối.');
+          }
+        } else if (message.type === 'error') {
+          setError(message.message);
+        }
+      },
+    });
+    signalingRef.current = client;
+    client.connect();
+    return () => {
+      client.close();
+      if (signalingRef.current === client) signalingRef.current = null;
+    };
+  }, [deviceName]);
+
   const runAction = async (action) => {
     setError('');
     setBusy(true);
@@ -126,41 +196,65 @@ export default function P2P() {
     }
   };
 
-  const handleCreateOffer = () => runAction(async () => {
-    const value = await sessionRef.current.pairing.createOffer();
-    setOffer(value);
-  });
+  const handleSaveDeviceName = (event) => {
+    event.preventDefault();
+    const name = deviceNameInput.trim().slice(0, 32);
+    if (!name) {
+      setError('Hãy nhập tên thiết bị.');
+      return;
+    }
+    window.localStorage.setItem('windhub-p2p-device-name', name);
+    setError('');
+    setDeviceName(name);
+    setDeviceNameInput(name);
+    setEditingDeviceName(false);
+  };
 
-  const handleCreateAnswer = () => runAction(async () => {
-    const value = await sessionRef.current.pairing.createAnswer(offerInput);
-    setAnswer(value);
-  });
+  const handleRequestConnection = (peer) => {
+    setError('');
+    try {
+      signalingRef.current.send({ type: 'request', targetId: peer.id });
+    } catch (requestError) {
+      setError(requestError.message);
+    }
+  };
 
-  const handleAcceptAnswer = () => runAction(() => sessionRef.current.pairing.acceptAnswer(answerInput));
+  const handleRespondToRequest = (accepted) => {
+    if (!incomingRequest) return;
+    try {
+      signalingRef.current.send({
+        type: 'respond',
+        requestId: incomingRequest.requestId,
+        accepted,
+      });
+      if (accepted) setActivePeer(incomingRequest.from);
+      setIncomingRequest(null);
+    } catch (requestError) {
+      setError(requestError.message);
+    }
+  };
 
   const handleReset = () => {
+    let resetWarning = '';
+    if (activePeer) {
+      try {
+        signalingRef.current?.send({ type: 'disconnect', targetId: activePeer.id });
+      } catch {
+        resetWarning = 'Đã tạo phiên mới; signaling server hiện không khả dụng.';
+      }
+    }
     createSession();
     setStatus('idle');
     setBusy(false);
-    setOffer('');
-    setAnswer('');
-    setOfferInput('');
-    setAnswerInput('');
-    setError('');
+    setError(resetWarning);
+    setIncomingRequest(null);
+    setOutgoingRequest(null);
+    setActivePeer(null);
     setMessages([]);
     setText('');
     setSelectedFile(null);
     setTransfers([]);
     setReceivedFiles([]);
-  };
-
-  const handleCopy = async (value) => {
-    try {
-      await copyText(value);
-      toast.success('Đã sao chép mã kết nối');
-    } catch {
-      setError('Không thể truy cập clipboard. Hãy chọn và sao chép mã thủ công.');
-    }
   };
 
   const handleSendText = (event) => {
@@ -219,12 +313,12 @@ export default function P2P() {
             <span className={`h-3 w-3 rounded-full ${connected ? 'bg-emerald-500' : status === 'failed' ? 'bg-red-500' : 'bg-amber-400'}`} />
             <div>
               <p className="font-semibold text-slate-900 dark:text-white">{connectionLabels[status] || 'Idle'}</p>
-              {connected && <p className="mt-0.5 text-sm text-emerald-700 dark:text-emerald-400">Peer connected successfully.</p>}
+              {connected && <p className="mt-0.5 text-sm text-emerald-700 dark:text-emerald-400">Đã kết nối với {activePeer?.name || 'thiết bị'}.</p>}
             </div>
           </div>
           <div className="flex items-center gap-2 text-xs text-slate-500">
             <ShieldCheck size={15} />
-            <span>DTLS encryption · Không upload lên server</span>
+            <span>DTLS encryption · Server chỉ dùng ghép nối, không relay file/text</span>
           </div>
         </div>
         {error && (
@@ -234,39 +328,83 @@ export default function P2P() {
           </div>
         )}
         {!connected && (
-          <div className="mt-4 grid gap-4 lg:grid-cols-2">
-            <div className="space-y-3 rounded-lg border border-slate-200 p-3 dark:border-slate-800">
-              <h2 className="flex items-center gap-2 font-bold text-slate-800 dark:text-slate-100"><Link2 size={17} /> Tạo kết nối</h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400">Tạo Offer, gửi mã cho thiết bị kia, rồi dán Answer nhận được.</p>
-              <button type="button" disabled={busy || Boolean(offer)} onClick={handleCreateOffer} className="rounded-lg bg-amber-400 px-4 py-2.5 text-sm font-bold text-black hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-50">
-                {busy && status === 'creating' ? 'Đang tạo Offer…' : 'Create Connection'}
-              </button>
-              {offer && (
-                <div className="space-y-2">
-                  <label htmlFor="p2p-offer" className="block text-sm font-semibold text-slate-700 dark:text-slate-300">Offer (copy sang thiết bị B)</label>
-                  <textarea id="p2p-offer" readOnly value={offer} className="h-28 w-full resize-y rounded-lg border border-slate-300 bg-slate-50 p-2 font-mono text-xs text-slate-700 dark:border-slate-700 dark:bg-black dark:text-slate-300" />
-                  <button type="button" onClick={() => handleCopy(offer)} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold dark:border-slate-700"><Clipboard size={15} /> Copy Offer</button>
-                  <label htmlFor="p2p-answer-input" className="block pt-2 text-sm font-semibold text-slate-700 dark:text-slate-300">Paste Answer</label>
-                  <textarea id="p2p-answer-input" value={answerInput} onChange={(event) => setAnswerInput(event.target.value)} placeholder="Dán Answer từ thiết bị B…" className="h-24 w-full resize-y rounded-lg border border-slate-300 bg-white p-2 font-mono text-xs dark:border-slate-700 dark:bg-black" />
-                  <button type="button" disabled={busy || !answerInput.trim()} onClick={handleAcceptAnswer} className="rounded-lg bg-amber-400 px-4 py-2 text-sm font-bold text-black disabled:opacity-50">Connect</button>
+          <div className="mt-4 space-y-4">
+            {editingDeviceName ? (
+              <form onSubmit={handleSaveDeviceName} className="space-y-3 rounded-lg border border-slate-200 p-3 dark:border-slate-800">
+                <h2 className="font-bold text-slate-800 dark:text-slate-100">Đặt tên thiết bị</h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Tên được lưu trên thiết bị này và hiển thị cho các thiết bị đang trực tuyến.</p>
+                <div className="flex flex-wrap gap-2">
+                  <input
+                    autoFocus
+                    maxLength={32}
+                    value={deviceNameInput}
+                    onChange={(event) => setDeviceNameInput(event.target.value)}
+                    placeholder="Ví dụ: Laptop Phong"
+                    aria-label="Tên thiết bị"
+                    className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-black"
+                  />
+                  <button type="submit" className="rounded-lg bg-amber-400 px-4 py-2 text-sm font-bold text-black">Lưu tên</button>
                 </div>
-              )}
-            </div>
+              </form>
+            ) : (
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 p-3 dark:border-slate-800">
+                <p className="text-sm text-slate-600 dark:text-slate-300">Thiết bị này: <strong>{deviceName}</strong></p>
+                <button type="button" onClick={() => setEditingDeviceName(true)} className="text-sm font-semibold text-amber-700 dark:text-amber-400">Đổi tên</button>
+              </div>
+            )}
 
-            <div className="space-y-3 rounded-lg border border-slate-200 p-3 dark:border-slate-800">
-              <h2 className="flex items-center gap-2 font-bold text-slate-800 dark:text-slate-100"><Link2 size={17} /> Tham gia kết nối</h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400">Dán Offer từ thiết bị A. Sau khi tạo Answer, gửi ngược mã đó cho A.</p>
-              <label htmlFor="p2p-offer-input" className="block text-sm font-semibold text-slate-700 dark:text-slate-300">Paste Offer</label>
-              <textarea id="p2p-offer-input" value={offerInput} onChange={(event) => setOfferInput(event.target.value)} placeholder="Dán Offer từ thiết bị A…" className="h-28 w-full resize-y rounded-lg border border-slate-300 bg-white p-2 font-mono text-xs dark:border-slate-700 dark:bg-black" />
-              <button type="button" disabled={busy || !offerInput.trim() || Boolean(answer)} onClick={handleCreateAnswer} className="rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-700 disabled:opacity-50 dark:bg-slate-200 dark:text-black">
-                {busy && status === 'creating' ? 'Đang tạo Answer…' : 'Create Answer'}
-              </button>
-              {answer && (
-                <div className="space-y-2">
-                  <label htmlFor="p2p-answer" className="block text-sm font-semibold text-slate-700 dark:text-slate-300">Answer (gửi lại thiết bị A)</label>
-                  <textarea id="p2p-answer" readOnly value={answer} className="h-28 w-full resize-y rounded-lg border border-slate-300 bg-slate-50 p-2 font-mono text-xs text-slate-700 dark:border-slate-700 dark:bg-black dark:text-slate-300" />
-                  <button type="button" onClick={() => handleCopy(answer)} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold dark:border-slate-700"><Clipboard size={15} /> Copy Answer</button>
+            {signalingState !== 'online' && (
+              <p role="status" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
+                {signalingState === 'connecting' ? 'Đang kết nối danh sách thiết bị…' : 'Chưa kết nối được máy chủ ghép nối. Máy chủ có thể đang khởi động hoặc tạm ngừng do gói miễn phí.'}
+              </p>
+            )}
+
+            {incomingRequest && (
+              <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950/30">
+                <p className="text-sm text-slate-800 dark:text-slate-100"><strong>{incomingRequest.from.name}</strong> muốn kết nối với thiết bị này.</p>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => handleRespondToRequest(false)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold dark:border-slate-700">Từ chối</button>
+                  <button type="button" onClick={() => handleRespondToRequest(true)} className="rounded-lg bg-amber-400 px-3 py-2 text-sm font-bold text-black">Chấp nhận</button>
                 </div>
+              </div>
+            )}
+
+            {outgoingRequest && (
+              <p role="status" className="rounded-lg bg-slate-100 p-3 text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                Đang chờ {outgoingRequest.peer.name} chấp nhận yêu cầu…
+              </p>
+            )}
+
+            {activePeer && status !== 'connected' && (
+              <p role="status" className="rounded-lg bg-slate-100 p-3 text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                Đang thiết lập kết nối bảo mật với {activePeer.name}…
+              </p>
+            )}
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h2 className="font-bold text-slate-800 dark:text-slate-100">Thiết bị đang trực tuyến</h2>
+                <span className="text-xs text-slate-500">{devices.length} thiết bị</span>
+              </div>
+              {devices.length ? devices.map((peer) => (
+                <div key={peer.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 p-3 dark:border-slate-800">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <Laptop size={19} className="shrink-0 text-slate-400" />
+                    <span className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">{peer.name}</span>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={signalingState !== 'online' || busy || Boolean(outgoingRequest) || Boolean(activePeer)}
+                    onClick={() => handleRequestConnection(peer)}
+                    className="rounded-lg bg-amber-400 px-3 py-2 text-sm font-bold text-black disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Kết nối
+                  </button>
+                </div>
+              )) : (
+                <p className="rounded-lg border border-dashed border-slate-300 p-5 text-center text-sm text-slate-500 dark:border-slate-700">
+                  {signalingState === 'online' ? 'Chưa có thiết bị nào khác trực tuyến. Mở Share trên thiết bị kia để bắt đầu.' : 'Đang tìm thiết bị…'}
+                </p>
               )}
             </div>
           </div>
