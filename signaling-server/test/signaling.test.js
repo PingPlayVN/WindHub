@@ -72,6 +72,82 @@ test('signaling server lists online peers and relays accepted SDP only', async (
   }
 });
 
+test('signaling server relays ICE candidates only between authorized peers', async () => {
+  const service = createSignalingServer({ port: 0, allowedOrigins: 'http://localhost' });
+  const address = await service.listen();
+  const url = `ws://127.0.0.1:${address.port}/p2p`;
+  const clients = [];
+  let stage = 'registering peers';
+  try {
+    const first = await connectClient(url, 'Laptop');
+    const second = await connectClient(url, 'Phone');
+    const third = await connectClient(url, 'Tablet');
+    clients.push(first.socket, second.socket, third.socket);
+
+    const connectionRequest = nextMessage(second.socket, (message) => message.type === 'connection-request');
+    first.socket.send(JSON.stringify({ type: 'request', targetId: second.registered.deviceId }));
+    const request = await connectionRequest;
+    const response = nextMessage(first.socket, (message) => message.type === 'connection-response');
+    second.socket.send(JSON.stringify({
+      type: 'respond',
+      requestId: request.requestId,
+      accepted: true,
+    }));
+    await response;
+
+    const candidate = {
+      candidate: 'candidate:1 1 udp 2122260223 192.0.2.1 50000 typ host',
+      sdpMid: '0',
+      sdpMLineIndex: 0,
+      usernameFragment: 'test-ufrag',
+    };
+    stage = 'relaying authorized candidate';
+    const relayedCandidate = nextMessage(second.socket, (message) => message.type === 'ice-candidate');
+    first.socket.send(JSON.stringify({
+      type: 'ice-candidate',
+      targetId: second.registered.deviceId,
+      candidate,
+    }));
+    const received = await relayedCandidate;
+    assert.deepEqual(received.candidate, candidate);
+    assert.equal(received.from.id, first.registered.deviceId);
+
+    const relayedEndOfCandidates = nextMessage(second.socket, (message) => (
+      message.type === 'ice-candidate' && message.candidate === null
+    ));
+    first.socket.send(JSON.stringify({
+      type: 'ice-candidate',
+      targetId: second.registered.deviceId,
+      candidate: null,
+    }));
+    assert.equal((await relayedEndOfCandidates).candidate, null);
+
+    stage = 'rejecting unauthorized candidate';
+    const unauthorizedError = nextMessage(third.socket, (message) => message.type === 'error');
+    third.socket.send(JSON.stringify({
+      type: 'ice-candidate',
+      targetId: second.registered.deviceId,
+      candidate,
+    }));
+    assert.match((await unauthorizedError).message, /Không thể chuyển/);
+
+    stage = 'rejecting malformed candidate';
+    const invalidCandidateError = nextMessage(second.socket, (message) => message.type === 'error');
+    second.socket.send(JSON.stringify({
+      type: 'ice-candidate',
+      targetId: first.registered.deviceId,
+      candidate: { candidate: 'x'.repeat(4097), sdpMid: '0', sdpMLineIndex: 0 },
+    }));
+    assert.match((await invalidCandidateError).message, /Không thể chuyển/);
+  } catch (error) {
+    error.message = `${stage}: ${error.message}`;
+    throw error;
+  } finally {
+    for (const socket of clients) socket.close();
+    await service.close();
+  }
+});
+
 test('signaling server exposes a health endpoint', async () => {
   const service = createSignalingServer({ port: 0 });
   const address = await service.listen();

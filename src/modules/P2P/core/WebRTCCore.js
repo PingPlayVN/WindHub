@@ -2,7 +2,6 @@ import { ICE_SERVERS } from '../config/iceServers.js';
 import { LOW_WATERMARK, MAX_CHUNK_SIZE, MAX_FRAME_HEADER_BYTES, MIN_CHUNK_SIZE } from '../transfers/protocol.js';
 
 const MAX_SIGNAL_SIZE = 64 * 1024;
-const ICE_GATHERING_TIMEOUT_MS = 15000;
 export function encodeSignalToken(description) {
   if (!description || typeof description.sdp !== 'string' || !description.type) {
     throw new Error('Mã ghép nối không hợp lệ.');
@@ -64,19 +63,61 @@ export function parseSignal(signal, expectedType) {
 }
 
 export default class WebRTCCore {
-  constructor({ onStateChange = () => {}, onMessage = () => {}, iceServers = ICE_SERVERS } = {}) {
+  constructor({
+    onStateChange = () => {},
+    onMessage = () => {},
+    onSignal = () => {},
+    onError = () => {},
+    onTiming = () => {},
+    iceServers = ICE_SERVERS,
+  } = {}) {
     if (typeof RTCPeerConnection === 'undefined') {
       throw new Error('Trình duyệt này không hỗ trợ WebRTC.');
     }
 
     this.onStateChange = onStateChange;
+    this.onSignal = onSignal;
+    this.onError = onError;
+    this.onTiming = onTiming;
     this.messageListeners = new Set([onMessage]);
     this.state = 'idle';
     this.closed = false;
+    this.remoteDescriptionReady = false;
+    this.pendingCandidates = [];
+    this.candidateQueue = Promise.resolve();
+    this.firstCandidateReported = false;
+    this.endOfCandidatesSent = false;
     this.controlChannel = null;
     this.fileChannel = null;
     this.peerConnection = new RTCPeerConnection({ iceServers });
-    this.peerConnection.addEventListener('connectionstatechange', () => this.updateConnectionState());
+    this.peerConnection.addEventListener('icecandidate', (event) => {
+      if (this.closed) return;
+      if (!event.candidate) {
+        if (this.endOfCandidatesSent) return;
+        this.endOfCandidatesSent = true;
+        try {
+          this.onSignal(null);
+        } catch (error) {
+          if (!this.closed) this.onError(error);
+        }
+        return;
+      }
+      if (!this.firstCandidateReported) {
+        this.firstCandidateReported = true;
+        this.onTiming('First ICE candidate');
+      }
+      try {
+        this.onSignal(event.candidate.toJSON());
+      } catch (error) {
+        if (!this.closed) this.onError(error);
+      }
+    });
+    this.peerConnection.addEventListener('connectionstatechange', () => {
+      if (this.peerConnection.connectionState === 'connecting' || this.peerConnection.connectionState === 'connected') {
+        this.onTiming(`connectionState = ${this.peerConnection.connectionState}`);
+      }
+      this.updateConnectionState();
+    });
     this.peerConnection.addEventListener('iceconnectionstatechange', () => this.updateConnectionState());
     this.peerConnection.addEventListener('datachannel', (event) => this.attachChannel(event.channel));
     this.peerConnection.addEventListener('signalingstatechange', () => {
@@ -146,6 +187,34 @@ export default class WebRTCCore {
     }
   }
 
+  addIceCandidate(candidate) {
+    if (candidate === undefined || this.closed) return Promise.resolve();
+    if (!this.remoteDescriptionReady) {
+      this.pendingCandidates.push(candidate);
+      return Promise.resolve();
+    }
+    return this.enqueueIceCandidate(candidate);
+  }
+
+  enqueueIceCandidate(candidate) {
+    const operation = this.candidateQueue.then(() => {
+      if (!this.closed) return this.peerConnection.addIceCandidate(candidate);
+      return undefined;
+    });
+    this.candidateQueue = operation.catch((error) => {
+      if (!this.closed) this.onError(error);
+    });
+    return this.candidateQueue;
+  }
+
+  async setRemoteDescription(description) {
+    await this.peerConnection.setRemoteDescription(description);
+    if (this.closed) return;
+    this.remoteDescriptionReady = true;
+    const queuedCandidates = this.pendingCandidates.splice(0);
+    for (const candidate of queuedCandidates) this.enqueueIceCandidate(candidate);
+  }
+
   createDataChannels() {
     if (!this.controlChannel) {
       this.attachChannel(this.peerConnection.createDataChannel('windhub-control', { ordered: true }));
@@ -174,7 +243,10 @@ export default class WebRTCCore {
     channel.binaryType = 'arraybuffer';
     channel.bufferedAmountLowThreshold = LOW_WATERMARK;
     channel.addEventListener('open', () => {
-      if (!this.closed) this.updateConnectionState();
+      if (!this.closed) {
+        this.onTiming(`DataChannel open (${channel.label})`);
+        this.updateConnectionState();
+      }
     });
     channel.addEventListener('close', () => {
       if (!this.closed) this.setState('disconnected');
@@ -193,42 +265,14 @@ export default class WebRTCCore {
     return () => this.messageListeners.delete(listener);
   }
 
-  async waitForIceGathering({ timeoutMs = ICE_GATHERING_TIMEOUT_MS, allowPartial = true } = {}) {
-    if (this.peerConnection.iceGatheringState === 'complete') return;
-
-    await new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        cleanup();
-        if (allowPartial) resolve();
-        else reject(new Error('Thu thập ICE quá thời gian. Hãy kiểm tra kết nối mạng và thử lại.'));
-      }, timeoutMs);
-
-      const onGatheringStateChange = () => {
-        if (this.peerConnection.iceGatheringState === 'complete') {
-          cleanup();
-          resolve();
-        }
-      };
-      const cleanup = () => {
-        clearTimeout(timeout);
-        this.peerConnection.removeEventListener('icegatheringstatechange', onGatheringStateChange);
-      };
-
-      this.peerConnection.addEventListener('icegatheringstatechange', onGatheringStateChange);
-      onGatheringStateChange();
-    });
-  }
-
   async createOffer() {
     this.ensureOpen();
+    this.onTiming('createOffer start');
     this.setState('creating');
     try {
       this.createDataChannels();
       const offer = await this.peerConnection.createOffer();
       await this.peerConnection.setLocalDescription(offer);
-
-      await this.waitForIceGathering({ allowPartial: true });
-
       this.setState('waiting');
       return encodeSignalToken({
         version: 1,
@@ -243,15 +287,13 @@ export default class WebRTCCore {
 
   async createAnswer(offerText) {
     this.ensureOpen();
+    this.onTiming('createAnswer start');
     const offer = parseSignal(offerText, 'offer');
     this.setState('creating');
     try {
-      await this.peerConnection.setRemoteDescription(offer);
+      await this.setRemoteDescription(offer);
       const answer = await this.peerConnection.createAnswer();
       await this.peerConnection.setLocalDescription(answer);
-
-      await this.waitForIceGathering({ allowPartial: true });
-
       this.setState('connecting');
       return encodeSignalToken({
         version: 1,
@@ -272,7 +314,7 @@ export default class WebRTCCore {
 
     const answer = parseSignal(answerText, 'answer');
     try {
-      await this.peerConnection.setRemoteDescription(answer);
+      await this.setRemoteDescription(answer);
       this.setState('connecting');
     } catch (error) {
       this.setState('failed');
@@ -303,6 +345,8 @@ export default class WebRTCCore {
   close() {
     if (this.closed) return;
     this.closed = true;
+    this.pendingCandidates.length = 0;
+    this.remoteDescriptionReady = false;
     this.controlChannel?.close();
     this.fileChannel?.close();
     this.peerConnection.close();

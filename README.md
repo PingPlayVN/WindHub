@@ -4,14 +4,14 @@
 
 Mở màn hình **P2P Share** từ thanh điều hướng hoặc truy cập `/p2p`. Lần đầu vào công cụ, đặt tên cho thiết bị; tên được lưu trong local storage và có thể đổi sau. Công cụ liệt kê thiết bị đang trực tuyến để gửi yêu cầu kết nối, thiết bị nhận phải chấp thuận trước khi bắt đầu.
 
-WebRTC DataChannel truyền text và file trực tiếp giữa hai trình duyệt. Signaling server chỉ chuyển tiếp yêu cầu kết nối và Offer/Answer/ICE để thiết lập WebRTC; file và tin nhắn không được gửi qua server. Tên thiết bị không được xác thực danh tính, vì vậy chỉ chấp thuận thiết bị bạn nhận ra.
+WebRTC DataChannel truyền text và file trực tiếp giữa hai trình duyệt. Signaling server chỉ chuyển tiếp yêu cầu kết nối, Offer/Answer và ICE candidates của cặp đã được chấp thuận để thiết lập WebRTC; file và tin nhắn không được gửi qua server. Tên thiết bị không được xác thực danh tính, vì vậy chỉ chấp thuận thiết bị bạn nhận ra.
 
 Sau khi kết nối, dùng tab **File** hoặc **Text**. File có thể chọn bằng file picker hoặc kéo thả; người nhận tải file sau khi đã nhận đủ dữ liệu.
 
 ### Cấu trúc
 
-- `src/modules/P2P/core/WebRTCCore.js`: RTCPeerConnection, DataChannel, SDP/ICE gathering, trạng thái và đóng kết nối.
-- `src/modules/P2P/pairing/SignalingClient.js`: presence, yêu cầu kết nối và chuyển tiếp SDP qua WebSocket.
+- `src/modules/P2P/core/WebRTCCore.js`: RTCPeerConnection, DataChannel, SDP và Trickle ICE; Offer/Answer được gửi sau `setLocalDescription()` mà không đợi ICE gathering hoàn tất.
+- `src/modules/P2P/pairing/SignalingClient.js`: presence, yêu cầu kết nối và chuyển tiếp SDP/ICE qua WebSocket.
 - `signaling-server/src/index.js`: signaling server; không lưu trạng thái bền vững và không relay file/text.
 - `src/modules/P2P/transfers/TextTransfer.js`: message text có ID, timestamp và kiểm tra kích thước.
 - `src/modules/P2P/transfers/FileTransfer.js`: chunk tối đa 256 KiB (đàm phán theo giới hạn SCTP), ACK tích lũy theo tối đa 4 chunk/1 MiB/100 ms, tối đa 8 MiB đang chờ ACK và backpressure DataChannel ở watermark 4/1 MiB.

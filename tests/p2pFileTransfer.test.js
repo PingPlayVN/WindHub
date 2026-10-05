@@ -226,14 +226,14 @@ test('pairing token remains compact and reversible', () => {
   assert.deepEqual(parseSignal(token, 'offer'), { type: 'offer', sdp });
 });
 
-test('answerer reuses offered data channels and includes gathered ICE in answer', async () => {
+test('answerer reuses offered data channels and returns SDP without waiting for ICE gathering', async () => {
   const previousPeerConnection = globalThis.RTCPeerConnection;
   const listeners = new Map();
   let createdChannels = 0;
 
   class FakePeerConnection {
     constructor() {
-      this.iceGatheringState = 'complete';
+      this.iceGatheringState = 'gathering';
       this.connectionState = 'new';
       this.iceConnectionState = 'new';
       this.signalingState = 'stable';
@@ -260,7 +260,7 @@ test('answerer reuses offered data channels and includes gathered ICE in answer'
     }
 
     async setLocalDescription(description) {
-      this.localDescription = { ...description, sdp: `${description.sdp}\r\na=candidate:gathered` };
+      this.localDescription = description;
     }
 
     close() {}
@@ -278,8 +278,132 @@ test('answerer reuses offered data channels and includes gathered ICE in answer'
     assert.equal(createdChannels, 0);
     assert.deepEqual(parseSignal(answerToken, 'answer'), {
       type: 'answer',
-      sdp: 'answer-sdp\r\na=candidate:gathered',
+      sdp: 'answer-sdp',
     });
+    core.close();
+  } finally {
+    if (previousPeerConnection === undefined) delete globalThis.RTCPeerConnection;
+    else globalThis.RTCPeerConnection = previousPeerConnection;
+  }
+});
+
+test('ICE candidates queue before the remote description and are added sequentially', async () => {
+  const previousPeerConnection = globalThis.RTCPeerConnection;
+
+  class FakePeerConnection extends EventTarget {
+    constructor() {
+      super();
+      this.connectionState = 'new';
+      this.iceConnectionState = 'new';
+      this.signalingState = 'stable';
+      this.addedCandidates = [];
+    }
+
+    async setRemoteDescription(description) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      this.remoteDescription = description;
+    }
+
+    async createAnswer() {
+      return { type: 'answer', sdp: 'answer-sdp' };
+    }
+
+    async setLocalDescription(description) {
+      this.localDescription = description;
+    }
+
+    async addIceCandidate(candidate) {
+      await Promise.resolve();
+      this.addedCandidates.push(candidate);
+    }
+
+    close() {}
+  }
+
+  globalThis.RTCPeerConnection = FakePeerConnection;
+  try {
+    const core = new WebRTCCore();
+    const candidates = [1, 2, 3].map((id) => ({ candidate: `candidate:${id}` }));
+    const queueing = candidates.map((candidate) => core.addIceCandidate(candidate));
+    await core.createAnswer(encodeSignalToken({
+      version: 1,
+      type: 'offer',
+      sdp: 'offer-sdp',
+    }));
+    await Promise.all(queueing);
+    await core.candidateQueue;
+    assert.deepEqual(core.peerConnection.addedCandidates, candidates);
+
+    await core.addIceCandidate({ candidate: 'candidate:4' });
+    await core.addIceCandidate(null);
+    assert.deepEqual(core.peerConnection.addedCandidates, [...candidates, { candidate: 'candidate:4' }, null]);
+    core.close();
+    await core.addIceCandidate({ candidate: 'candidate:5' });
+    assert.equal(core.peerConnection.addedCandidates.length, 5);
+  } finally {
+    if (previousPeerConnection === undefined) delete globalThis.RTCPeerConnection;
+    else globalThis.RTCPeerConnection = previousPeerConnection;
+  }
+});
+
+test('offer is returned after setLocalDescription and ICE candidate is emitted separately', async () => {
+  const previousPeerConnection = globalThis.RTCPeerConnection;
+  let peerConnection;
+  const signals = [];
+
+  class FakeDataChannel extends EventTarget {
+    constructor(label) {
+      super();
+      this.label = label;
+      this.readyState = 'connecting';
+    }
+
+    close() {}
+  }
+
+  class FakePeerConnection extends EventTarget {
+    constructor() {
+      super();
+      peerConnection = this;
+      this.iceGatheringState = 'gathering';
+      this.connectionState = 'new';
+      this.iceConnectionState = 'new';
+      this.signalingState = 'stable';
+    }
+
+    createDataChannel(label) {
+      return new FakeDataChannel(label);
+    }
+
+    async createOffer() {
+      return { type: 'offer', sdp: 'offer-sdp' };
+    }
+
+    async setLocalDescription(description) {
+      this.localDescription = description;
+      this.signalingState = 'have-local-offer';
+    }
+
+    close() {}
+  }
+
+  globalThis.RTCPeerConnection = FakePeerConnection;
+  try {
+    const core = new WebRTCCore({ onSignal: (candidate) => signals.push(candidate) });
+    const token = await core.createOffer();
+    assert.deepEqual(parseSignal(token, 'offer'), {
+      type: 'offer',
+      sdp: 'offer-sdp',
+    });
+
+    const candidate = { candidate: 'candidate:1', toJSON: () => ({ candidate: 'candidate:1' }) };
+    const event = new Event('icecandidate');
+    Object.defineProperty(event, 'candidate', { value: candidate });
+    peerConnection.dispatchEvent(event);
+    const endOfCandidates = new Event('icecandidate');
+    Object.defineProperty(endOfCandidates, 'candidate', { value: null });
+    peerConnection.dispatchEvent(endOfCandidates);
+    assert.deepEqual(signals, [{ candidate: 'candidate:1' }, null]);
     core.close();
   } finally {
     if (previousPeerConnection === undefined) delete globalThis.RTCPeerConnection;

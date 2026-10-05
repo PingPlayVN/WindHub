@@ -67,11 +67,24 @@ function formatRemainingTime(seconds) {
   return `Còn khoảng ${Math.ceil(seconds / 3600)} giờ`;
 }
 
+function logP2PTiming(label, startedAt = null) {
+  if (!import.meta.env.DEV) return;
+  const elapsed = startedAt === null ? '' : `: ${Math.round(performance.now() - startedAt)} ms`;
+  console.info(`[P2P] ${label}${elapsed}`);
+}
+
+function getP2PTimestamp() {
+  return performance.now();
+}
+
 export default function P2P() {
   const sessionRef = useRef(null);
   const fileInputRef = useRef(null);
   const objectUrlsRef = useRef([]);
   const signalingRef = useRef(null);
+  const activePeerIdRef = useRef(null);
+  const pairingStartedAtRef = useRef(null);
+  const requestSentAtRef = useRef(null);
   const [status, setStatus] = useState('idle');
   const [busy, setBusy] = useState(false);
   const [deviceName, setDeviceName] = useState(() => window.localStorage.getItem('windhub-p2p-device-name') || '');
@@ -101,9 +114,26 @@ export default function P2P() {
       onStateChange: (nextStatus) => {
         setStatus(nextStatus);
         if (nextStatus !== 'connected') setConnectionStats(null);
-        if (['disconnected', 'failed', 'closed'].includes(nextStatus)) setActivePeer(null);
+        if (['disconnected', 'failed', 'closed'].includes(nextStatus)) {
+          activePeerIdRef.current = null;
+          setActivePeer(null);
+        }
       },
       onMessage: () => {},
+      onSignal: (candidate) => {
+        const targetId = activePeerIdRef.current;
+        if (!targetId || !signalingRef.current) {
+          setError('Không thể gửi ICE candidate khi chưa có thiết bị ghép nối hoặc signaling.');
+          return;
+        }
+        try {
+          signalingRef.current.send({ type: 'ice-candidate', targetId, candidate });
+        } catch (signalError) {
+          setError(signalError.message || 'Không thể gửi ICE candidate qua signaling.');
+        }
+      },
+      onError: (connectionError) => setError(connectionError.message || 'Không thể áp dụng ICE candidate.'),
+      onTiming: (label) => logP2PTiming(label, pairingStartedAtRef.current),
     });
     const pairing = new ManualPairingAdapter(core);
     const textTransfer = new TextTransfer(core, {
@@ -181,35 +211,54 @@ export default function P2P() {
         } else if (message.type === 'connection-response') {
           setOutgoingRequest(null);
           if (!message.accepted) {
+            activePeerIdRef.current = null;
             setError(`${message.from.name} đã từ chối yêu cầu kết nối.`);
             return;
           }
+          logP2PTiming('Connection accepted', requestSentAtRef.current);
+          requestSentAtRef.current = null;
+          pairingStartedAtRef.current = getP2PTimestamp();
+          logP2PTiming('Pairing setup start', pairingStartedAtRef.current);
+          activePeerIdRef.current = message.from.id;
           setActivePeer(message.from);
           setBusy(true);
           try {
             const signal = await sessionRef.current.pairing.createOffer();
             client.send({ type: 'offer', targetId: message.from.id, signal });
+            logP2PTiming('Offer sent', pairingStartedAtRef.current);
           } catch (connectionError) {
             setError(connectionError.message || 'Không thể tạo kết nối WebRTC.');
           } finally {
             setBusy(false);
           }
         } else if (message.type === 'offer') {
+          if (pairingStartedAtRef.current === null) pairingStartedAtRef.current = getP2PTimestamp();
+          logP2PTiming('Offer received', pairingStartedAtRef.current);
+          activePeerIdRef.current = message.from.id;
           setActivePeer(message.from);
           setBusy(true);
           try {
             const signal = await sessionRef.current.pairing.createAnswer(message.signal);
             client.send({ type: 'answer', targetId: message.from.id, signal });
+            logP2PTiming('Answer sent', pairingStartedAtRef.current);
           } catch (connectionError) {
             setError(connectionError.message || 'Không thể trả lời yêu cầu kết nối.');
           } finally {
             setBusy(false);
           }
         } else if (message.type === 'answer') {
+          logP2PTiming('Answer received', pairingStartedAtRef.current);
           try {
             await sessionRef.current.pairing.acceptAnswer(message.signal);
           } catch (connectionError) {
             setError(connectionError.message || 'Không thể hoàn tất kết nối.');
+          }
+        } else if (message.type === 'ice-candidate') {
+          if (activePeerIdRef.current && activePeerIdRef.current !== message.from.id) return;
+          try {
+            await sessionRef.current.pairing.addIceCandidate(message.candidate);
+          } catch (connectionError) {
+            setError(connectionError.message || 'Không thể áp dụng ICE candidate.');
           }
         } else if (message.type === 'error') {
           setError(message.message);
@@ -256,6 +305,8 @@ export default function P2P() {
     setError('');
     try {
       signalingRef.current.send({ type: 'request', targetId: peer.id });
+      requestSentAtRef.current = getP2PTimestamp();
+      logP2PTiming('Request sent', requestSentAtRef.current);
     } catch (requestError) {
       setError(requestError.message);
     }
@@ -264,6 +315,16 @@ export default function P2P() {
   const handleRespondToRequest = (accepted) => {
     if (!incomingRequest) return;
     try {
+      if (accepted) {
+        pairingStartedAtRef.current = getP2PTimestamp();
+        requestSentAtRef.current = null;
+        logP2PTiming('Connection accepted', pairingStartedAtRef.current);
+        activePeerIdRef.current = incomingRequest.from.id;
+      } else {
+        activePeerIdRef.current = null;
+        pairingStartedAtRef.current = null;
+        requestSentAtRef.current = null;
+      }
       signalingRef.current.send({
         type: 'respond',
         requestId: incomingRequest.requestId,
@@ -272,6 +333,9 @@ export default function P2P() {
       if (accepted) setActivePeer(incomingRequest.from);
       setIncomingRequest(null);
     } catch (requestError) {
+      activePeerIdRef.current = null;
+      pairingStartedAtRef.current = null;
+      requestSentAtRef.current = null;
       setError(requestError.message);
     }
   };
@@ -286,6 +350,9 @@ export default function P2P() {
       }
     }
     createSession();
+    activePeerIdRef.current = null;
+    pairingStartedAtRef.current = null;
+    requestSentAtRef.current = null;
     setStatus('idle');
     setBusy(false);
     setError(resetWarning);

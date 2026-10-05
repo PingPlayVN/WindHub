@@ -22,6 +22,29 @@ function makePairKey(firstId, secondId) {
   return [firstId, secondId].sort().join(':');
 }
 
+function isValidIceCandidate(candidate) {
+  if (candidate === null) return true;
+  if (
+    !candidate
+    || typeof candidate !== 'object'
+    || Array.isArray(candidate)
+    || typeof candidate.candidate !== 'string'
+    || candidate.candidate.length > 4096
+  ) return false;
+
+  const validSdpMid = candidate.sdpMid === undefined
+    || candidate.sdpMid === null
+    || typeof candidate.sdpMid === 'string' && candidate.sdpMid.length <= 256;
+  const validMLineIndex = candidate.sdpMLineIndex === undefined
+    || candidate.sdpMLineIndex === null
+    || Number.isSafeInteger(candidate.sdpMLineIndex) && candidate.sdpMLineIndex >= 0;
+  const validUsernameFragment = candidate.usernameFragment === undefined
+    || candidate.usernameFragment === null
+    || typeof candidate.usernameFragment === 'string' && candidate.usernameFragment.length <= 256;
+
+  return validSdpMid && validMLineIndex && validUsernameFragment;
+}
+
 export function createSignalingServer({ allowedOrigins = process.env.ALLOWED_ORIGINS || '', port = Number(process.env.PORT) || 10000 } = {}) {
   const peers = new Map();
   const peersById = new Map();
@@ -156,22 +179,30 @@ export function createSignalingServer({ allowedOrigins = process.env.ALLOWED_ORI
         return;
       }
 
-      if (message.type === 'offer' || message.type === 'answer') {
+      if (message.type === 'offer' || message.type === 'answer' || message.type === 'ice-candidate') {
         const targetSocket = peersById.get(message.targetId);
         const target = targetSocket && peers.get(targetSocket);
         const pairKey = target && makePairKey(peer.id, target.id);
+        const validSignal = message.type === 'ice-candidate'
+          ? isValidIceCandidate(message.candidate)
+          : typeof message.signal === 'string' && message.signal.length <= MAX_SIGNAL_LENGTH;
         if (
           !target
           || !pairKey
           || (authorizedPairs.get(pairKey) || 0) < now
-          || typeof message.signal !== 'string'
-          || message.signal.length > MAX_SIGNAL_LENGTH
+          || !validSignal
         ) {
           send(socket, { type: 'error', message: 'Không thể chuyển thông tin kết nối đến thiết bị.' });
           return;
         }
         authorizedPairs.set(pairKey, now + REQUEST_TTL_MS);
-        send(targetSocket, { type: message.type, from: peer, signal: message.signal });
+        send(targetSocket, {
+          type: message.type,
+          from: peer,
+          ...(message.type === 'ice-candidate'
+            ? { candidate: message.candidate }
+            : { signal: message.signal }),
+        });
         return;
       }
 
