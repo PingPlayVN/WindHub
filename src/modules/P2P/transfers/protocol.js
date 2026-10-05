@@ -81,14 +81,14 @@ export function validateFileMetadata(metadata) {
     || typeof metadata.fileName !== 'string'
     || metadata.fileName.length < 1
     || metadata.fileName.length > MAX_FILE_NAME_LENGTH
-    || /[\\/\u0000-\u001f]/.test(metadata.fileName)
+    || /[\\/\p{Cc}]/u.test(metadata.fileName)
     || !Number.isSafeInteger(metadata.fileSize)
     || metadata.fileSize < 0
     || metadata.fileSize > MAX_FILE_SIZE
     || typeof metadata.mimeType !== 'string'
     || metadata.mimeType.length > 255
     || !Number.isSafeInteger(metadata.totalChunks)
-    || metadata.totalChunks < 1
+    || metadata.totalChunks < 0
     || !Number.isSafeInteger(metadata.chunkSize)
     || metadata.chunkSize < MIN_CHUNK_SIZE
     || metadata.chunkSize > MAX_CHUNK_SIZE

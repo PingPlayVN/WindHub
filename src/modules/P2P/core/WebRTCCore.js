@@ -98,9 +98,12 @@ export default class WebRTCCore {
   updateConnectionState() {
     if (this.closed) return;
     const { connectionState, iceConnectionState } = this.peerConnection;
+    if (this.controlChannel?.readyState === 'open' && this.fileChannel?.readyState === 'open') {
+      this.setState('connected');
+      return;
+    }
     if (connectionState === 'connected' || iceConnectionState === 'connected' || iceConnectionState === 'completed') {
-      if (this.controlChannel?.readyState === 'open' || this.fileChannel?.readyState === 'open') this.setState('connected');
-      else this.setState('connecting');
+      this.setState('connecting');
     } else if (connectionState === 'failed' || iceConnectionState === 'failed') {
       this.setState('failed');
     } else if (connectionState === 'disconnected' || iceConnectionState === 'disconnected') {
@@ -112,10 +115,10 @@ export default class WebRTCCore {
 
   createDataChannels() {
     if (!this.controlChannel) {
-      this.attachChannel(this.peerConnection.createDataChannel('windhub-control', { ordered: true, maxRetransmits: 0 }));
+      this.attachChannel(this.peerConnection.createDataChannel('windhub-control', { ordered: true }));
     }
     if (!this.fileChannel) {
-      this.attachChannel(this.peerConnection.createDataChannel('windhub-file', { ordered: true, maxRetransmits: 0 }));
+      this.attachChannel(this.peerConnection.createDataChannel('windhub-file', { ordered: true }));
     }
   }
 
@@ -138,7 +141,7 @@ export default class WebRTCCore {
     channel.binaryType = 'arraybuffer';
     channel.bufferedAmountLowThreshold = LOW_WATERMARK;
     channel.addEventListener('open', () => {
-      if (!this.closed) this.setState('connected');
+      if (!this.closed) this.updateConnectionState();
     });
     channel.addEventListener('close', () => {
       if (!this.closed) this.setState('disconnected');

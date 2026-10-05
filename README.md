@@ -14,7 +14,7 @@ Sau khi kết nối, dùng tab **File** hoặc **Text**. File có thể chọn b
 - `src/modules/P2P/pairing/SignalingClient.js`: presence, yêu cầu kết nối và chuyển tiếp SDP qua WebSocket.
 - `signaling-server/src/index.js`: signaling server; không lưu trạng thái bền vững và không relay file/text.
 - `src/modules/P2P/transfers/TextTransfer.js`: message text có ID, timestamp và kiểm tra kích thước.
-- `src/modules/P2P/transfers/FileTransfer.js`: metadata, chunk 16 KiB, backpressure, tiến độ, tốc độ và hủy truyền.
+- `src/modules/P2P/transfers/FileTransfer.js`: handshake sẵn sàng, chunk đến 64 KiB, cửa sổ ACK, backpressure, tốc độ tức thời và hủy truyền.
 - `src/modules/P2P/config/iceServers.js`: cấu hình ICE/STUN tập trung; dễ bổ sung TURN trong tương lai.
 - `src/modules/P2P/index.jsx`: UI; không chứa logic WebRTC phức tạp trực tiếp.
 

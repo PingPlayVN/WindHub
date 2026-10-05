@@ -48,6 +48,25 @@ function formatTime(timestamp) {
   return new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(timestamp);
 }
 
+function transferStatusLabel(status) {
+  return ({
+    preparing: 'Đang chờ thiết bị nhận',
+    sending: 'Đang gửi',
+    receiving: 'Đang nhận',
+    sent: 'Đã gửi',
+    received: 'Đã nhận',
+    cancelled: 'Đã hủy',
+    failed: 'Thất bại',
+  })[status] || status;
+}
+
+function formatRemainingTime(seconds) {
+  if (!Number.isFinite(seconds) || seconds < 0) return '';
+  if (seconds < 60) return `Còn khoảng ${Math.ceil(seconds)} giây`;
+  if (seconds < 3600) return `Còn khoảng ${Math.ceil(seconds / 60)} phút`;
+  return `Còn khoảng ${Math.ceil(seconds / 3600)} giờ`;
+}
+
 export default function P2P() {
   const sessionRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -107,11 +126,12 @@ export default function P2P() {
 
   useEffect(() => {
     createSession();
+    const objectUrls = objectUrlsRef.current;
     return () => {
       sessionRef.current?.fileTransfer.close();
       sessionRef.current?.textTransfer.close();
       sessionRef.current?.pairing.close();
-      objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      objectUrls.forEach((url) => URL.revokeObjectURL(url));
     };
   }, [createSession]);
 
@@ -281,6 +301,7 @@ export default function P2P() {
   const handleFileDrop = (event) => {
     event.preventDefault();
     setIsDragging(false);
+    if (busy) return;
     const [file] = event.dataTransfer.files;
     if (file) setSelectedFile(file);
   };
@@ -447,14 +468,14 @@ export default function P2P() {
                 <FileUp className="mx-auto mb-2 text-slate-400" size={25} />
                 <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Kéo thả file vào đây hoặc chọn từ thiết bị</p>
                 <p className="mt-1 text-xs text-slate-500">Giới hạn mỗi file: {formatBytes(MAX_FILE_SIZE)}. File chỉ nằm trên thiết bị của bạn.</p>
-                <input ref={fileInputRef} type="file" className="sr-only" onChange={(event) => setSelectedFile(event.target.files?.[0] || null)} />
-                <button type="button" onClick={() => fileInputRef.current?.click()} className="mt-3 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold dark:border-slate-700">Chọn file</button>
+                <input ref={fileInputRef} type="file" disabled={busy} className="sr-only" onChange={(event) => setSelectedFile(event.target.files?.[0] || null)} />
+                <button type="button" disabled={busy} onClick={() => fileInputRef.current?.click()} className="mt-3 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold disabled:opacity-50 dark:border-slate-700">Chọn file</button>
                 {selectedFile && (
                   <div className="mx-auto mt-3 flex max-w-xl flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-100 px-3 py-2 text-left dark:bg-slate-800">
                     <span className="min-w-0 truncate text-sm">{selectedFile.name} · {formatBytes(selectedFile.size)}</span>
                     <div className="flex items-center gap-2">
                       <button type="button" disabled={busy} onClick={handleSendFile} className="inline-flex items-center gap-2 rounded-md bg-amber-400 px-3 py-1.5 text-sm font-bold text-black disabled:opacity-50"><Send size={14} /> Send File</button>
-                      <button type="button" aria-label="Bỏ chọn file" onClick={() => setSelectedFile(null)} className="rounded p-1 text-slate-500"><X size={16} /></button>
+                      <button type="button" disabled={busy} aria-label="Bỏ chọn file" onClick={() => { setSelectedFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} className="rounded p-1 text-slate-500 disabled:opacity-50"><X size={16} /></button>
                     </div>
                   </div>
                 )}
@@ -467,14 +488,28 @@ export default function P2P() {
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="min-w-0">
                         <p className="truncate text-sm font-bold text-slate-800 dark:text-slate-100">{transfer.fileName}</p>
-                        <p className="mt-1 text-xs text-slate-500">{transfer.direction === 'send' ? 'Sending' : 'Receiving'} · {formatBytes(transfer.transferred)} / {formatBytes(transfer.fileSize)} · {transfer.status}</p>
+                        <p className="mt-1 text-xs text-slate-500">{transfer.direction === 'send' ? 'Đang gửi' : 'Đang nhận'} · {formatBytes(transfer.transferred)} / {formatBytes(transfer.fileSize)} · {transferStatusLabel(transfer.status)}</p>
+                        {['sending', 'receiving'].includes(transfer.status) && transfer.speed > 0 && (
+                          <p className="mt-1 text-xs text-slate-500">{formatSpeed(transfer.speed)}{transfer.fileSize > transfer.transferred ? ` · ${formatRemainingTime((transfer.fileSize - transfer.transferred) / transfer.speed)}` : ''}</p>
+                        )}
                       </div>
-                      {transfer.status === 'sending' || transfer.status === 'receiving' ? (
+                      {['preparing', 'sending', 'receiving'].includes(transfer.status) ? (
                         <button type="button" onClick={() => sessionRef.current.fileTransfer.cancelTransfer(transfer.fileId)} className="rounded-md border border-slate-300 px-2.5 py-1.5 text-xs font-semibold dark:border-slate-700">Cancel</button>
                       ) : <span className="text-xs text-slate-500">{formatSpeed(transfer.speed)}</span>}
                     </div>
-                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800"><div className="h-full rounded-full bg-amber-500 transition-[width]" style={{ width: `${percentage}%` }} /></div>
-                    <p className="mt-1 text-right text-xs text-slate-500">{percentage}% · {formatSpeed(transfer.speed)}</p>
+                    <div
+                      className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800"
+                      role="progressbar"
+                      aria-label={`Tiến trình ${transfer.fileName}`}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={percentage}
+                    >
+                      <div className="h-full rounded-full bg-amber-500 transition-[width]" style={{ width: `${percentage}%` }} />
+                    </div>
+                    <p className="mt-1 text-right text-xs text-slate-500">
+                      {percentage}%{['sending', 'receiving'].includes(transfer.status) && transfer.speed > 0 ? ` · ${formatSpeed(transfer.speed)}` : ''}
+                    </p>
                   </article>
                 );
               })}
