@@ -83,10 +83,19 @@ export default function P2P() {
   const objectUrlsRef = useRef([]);
   const signalingRef = useRef(null);
   const activePeerIdRef = useRef(null);
+  const sessionIdRef = useRef(null);
+  const queuedLocalCandidatesRef = useRef([]);
   const pairingStartedAtRef = useRef(null);
   const requestSentAtRef = useRef(null);
   const [status, setStatus] = useState('idle');
   const [busy, setBusy] = useState(false);
+  const [deviceId] = useState(() => {
+    const existingDeviceId = window.sessionStorage.getItem('windhub-p2p-device-id');
+    if (existingDeviceId) return existingDeviceId;
+    const nextDeviceId = crypto.randomUUID();
+    window.sessionStorage.setItem('windhub-p2p-device-id', nextDeviceId);
+    return nextDeviceId;
+  });
   const [deviceName, setDeviceName] = useState(() => window.localStorage.getItem('windhub-p2p-device-name') || '');
   const [deviceNameInput, setDeviceNameInput] = useState(() => window.localStorage.getItem('windhub-p2p-device-name') || '');
   const [editingDeviceName, setEditingDeviceName] = useState(!window.localStorage.getItem('windhub-p2p-device-name'));
@@ -105,10 +114,50 @@ export default function P2P() {
   const [transfers, setTransfers] = useState([]);
   const [receivedFiles, setReceivedFiles] = useState([]);
 
+  const flushQueuedLocalCandidates = useCallback(() => {
+    const targetId = activePeerIdRef.current;
+    const currentSessionId = sessionIdRef.current;
+    const client = signalingRef.current;
+    if (!targetId || !currentSessionId || !client || client.socket?.readyState !== WebSocket.OPEN) {
+      return;
+    }
+    while (queuedLocalCandidatesRef.current.length > 0) {
+      const queuedCandidate = queuedLocalCandidatesRef.current[0];
+      if (queuedCandidate.sessionId && queuedCandidate.sessionId !== currentSessionId) {
+        queuedLocalCandidatesRef.current.shift();
+        continue;
+      }
+      try {
+        client.send({
+          type: 'ice-candidate',
+          targetId,
+          sessionId: currentSessionId,
+          candidate: queuedCandidate.candidate,
+        });
+      } catch (signalError) {
+        setError(signalError.message || 'Không thể gửi ICE candidate qua signaling.');
+        return;
+      }
+      queuedLocalCandidatesRef.current.shift();
+    }
+  }, []);
+
+  const queueLocalIceCandidate = useCallback((candidate) => {
+    const nextSessionId = sessionIdRef.current;
+    if (candidate === undefined || candidate === null) {
+      queuedLocalCandidatesRef.current.push({ sessionId: nextSessionId, candidate: null });
+    } else {
+      queuedLocalCandidatesRef.current.push({ sessionId: nextSessionId, candidate });
+    }
+    flushQueuedLocalCandidates();
+  }, [flushQueuedLocalCandidates]);
+
   const createSession = useCallback(() => {
     sessionRef.current?.fileTransfer.close();
     sessionRef.current?.textTransfer.close();
     sessionRef.current?.pairing.close();
+    sessionIdRef.current = null;
+    queuedLocalCandidatesRef.current = [];
 
     const core = new WebRTCCore({
       onStateChange: (nextStatus) => {
@@ -122,13 +171,14 @@ export default function P2P() {
       onMessage: () => {},
       onSignal: (candidate) => {
         const targetId = activePeerIdRef.current;
-        if (!targetId || !signalingRef.current) {
-          setError('Không thể gửi ICE candidate khi chưa có thiết bị ghép nối hoặc signaling.');
+        if (!sessionIdRef.current || !targetId || !signalingRef.current) {
+          queueLocalIceCandidate(candidate);
           return;
         }
         try {
-          signalingRef.current.send({ type: 'ice-candidate', targetId, candidate });
+          signalingRef.current.send({ type: 'ice-candidate', targetId, sessionId: sessionIdRef.current, candidate });
         } catch (signalError) {
+          queueLocalIceCandidate(candidate);
           setError(signalError.message || 'Không thể gửi ICE candidate qua signaling.');
         }
       },
@@ -154,7 +204,7 @@ export default function P2P() {
       onError: (transferError) => setError(transferError.message),
     });
     sessionRef.current = { pairing, textTransfer, fileTransfer };
-  }, []);
+  }, [queueLocalIceCandidate]);
 
   useEffect(() => {
     createSession();
@@ -192,14 +242,23 @@ export default function P2P() {
     const endpoint = import.meta.env.VITE_P2P_SIGNALING_URL || 'https://windhub-p2p-signaling.onrender.com';
     const client = new SignalingClient(endpoint, {
       name: deviceName,
+      deviceId,
       onStateChange: (nextState, message) => {
         setSignalingState(nextState);
         if (message) setError(message);
-        if (nextState === 'offline' || nextState === 'error') setDevices([]);
+        if (nextState === 'offline' || nextState === 'error') {
+          setDevices((currentDevices) => currentDevices.map((device) => ({ ...device, status: 'RECONNECTING' })));
+        }
+        if (nextState === 'online') {
+          setDevices((currentDevices) => currentDevices.map((device) => ({ ...device, status: 'ACTIVE' })));
+        }
       },
       onMessage: async (message) => {
         if (message.type === 'devices') {
-          setDevices(message.devices);
+          const uniqueDevices = new Map(
+            message.devices.map((peer) => [peer.id, { ...peer, status: 'ACTIVE' }]),
+          );
+          setDevices([...uniqueDevices.values()]);
         } else if (message.type === 'connection-request') {
           setIncomingRequest(message);
         } else if (message.type === 'request-expired') {
@@ -212,6 +271,7 @@ export default function P2P() {
           setOutgoingRequest(null);
           if (!message.accepted) {
             activePeerIdRef.current = null;
+            sessionIdRef.current = null;
             setError(`${message.from.name} đã từ chối yêu cầu kết nối.`);
             return;
           }
@@ -219,12 +279,14 @@ export default function P2P() {
           requestSentAtRef.current = null;
           pairingStartedAtRef.current = getP2PTimestamp();
           logP2PTiming('Pairing setup start', pairingStartedAtRef.current);
+          sessionIdRef.current = message.sessionId || sessionIdRef.current || crypto.randomUUID();
           activePeerIdRef.current = message.from.id;
           setActivePeer(message.from);
           setBusy(true);
           try {
             const signal = await sessionRef.current.pairing.createOffer();
-            client.send({ type: 'offer', targetId: message.from.id, signal });
+            client.send({ type: 'offer', targetId: message.from.id, sessionId: sessionIdRef.current, signal });
+            flushQueuedLocalCandidates();
             logP2PTiming('Offer sent', pairingStartedAtRef.current);
           } catch (connectionError) {
             setError(connectionError.message || 'Không thể tạo kết nối WebRTC.');
@@ -232,6 +294,9 @@ export default function P2P() {
             setBusy(false);
           }
         } else if (message.type === 'offer') {
+          if (message.sessionId && sessionIdRef.current && message.sessionId !== sessionIdRef.current) return;
+          if (message.sessionId) sessionIdRef.current = message.sessionId;
+          else if (!sessionIdRef.current) sessionIdRef.current = crypto.randomUUID();
           if (pairingStartedAtRef.current === null) pairingStartedAtRef.current = getP2PTimestamp();
           logP2PTiming('Offer received', pairingStartedAtRef.current);
           activePeerIdRef.current = message.from.id;
@@ -239,7 +304,8 @@ export default function P2P() {
           setBusy(true);
           try {
             const signal = await sessionRef.current.pairing.createAnswer(message.signal);
-            client.send({ type: 'answer', targetId: message.from.id, signal });
+            client.send({ type: 'answer', targetId: message.from.id, sessionId: sessionIdRef.current, signal });
+            flushQueuedLocalCandidates();
             logP2PTiming('Answer sent', pairingStartedAtRef.current);
           } catch (connectionError) {
             setError(connectionError.message || 'Không thể trả lời yêu cầu kết nối.');
@@ -247,13 +313,19 @@ export default function P2P() {
             setBusy(false);
           }
         } else if (message.type === 'answer') {
+          if (message.sessionId && sessionIdRef.current && message.sessionId !== sessionIdRef.current) return;
+          if (message.sessionId) sessionIdRef.current = message.sessionId;
+          else if (!sessionIdRef.current) sessionIdRef.current = crypto.randomUUID();
           logP2PTiming('Answer received', pairingStartedAtRef.current);
           try {
             await sessionRef.current.pairing.acceptAnswer(message.signal);
+            flushQueuedLocalCandidates();
           } catch (connectionError) {
             setError(connectionError.message || 'Không thể hoàn tất kết nối.');
           }
         } else if (message.type === 'ice-candidate') {
+          if (message.sessionId && sessionIdRef.current && message.sessionId !== sessionIdRef.current) return;
+          if (message.sessionId) sessionIdRef.current = message.sessionId;
           if (activePeerIdRef.current && activePeerIdRef.current !== message.from.id) return;
           try {
             await sessionRef.current.pairing.addIceCandidate(message.candidate);
@@ -271,7 +343,7 @@ export default function P2P() {
       client.close();
       if (signalingRef.current === client) signalingRef.current = null;
     };
-  }, [deviceName]);
+  }, [deviceId, deviceName, flushQueuedLocalCandidates]);
 
   const runAction = async (action) => {
     setError('');
@@ -303,11 +375,13 @@ export default function P2P() {
 
   const handleRequestConnection = (peer) => {
     setError('');
+    sessionIdRef.current = crypto.randomUUID();
     try {
-      signalingRef.current.send({ type: 'request', targetId: peer.id });
+      signalingRef.current.send({ type: 'request', targetId: peer.id, sessionId: sessionIdRef.current });
       requestSentAtRef.current = getP2PTimestamp();
       logP2PTiming('Request sent', requestSentAtRef.current);
     } catch (requestError) {
+      sessionIdRef.current = null;
       setError(requestError.message);
     }
   };
@@ -319,9 +393,11 @@ export default function P2P() {
         pairingStartedAtRef.current = getP2PTimestamp();
         requestSentAtRef.current = null;
         logP2PTiming('Connection accepted', pairingStartedAtRef.current);
+        sessionIdRef.current = incomingRequest.sessionId || sessionIdRef.current || crypto.randomUUID();
         activePeerIdRef.current = incomingRequest.from.id;
       } else {
         activePeerIdRef.current = null;
+        sessionIdRef.current = null;
         pairingStartedAtRef.current = null;
         requestSentAtRef.current = null;
       }
@@ -329,11 +405,14 @@ export default function P2P() {
         type: 'respond',
         requestId: incomingRequest.requestId,
         accepted,
+        sessionId: sessionIdRef.current,
       });
       if (accepted) setActivePeer(incomingRequest.from);
       setIncomingRequest(null);
+      flushQueuedLocalCandidates();
     } catch (requestError) {
       activePeerIdRef.current = null;
+      sessionIdRef.current = null;
       pairingStartedAtRef.current = null;
       requestSentAtRef.current = null;
       setError(requestError.message);
@@ -344,13 +423,15 @@ export default function P2P() {
     let resetWarning = '';
     if (activePeer) {
       try {
-        signalingRef.current?.send({ type: 'disconnect', targetId: activePeer.id });
+        signalingRef.current?.send({ type: 'disconnect', targetId: activePeer.id, sessionId: sessionIdRef.current });
       } catch {
         resetWarning = 'Đã tạo phiên mới; signaling server hiện không khả dụng.';
       }
     }
     createSession();
     activePeerIdRef.current = null;
+    sessionIdRef.current = null;
+    queuedLocalCandidatesRef.current = [];
     pairingStartedAtRef.current = null;
     requestSentAtRef.current = null;
     setStatus('idle');

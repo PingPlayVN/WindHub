@@ -22,11 +22,11 @@ function nextMessage(socket, predicate) {
   });
 }
 
-async function connectClient(url, name) {
+async function connectClient(url, name, deviceId) {
   const socket = new WebSocket(url, { origin: 'http://localhost' });
   await once(socket, 'open');
   const registered = nextMessage(socket, (message) => message.type === 'registered');
-  socket.send(JSON.stringify({ type: 'register', name }));
+  socket.send(JSON.stringify({ type: 'register', name, ...(deviceId ? { deviceId } : {}) }));
   return { socket, registered: await registered };
 }
 
@@ -46,25 +46,34 @@ test('signaling server lists online peers and relays accepted SDP only', async (
 
     const connectionRequest = nextMessage(second.socket, (message) => message.type === 'connection-request');
     const requestSent = nextMessage(first.socket, (message) => message.type === 'request-sent');
-    first.socket.send(JSON.stringify({ type: 'request', targetId: second.registered.deviceId }));
+    const sessionId = 'test-session-id';
+    first.socket.send(JSON.stringify({ type: 'request', targetId: second.registered.deviceId, sessionId }));
     const [request, sent] = await Promise.all([connectionRequest, requestSent]);
     assert.equal(request.from.name, 'Laptop');
+    assert.equal(request.sessionId, sessionId);
+    assert.equal(sent.sessionId, sessionId);
 
     const response = nextMessage(first.socket, (message) => message.type === 'connection-response');
     second.socket.send(JSON.stringify({
       type: 'respond',
       requestId: request.requestId,
       accepted: true,
+      sessionId: request.sessionId,
     }));
-    assert.equal((await response).accepted, true);
+    const connectionResponse = await response;
+    assert.equal(connectionResponse.accepted, true);
+    assert.equal(connectionResponse.sessionId, sessionId);
 
     const relayedOffer = nextMessage(second.socket, (message) => message.type === 'offer');
     first.socket.send(JSON.stringify({
       type: 'offer',
       targetId: second.registered.deviceId,
+      sessionId,
       signal: 'v1.offer:test-sdp',
     }));
-    assert.equal((await relayedOffer).signal, 'v1.offer:test-sdp');
+    const receivedOffer = await relayedOffer;
+    assert.equal(receivedOffer.signal, 'v1.offer:test-sdp');
+    assert.equal(receivedOffer.sessionId, sessionId);
     assert.ok(sent.requestId);
   } finally {
     for (const socket of clients) socket.close();
@@ -156,6 +165,38 @@ test('signaling server exposes a health endpoint', async () => {
     assert.equal(response.status, 200);
     assert.deepEqual(await response.json(), { ok: true });
   } finally {
+    await service.close();
+  }
+});
+
+test('re-registering a persistent device replaces its socket without duplicate presence', async () => {
+  const service = createSignalingServer({ port: 0, allowedOrigins: 'http://localhost' });
+  const address = await service.listen();
+  const url = `ws://127.0.0.1:${address.port}/p2p`;
+  const clients = [];
+  try {
+    const observer = await connectClient(url, 'Observer');
+    clients.push(observer.socket);
+    const persistentId = '9f9d6c2c-9eff-4c7a-aa0d-a09397c3842f';
+    const oldClient = await connectClient(url, 'Phone', persistentId);
+    clients.push(oldClient.socket);
+    const oldClientClosed = once(oldClient.socket, 'close');
+    const listedDevices = nextMessage(
+      observer.socket,
+      (message) => message.type === 'devices' && message.devices.some((device) => device.id === persistentId),
+    );
+    const replacement = await connectClient(url, 'Phone', persistentId);
+    clients.push(replacement.socket);
+
+    await oldClientClosed;
+    const connectionRequest = nextMessage(replacement.socket, (message) => message.type === 'connection-request');
+    observer.socket.send(JSON.stringify({ type: 'request', targetId: persistentId }));
+
+    const [devices, request] = await Promise.all([listedDevices, connectionRequest]);
+    assert.equal(devices.devices.filter((device) => device.id === persistentId).length, 1);
+    assert.equal(request.from.id, observer.registered.deviceId);
+  } finally {
+    for (const socket of clients) socket.close();
     await service.close();
   }
 });

@@ -85,8 +85,12 @@ export default class WebRTCCore {
     this.remoteDescriptionReady = false;
     this.pendingCandidates = [];
     this.candidateQueue = Promise.resolve();
+    this.remoteCandidateSignatures = new Set();
     this.firstCandidateReported = false;
     this.endOfCandidatesSent = false;
+    this.recoveryTimer = null;
+    this.iceRestartRetries = 0;
+    this.maxIceRestartRetries = 3;
     this.controlChannel = null;
     this.fileChannel = null;
     this.peerConnection = new RTCPeerConnection({ iceServers });
@@ -118,7 +122,9 @@ export default class WebRTCCore {
       }
       this.updateConnectionState();
     });
-    this.peerConnection.addEventListener('iceconnectionstatechange', () => this.updateConnectionState());
+    this.peerConnection.addEventListener('iceconnectionstatechange', () => {
+      this.updateConnectionState();
+    });
     this.peerConnection.addEventListener('datachannel', (event) => this.attachChannel(event.channel));
     this.peerConnection.addEventListener('signalingstatechange', () => {
       if (this.peerConnection.signalingState === 'closed') this.setState('closed');
@@ -169,19 +175,53 @@ export default class WebRTCCore {
     };
   }
 
+  getCandidateSignature(candidate) {
+    if (candidate === null) return 'end-of-candidates';
+    if (!candidate || typeof candidate !== 'object') return JSON.stringify(candidate);
+    const candidateText = typeof candidate.candidate === 'string' ? candidate.candidate : '';
+    return `${candidateText}|${candidate.sdpMid ?? ''}|${candidate.sdpMLineIndex ?? ''}|${candidate.usernameFragment ?? ''}`;
+  }
+
+  scheduleRecovery() {
+    if (this.closed || this.recoveryTimer) return;
+    const { connectionState, iceConnectionState } = this.peerConnection;
+    if (this.controlChannel?.readyState === 'open' && this.fileChannel?.readyState === 'open') return;
+    if (connectionState === 'connected' || iceConnectionState === 'connected' || iceConnectionState === 'completed') return;
+    const delayMs = Math.min(500 + this.iceRestartRetries * 500, 4000);
+    this.recoveryTimer = setTimeout(() => {
+      this.recoveryTimer = null;
+      if (this.closed) return;
+      const nextConnectionState = this.peerConnection.connectionState;
+      const nextIceState = this.peerConnection.iceConnectionState;
+      if (nextConnectionState === 'connected' || nextConnectionState === 'completed' || nextIceState === 'connected' || nextIceState === 'completed') return;
+      if (typeof this.peerConnection.restartIce === 'function' && this.iceRestartRetries < this.maxIceRestartRetries) {
+        this.iceRestartRetries += 1;
+        try {
+          this.peerConnection.restartIce();
+        } catch (error) {
+          if (!this.closed) this.onError(error);
+        }
+      }
+    }, delayMs);
+  }
+
   updateConnectionState() {
     if (this.closed) return;
     const { connectionState, iceConnectionState } = this.peerConnection;
     if (this.controlChannel?.readyState === 'open' && this.fileChannel?.readyState === 'open') {
+      this.iceRestartRetries = 0;
       this.setState('connected');
       return;
     }
     if (connectionState === 'connected' || iceConnectionState === 'connected' || iceConnectionState === 'completed') {
+      this.iceRestartRetries = 0;
       this.setState('connecting');
     } else if (connectionState === 'failed' || iceConnectionState === 'failed') {
       this.setState('failed');
+      this.scheduleRecovery();
     } else if (connectionState === 'disconnected' || iceConnectionState === 'disconnected') {
       this.setState('disconnected');
+      this.scheduleRecovery();
     } else if (connectionState === 'connecting' || iceConnectionState === 'checking') {
       this.setState('connecting');
     }
@@ -189,6 +229,15 @@ export default class WebRTCCore {
 
   addIceCandidate(candidate) {
     if (candidate === undefined || this.closed) return Promise.resolve();
+    if (this.remoteDescriptionReady) {
+      const signature = this.getCandidateSignature(candidate);
+      if (candidate !== null && this.remoteCandidateSignatures.has(signature)) {
+        return Promise.resolve();
+      }
+      if (candidate !== null) {
+        this.remoteCandidateSignatures.add(signature);
+      }
+    }
     if (!this.remoteDescriptionReady) {
       this.pendingCandidates.push(candidate);
       return Promise.resolve();
@@ -198,8 +247,13 @@ export default class WebRTCCore {
 
   enqueueIceCandidate(candidate) {
     const operation = this.candidateQueue.then(() => {
-      if (!this.closed) return this.peerConnection.addIceCandidate(candidate);
-      return undefined;
+      if (this.closed) return undefined;
+      try {
+        return this.peerConnection.addIceCandidate(candidate);
+      } catch (error) {
+        if (!this.closed) this.onError(error);
+        return undefined;
+      }
     });
     this.candidateQueue = operation.catch((error) => {
       if (!this.closed) this.onError(error);
@@ -212,7 +266,13 @@ export default class WebRTCCore {
     if (this.closed) return;
     this.remoteDescriptionReady = true;
     const queuedCandidates = this.pendingCandidates.splice(0);
-    for (const candidate of queuedCandidates) this.enqueueIceCandidate(candidate);
+    for (const candidate of queuedCandidates) {
+      if (candidate === undefined || candidate === null) {
+        this.enqueueIceCandidate(candidate);
+        continue;
+      }
+      this.addIceCandidate(candidate);
+    }
   }
 
   createDataChannels() {
@@ -345,8 +405,11 @@ export default class WebRTCCore {
   close() {
     if (this.closed) return;
     this.closed = true;
+    clearTimeout(this.recoveryTimer);
+    this.recoveryTimer = null;
     this.pendingCandidates.length = 0;
     this.remoteDescriptionReady = false;
+    this.remoteCandidateSignatures.clear();
     this.controlChannel?.close();
     this.fileChannel?.close();
     this.peerConnection.close();

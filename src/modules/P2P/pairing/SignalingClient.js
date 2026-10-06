@@ -12,9 +12,10 @@ function toWebSocketUrl(endpoint) {
 }
 
 export default class SignalingClient {
-  constructor(endpoint, { name, onStateChange = () => {}, onMessage = () => {} }) {
+  constructor(endpoint, { name, deviceId = null, onStateChange = () => {}, onMessage = () => {} }) {
     this.url = toWebSocketUrl(endpoint);
     this.name = name;
+    this.deviceId = deviceId || this.resolveDeviceId();
     this.onStateChange = onStateChange;
     this.onMessage = onMessage;
     this.socket = null;
@@ -23,15 +24,29 @@ export default class SignalingClient {
     this.retryTimer = null;
   }
 
+  resolveDeviceId() {
+    if (typeof window === 'undefined' || !window.sessionStorage) {
+      return crypto.randomUUID();
+    }
+    const storedId = window.sessionStorage.getItem('windhub-p2p-device-id');
+    if (storedId) return storedId;
+    const nextId = crypto.randomUUID();
+    window.sessionStorage.setItem('windhub-p2p-device-id', nextId);
+    return nextId;
+  }
+
   connect() {
     if (this.closed || this.socket) return;
     this.onStateChange('connecting');
     const socket = new WebSocket(this.url);
     this.socket = socket;
     socket.addEventListener('open', () => {
-      if (this.closed || this.socket !== socket) return;
+      if (this.closed || this.socket !== socket) {
+        socket.close();
+        return;
+      }
       this.retryDelay = 1000;
-      socket.send(JSON.stringify({ type: 'register', name: this.name }));
+      socket.send(JSON.stringify({ type: 'register', name: this.name, deviceId: this.deviceId }));
     });
     socket.addEventListener('message', (event) => {
       if (this.closed || this.socket !== socket) return;
@@ -72,7 +87,7 @@ export default class SignalingClient {
     this.closed = true;
     clearTimeout(this.retryTimer);
     this.retryTimer = null;
-    this.socket?.close();
+    if (this.socket?.readyState === WebSocket.OPEN) this.socket.close();
     this.socket = null;
   }
 }

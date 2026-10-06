@@ -63,7 +63,8 @@ export function createSignalingServer({ allowedOrigins = process.env.ALLOWED_ORI
   const allowed = allowedOrigins.split(',').map((origin) => origin.trim()).filter(Boolean);
 
   const broadcastDevices = () => {
-    const devices = [...peers.values()].map(({ id, name }) => ({ id, name }));
+    const uniqueDevices = new Map([...peers.values()].map(({ id, name }) => [id, { id, name }]));
+    const devices = [...uniqueDevices.values()];
     for (const socket of peers.keys()) send(socket, { type: 'devices', devices: devices.filter((device) => device.id !== peers.get(socket).id) });
   };
 
@@ -87,20 +88,17 @@ export function createSignalingServer({ allowedOrigins = process.env.ALLOWED_ORI
     const removePeer = () => {
       if (!peer) return;
       peers.delete(socket);
-      peersById.delete(peer.id);
+      if (peersById.get(peer.id) === socket) peersById.delete(peer.id);
       for (const [requestId, entry] of requests) {
         if (entry.fromId === peer.id || entry.toId === peer.id) {
           const remainingId = entry.fromId === peer.id ? entry.toId : entry.fromId;
           const remainingSocket = peersById.get(remainingId);
-          if (entry.fromId === peer.id) {
-            send(remainingSocket, { type: 'request-expired', requestId });
-          } else {
-            send(remainingSocket, { type: 'request-expired', requestId });
-          }
+          send(remainingSocket, { type: 'request-expired', requestId });
           requests.delete(requestId);
         }
       }
-      for (const [key, expiry] of authorizedPairs) {
+      for (const [key, value] of authorizedPairs) {
+        const expiry = typeof value === 'object' ? value.expiresAt : value;
         if (key.split(':').includes(peer.id) || expiry <= Date.now()) authorizedPairs.delete(key);
       }
       broadcastDevices();
@@ -136,7 +134,18 @@ export function createSignalingServer({ allowedOrigins = process.env.ALLOWED_ORI
           socket.close(1008, 'invalid name');
           return;
         }
-        peer = { id: randomUUID(), name };
+        const deviceId = typeof message.deviceId === 'string' && message.deviceId.trim() ? message.deviceId.trim() : randomUUID();
+        const existingSocket = peersById.get(deviceId);
+        if (existingSocket && existingSocket !== socket) {
+          try {
+            existingSocket.close();
+          } catch {
+            // ignore close errors during reconnect replacement.
+          }
+          peers.delete(existingSocket);
+          peersById.delete(deviceId);
+        }
+        peer = { id: deviceId, name };
         peers.set(socket, peer);
         peersById.set(peer.id, socket);
         send(socket, { type: 'registered', deviceId: peer.id });
@@ -152,9 +161,13 @@ export function createSignalingServer({ allowedOrigins = process.env.ALLOWED_ORI
           return;
         }
         const requestId = randomUUID();
-        requests.set(requestId, { fromId: peer.id, toId: target.id, expiresAt: now + REQUEST_TTL_MS });
-        send(targetSocket, { type: 'connection-request', requestId, from: peer });
-        send(socket, { type: 'request-sent', requestId, to: target });
+        const requestedSessionId = typeof message.sessionId === 'string' ? message.sessionId.trim() : '';
+        const sessionId = requestedSessionId && requestedSessionId.length <= 128
+          ? requestedSessionId
+          : randomUUID();
+        requests.set(requestId, { fromId: peer.id, toId: target.id, expiresAt: now + REQUEST_TTL_MS, sessionId });
+        send(targetSocket, { type: 'connection-request', requestId, sessionId, from: peer });
+        send(socket, { type: 'request-sent', requestId, sessionId, to: target });
         return;
       }
 
@@ -172,10 +185,25 @@ export function createSignalingServer({ allowedOrigins = process.env.ALLOWED_ORI
           return;
         }
         const accepted = message.accepted === true;
+        if (accepted && message.sessionId && message.sessionId !== pending.sessionId) {
+          send(socket, { type: 'error', message: 'Phiên kết nối không hợp lệ.' });
+          return;
+        }
         requests.delete(message.requestId);
-        if (accepted) authorizedPairs.set(makePairKey(peer.id, pending.fromId), now + REQUEST_TTL_MS);
-        send(requesterSocket, { type: 'connection-response', requestId: message.requestId, accepted, from: peer });
-        send(socket, { type: 'response-sent', requestId: message.requestId, accepted });
+        if (accepted) {
+          authorizedPairs.set(makePairKey(peer.id, pending.fromId), {
+            expiresAt: now + REQUEST_TTL_MS,
+            sessionId: pending.sessionId,
+          });
+        }
+        send(requesterSocket, {
+          type: 'connection-response',
+          requestId: message.requestId,
+          accepted,
+          sessionId: pending.sessionId,
+          from: peer,
+        });
+        send(socket, { type: 'response-sent', requestId: message.requestId, accepted, sessionId: pending.sessionId });
         return;
       }
 
@@ -183,22 +211,32 @@ export function createSignalingServer({ allowedOrigins = process.env.ALLOWED_ORI
         const targetSocket = peersById.get(message.targetId);
         const target = targetSocket && peers.get(targetSocket);
         const pairKey = target && makePairKey(peer.id, target.id);
+        const pairState = pairKey ? authorizedPairs.get(pairKey) : null;
+        const expiresAt = typeof pairState === 'object' ? pairState.expiresAt : pairState || 0;
+        const expectedSessionId = typeof pairState === 'object' ? pairState.sessionId : null;
         const validSignal = message.type === 'ice-candidate'
           ? isValidIceCandidate(message.candidate)
           : typeof message.signal === 'string' && message.signal.length <= MAX_SIGNAL_LENGTH;
+        const sessionMatches = !message.sessionId || !expectedSessionId || message.sessionId === expectedSessionId;
         if (
           !target
           || !pairKey
-          || (authorizedPairs.get(pairKey) || 0) < now
+          || expiresAt <= now
           || !validSignal
+          || !sessionMatches
         ) {
           send(socket, { type: 'error', message: 'Không thể chuyển thông tin kết nối đến thiết bị.' });
           return;
         }
-        authorizedPairs.set(pairKey, now + REQUEST_TTL_MS);
+        const nextSessionId = message.sessionId || expectedSessionId || null;
+        authorizedPairs.set(pairKey, {
+          expiresAt: now + REQUEST_TTL_MS,
+          sessionId: nextSessionId,
+        });
         send(targetSocket, {
           type: message.type,
           from: peer,
+          sessionId: nextSessionId,
           ...(message.type === 'ice-candidate'
             ? { candidate: message.candidate }
             : { signal: message.signal }),
@@ -207,7 +245,17 @@ export function createSignalingServer({ allowedOrigins = process.env.ALLOWED_ORI
       }
 
       if (message.type === 'disconnect') {
-        if (typeof message.targetId === 'string') authorizedPairs.delete(makePairKey(peer.id, message.targetId));
+        if (typeof message.targetId === 'string') {
+          const pairKey = makePairKey(peer.id, message.targetId);
+          const pairState = authorizedPairs.get(pairKey);
+          const expiresAt = typeof pairState === 'object' ? pairState.expiresAt : pairState || 0;
+          const currentSessionId = typeof pairState === 'object' ? pairState.sessionId : null;
+          const sessionMatches = !message.sessionId || !currentSessionId || message.sessionId === currentSessionId;
+          if (expiresAt > now && sessionMatches) {
+            send(peersById.get(message.targetId), { type: 'disconnect', from: peer, sessionId: currentSessionId || message.sessionId || null });
+          }
+          authorizedPairs.delete(pairKey);
+        }
         return;
       }
 
@@ -227,7 +275,8 @@ export function createSignalingServer({ allowedOrigins = process.env.ALLOWED_ORI
         requests.delete(requestId);
       }
     }
-    for (const [key, expiresAt] of authorizedPairs) {
+    for (const [key, value] of authorizedPairs) {
+      const expiresAt = typeof value === 'object' ? value.expiresAt : value;
       if (expiresAt <= now) authorizedPairs.delete(key);
     }
     for (const socket of sockets.clients) {
