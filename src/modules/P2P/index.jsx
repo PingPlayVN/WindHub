@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Check,
+  Copy,
   Download,
   FileUp,
   Laptop,
@@ -109,6 +110,7 @@ export default function P2P() {
   const [activeTab, setActiveTab] = useState('file');
   const [text, setText] = useState('');
   const [messages, setMessages] = useState([]);
+  const [copiedMessageId, setCopiedMessageId] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [transfers, setTransfers] = useState([]);
@@ -459,6 +461,32 @@ export default function P2P() {
     }
   };
 
+  const handleCopyMessage = async (message) => {
+    try {
+      try {
+        await navigator.clipboard.writeText(message.text);
+      } catch {
+        const textarea = document.createElement('textarea');
+        textarea.value = message.text;
+        textarea.setAttribute('readonly', '');
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        let copied;
+        try {
+          textarea.select();
+          copied = document.execCommand('copy');
+        } finally {
+          textarea.remove();
+        }
+        if (!copied) throw new Error('Clipboard is unavailable');
+      }
+      setCopiedMessageId(message.id);
+    } catch {
+      setError('Không thể sao chép văn bản vào clipboard.');
+    }
+  };
+
   const handleSendFile = () => {
     if (!selectedFile) return;
     runAction(async () => {
@@ -623,7 +651,19 @@ export default function P2P() {
                 {messages.length ? messages.map((message) => (
                   <article key={message.id} className={`max-w-[90%] rounded-xl px-3 py-2 ${message.direction === 'sent' ? 'ml-auto bg-amber-100 text-slate-900 dark:bg-amber-950/50 dark:text-amber-100' : 'bg-white text-slate-800 shadow-sm dark:bg-slate-800 dark:text-slate-100'}`}>
                     <p className="whitespace-pre-wrap break-words text-sm">{message.text}</p>
-                    <p className="mt-1 text-right text-[11px] opacity-60">{message.direction === 'sent' ? 'Sent' : 'Received'} · {formatTime(message.timestamp)}</p>
+                    <div className="mt-1 flex items-center justify-between gap-3">
+                      <button
+                        type="button"
+                        onClick={() => handleCopyMessage(message)}
+                        aria-label={copiedMessageId === message.id ? 'Đã sao chép văn bản' : 'Sao chép văn bản'}
+                        title={copiedMessageId === message.id ? 'Đã sao chép' : 'Sao chép văn bản'}
+                        className="inline-flex items-center gap-1 rounded px-1 py-0.5 text-[11px] opacity-70 transition hover:bg-black/5 hover:opacity-100 dark:hover:bg-white/10"
+                      >
+                        {copiedMessageId === message.id ? <Check size={13} /> : <Copy size={13} />}
+                        <span>{copiedMessageId === message.id ? 'Đã sao chép' : 'Sao chép'}</span>
+                      </button>
+                      <p className="text-right text-[11px] opacity-60">{message.direction === 'sent' ? 'Sent' : 'Received'} · {formatTime(message.timestamp)}</p>
+                    </div>
                   </article>
                 )) : <p className="py-12 text-center text-sm text-slate-500">Chưa có tin nhắn. Gửi lời chào đầu tiên!</p>}
               </div>
