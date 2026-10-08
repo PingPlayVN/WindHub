@@ -22,10 +22,8 @@ export default function Header() {
       ? 'Công cụ'
       : location.pathname === '/extensions'
       ? 'Tiện ích'
-      : location.pathname === '/ai-lab'
-        ? 'AI Battle'
-        : location.pathname === '/p2p'
-          ? 'P2P Share'
+      : location.pathname === '/p2p'
+        ? 'P2P Share'
         : 'Tổng quan';
 
   const handleLogout = async () => {

@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, FileArchive, Command, Wrench, FlaskConical, Radio } from 'lucide-react';
+import { LayoutDashboard, FileArchive, Command, Wrench, Radio } from 'lucide-react';
 import { useUIStore } from '@/store/useUIStore';
 import { useThemeStore } from '@/store/useThemeStore';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -102,14 +102,6 @@ export default function Sidebar() {
           >
             <Wrench size={20} />
             <span>Tiện ích</span>
-          </Link>
-          <Link
-            to="/ai-lab"
-            onClick={closeSidebar}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 ${isActive('/ai-lab') ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-400 font-semibold' : 'hover:bg-slate-100 dark:hover:bg-zinc-900 text-slate-600 dark:text-slate-400'}`}
-          >
-            <FlaskConical size={20} />
-            <span>AI Battle</span>
           </Link>
           <Link
             to="/p2p"
