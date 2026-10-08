@@ -20,10 +20,13 @@ const toolModulesInDisplayOrder = Object.entries(toolModules).sort(([firstPath],
 
 export const toolEntries = toolModulesInDisplayOrder.map(([path, importer]) => {
   const id = path.split('/').slice(-2, -1)[0];
+  const title = id === 'ImageArtStudio'
+    ? 'Image → ASCII Studio'
+    : formatToolName(id);
 
   return {
     id,
-    title: formatToolName(id),
+    title,
     Component: lazy(async () => {
       const module = await importer();
       return { default: module.default?.tool?.Component || module.default };
