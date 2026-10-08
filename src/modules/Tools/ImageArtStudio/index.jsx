@@ -537,9 +537,31 @@ function ImageArtStudio() {
     if (!result) return;
     try {
       await copyText(result.text);
-      toast.success('Đã sao chép ASCII vào clipboard.');
+      toast.success('Đã sao chép text. Căn lề có thể khác tùy font trong ứng dụng bạn dán vào.');
     } catch {
       setError('Không thể sao chép. Hãy kiểm tra quyền clipboard của trình duyệt.');
+    }
+  };
+
+  const handleCopyImage = async () => {
+    const canvas = resultCanvasRef.current;
+    if (!canvas || !result) return;
+    try {
+      if (!navigator.clipboard?.write || typeof ClipboardItem === 'undefined') {
+        throw new Error('Trình duyệt không hỗ trợ sao chép ảnh trực tiếp.');
+      }
+      const blob = await new Promise((resolve, reject) => {
+        canvas.toBlob((value) => value ? resolve(value) : reject(new Error('Không thể tạo ảnh PNG.')), 'image/png');
+      });
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+      toast.success('Đã sao chép ảnh ASCII. Hình ảnh sẽ giữ nguyên căn lề khi dán.');
+    } catch (copyError) {
+      if (copyError.message === 'Trình duyệt không hỗ trợ sao chép ảnh trực tiếp.') {
+        handleDownloadPng();
+        toast.warning('Trình duyệt không hỗ trợ copy ảnh; đã tải PNG để bạn chia sẻ mà không lệch chữ.');
+        return;
+      }
+      setError('Không thể sao chép ảnh vào clipboard. Hãy thử tải PNG thay thế.');
     }
   };
 
@@ -798,7 +820,8 @@ function ImageArtStudio() {
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
-              <button type="button" onClick={() => void handleCopy()} disabled={!result} className="inline-flex items-center gap-2 rounded-lg bg-orange-500 px-3 py-2 text-xs font-bold text-white transition hover:bg-orange-600 disabled:opacity-50"><Copy size={14} /> Copy text</button>
+              <button type="button" onClick={() => void handleCopyImage()} disabled={!result} className="inline-flex items-center gap-2 rounded-lg bg-orange-500 px-3 py-2 text-xs font-bold text-white transition hover:bg-orange-600 disabled:opacity-50"><Image size={14} /> Copy image</button>
+              <button type="button" onClick={() => void handleCopy()} disabled={!result} className={BUTTON_CLASS}><Copy size={14} /> Copy text</button>
               <button type="button" onClick={handleDownloadText} disabled={!result} className={BUTTON_CLASS}><FileText size={14} /> TXT</button>
               <button type="button" onClick={handleDownloadPng} disabled={!result} className={BUTTON_CLASS}><FileImage size={14} /> PNG</button>
               <button type="button" onClick={handleDownloadSvg} disabled={!result} className={BUTTON_CLASS}><Image size={14} /> SVG</button>
