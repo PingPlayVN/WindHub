@@ -8,18 +8,17 @@ import {
   Sliders,
   BookOpen,
   Sparkles,
-  Info,
   CheckCircle2,
-  AlertTriangle,
-  X,
   Lock,
   Share2,
+  Gamepad2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import StepGuide from './components/StepGuide.jsx';
 import HexBreakdown from './components/HexBreakdown.jsx';
 import CharLookupModal from './components/CharLookupModal.jsx';
+import SnakeGameGuide from './components/SnakeGameGuide.jsx';
 
 import { generate580Spell } from './utils/spell580.js';
 
@@ -27,7 +26,7 @@ const PRESETS = [
   { label: 'PASS KỲ THI', text: 'PASS KỲ THI', model: 'fx-580VN X' },
   { label: 'HELLO CASIO', text: 'HELLO CASIO', model: 'fx-580VN X' },
   { label: 'I LOVE YOU 3000', text: 'I LOVE YOU 3000', model: 'fx-580VN X' },
-  { label: 'HACK CASIO 2026', text: 'HACK CASIO 2026', model: 'fx-580VN X' },
+  { label: '🎮 RẮN SĂN MỒI', isAdvanced: true, model: 'fx-580VN X' },
 ];
 
 function TerminalSkeleton() {
@@ -107,16 +106,28 @@ export default function CasioSpell() {
     setSelectedModel(model.id);
   };
 
+  const [advancedItem, setAdvancedItem] = useState('snake');
+
   const handleSelectMethod580 = (method) => {
     if (method === method580) return;
     triggerLoading();
     setMethod580(method);
+    if (method === 'advanced') {
+      setActiveTab('advanced');
+    } else if (activeTab === 'advanced') {
+      setActiveTab('steps');
+    }
   };
 
   const handleSelectTab = (tab) => {
     if (tab === activeTab) return;
     triggerLoading();
     setActiveTab(tab);
+    if (tab === 'advanced') {
+      setMethod580('advanced');
+    } else if (method580 === 'advanced') {
+      setMethod580('var');
+    }
   };
 
   // Tính toán kết quả cho Casio 580
@@ -147,6 +158,15 @@ export default function CasioSpell() {
   const applyPreset = (preset) => {
     triggerLoading();
     setSelectedModel(preset.model);
+    if (preset.isAdvanced) {
+      handleSelectMethod580('advanced');
+      toast.info('Đã mở Hướng dẫn Game Rắn săn mồi (Snake Game)!');
+      return;
+    }
+    if (method580 === 'advanced') {
+      setMethod580('var');
+      setActiveTab('steps');
+    }
     setInputText(preset.text);
     toast.info(`Đã chọn mẫu: "${preset.label}"`);
   };
@@ -176,7 +196,7 @@ export default function CasioSpell() {
             title="Sao chép liên kết chia sẻ công cụ"
           >
             <Share2 size={14} className="text-sky-500" />
-            <span>Chia sẻ công cụ</span>
+            <span>Chia sẻ</span>
           </button>
           <button
             type="button"
@@ -197,49 +217,51 @@ export default function CasioSpell() {
         </div>
       </div>
 
-      {/* Model Selection Tabs - fx-580VN X & fx-880BTG */}
+      {/* Model Selection Tabs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {[
           {
             id: 'fx-580VN X',
             name: 'Casio fx-580VN X',
-            badge: 'Sẵn sàng · Hoàn thiện 100%',
-            desc: 'Biến A-B-C, Basic Overflow, căn giữa 17 ký tự',
+            badge: 'Sẵn sàng · 100%',
+            desc: 'Dòng máy phổ biến nhất hiện nay, hỗ trợ tràn bộ nhớ & đổi biến A-B-C.',
             isLocked: false,
           },
           {
             id: 'fx-880BTG',
             name: 'Casio fx-880BTG',
             badge: 'Sắp ra mắt',
-            desc: 'Hỗ trợ dòng ClassWiz thế hệ mới fx-880BTG (Đang phát triển)',
+            desc: 'Dòng máy mới ClassWiz fx-880BTG, đang nghiên cứu phương pháp tràn ô nhớ.',
             isLocked: true,
           },
         ].map((m) => {
-          const isSelected = selectedModel === m.id;
+          const isSelected = m.id === selectedModel;
           return (
             <button
               key={m.id}
               type="button"
               onClick={() => handleSelectModel(m)}
-              className={`flex flex-col text-left p-4 rounded-2xl border-2 transition-all relative ${m.isLocked
+              className={`flex flex-col text-left p-4 rounded-2xl border-2 transition-all relative ${
+                m.isLocked
                   ? 'border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/30 opacity-75 cursor-not-allowed hover:border-amber-400/50'
                   : isSelected
                     ? 'border-sky-500 bg-sky-50/60 dark:bg-sky-950/20 shadow-md scale-[1.01]'
                     : 'border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 hover:border-slate-300 dark:hover:border-zinc-700'
-                }`}
+              }`}
             >
               <div className="flex items-center justify-between w-full">
-                <span className="font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                <span className="font-bold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
                   {m.name}
                   {m.isLocked && <Lock size={14} className="text-amber-500" />}
                 </span>
                 <span
-                  className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-semibold border ${m.isLocked
+                  className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-semibold border ${
+                    m.isLocked
                       ? 'border-amber-400/40 bg-amber-500/10 text-amber-600 dark:text-amber-400'
                       : isSelected
                         ? 'border-sky-500 bg-sky-500/10 text-sky-600 dark:text-sky-400'
                         : 'border-slate-300 dark:border-zinc-700 text-slate-500'
-                    }`}
+                  }`}
                 >
                   {m.badge}
                 </span>
@@ -285,12 +307,81 @@ export default function CasioSpell() {
                   >
                     Inject QuickCPY++
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSelectMethod580('advanced')}
+                    className={`px-2.5 py-1 rounded-md font-medium transition flex items-center gap-1 ${method580 === 'advanced'
+                      ? 'bg-emerald-500 text-black shadow-xs font-bold'
+                      : 'text-slate-500 hover:text-emerald-500 dark:hover:text-emerald-400'
+                      }`}
+                  >
+                    <Gamepad2 size={13} />
+                    <span>Nâng cao</span>
+                  </button>
                 </div>
               )}
             </div>
 
             {/* Input Inputs based on model & method */}
-            {selectedModel === 'fx-580VN X' && method580 === 'inj' ? (
+            {selectedModel === 'fx-580VN X' && method580 === 'advanced' ? (
+              <div className="space-y-3">
+                <div className="text-[11px] font-mono text-slate-400">
+                  Chọn công cụ hoặc game nâng cao muốn nạp vào Casio fx-580VN X:
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div
+                    onClick={() => {
+                      setAdvancedItem('snake');
+                      setActiveTab('advanced');
+                    }}
+                    className={`p-3.5 rounded-xl border-2 cursor-pointer transition ${
+                      advancedItem === 'snake'
+                        ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 shadow-xs'
+                        : 'border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-500">
+                          <Gamepad2 size={16} />
+                        </span>
+                        <span className="font-bold text-sm text-slate-900 dark:text-white">
+                          Rắn săn mồi (Snake Game)
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-500 font-bold border border-emerald-500/30">
+                        Đang chọn
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                      Homebrew game nổi tiếng: Clear vùng e9e0, nạp 7 block Hex và khởi chạy Launcher.
+                    </p>
+                  </div>
+
+                  <div
+                    onClick={() => toast.info('Game Flappy Bird đang được tối ưu hóa mã máy, sẽ ra mắt sớm!')}
+                    className="p-3.5 rounded-xl border-2 border-dashed border-slate-200 dark:border-zinc-800 opacity-60 cursor-not-allowed text-left"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="p-1.5 rounded-lg bg-slate-200 dark:bg-zinc-800 text-slate-400">
+                          <Sparkles size={16} />
+                        </span>
+                        <span className="font-bold text-sm text-slate-600 dark:text-slate-300">
+                          Flappy Bird Casio
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-500">
+                        Sắp ra mắt
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-2">
+                      Game nhảy qua chướng ngại vật trên màn hình LCD ma trận điểm.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : selectedModel === 'fx-580VN X' && method580 === 'inj' ? (
               <div className="space-y-2">
                 <div className="text-[11px] font-mono text-slate-400 pb-1">
                   Nhập từ 1 đến 8 dòng (mỗi dòng tối đa 32 ký tự theo chuẩn QuickCPY++):
@@ -355,21 +446,23 @@ export default function CasioSpell() {
             )}
 
             {/* Quick Presets */}
-            <div>
-              <span className="block text-xs font-mono text-slate-400 mb-2">Mẫu gợi ý nhanh:</span>
-              <div className="flex flex-wrap gap-1.5">
-                {PRESETS.map((p, pIdx) => (
-                  <button
-                    key={pIdx}
-                    type="button"
-                    onClick={() => applyPreset(p)}
-                    className="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 dark:bg-zinc-800 hover:bg-sky-500 hover:text-white transition"
-                  >
-                    {p.label}
-                  </button>
-                ))}
+            {method580 !== 'advanced' && (
+              <div>
+                <span className="block text-xs font-mono text-slate-400 mb-2">Mẫu gợi ý nhanh:</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {PRESETS.map((p, pIdx) => (
+                    <button
+                      key={pIdx}
+                      type="button"
+                      onClick={() => applyPreset(p)}
+                      className="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 dark:bg-zinc-800 hover:bg-sky-500 hover:text-white transition"
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
 
@@ -398,11 +491,36 @@ export default function CasioSpell() {
                     <div className="flex items-center justify-between text-slate-600 dark:text-slate-400">
                       <span>Phương pháp:</span>
                       <span className="font-bold text-sky-500">
-                        {method580 === 'var' ? 'Biến A, B, C (Basic Overflow)' : 'Inject QuickCPY++'}
+                        {method580 === 'var'
+                          ? 'Biến A, B, C (Basic Overflow)'
+                          : method580 === 'inj'
+                          ? 'Inject QuickCPY++'
+                          : '⚡ Nâng cao (Hack & Game)'}
                       </span>
                     </div>
 
-                    {method580 === 'var' ? (
+                    {method580 === 'advanced' ? (
+                      <>
+                        <div className="flex items-center justify-between text-slate-600 dark:text-slate-400">
+                          <span>Mục đang chọn:</span>
+                          <span className="font-bold text-emerald-500">Rắn săn mồi (Snake)</span>
+                        </div>
+                        <div className="flex items-center justify-between text-slate-600 dark:text-slate-400">
+                          <span>Kỹ thuật nạp:</span>
+                          <span className="font-bold text-slate-800 dark:text-slate-200">
+                            Quickcpymax + Hex Inject
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-slate-600 dark:text-slate-400">
+                          <span>Số khối Hex:</span>
+                          <span className="font-bold text-emerald-500">7 Khối (672 bytes)</span>
+                        </div>
+                        <div className="flex items-center justify-between text-slate-600 dark:text-slate-400">
+                          <span>Vùng RAM nạp:</span>
+                          <span className="font-bold text-sky-500">0xE9E0</span>
+                        </div>
+                      </>
+                    ) : method580 === 'var' ? (
                       <>
                         <div className="flex items-center justify-between text-slate-600 dark:text-slate-400">
                           <span>Ký tự Hex cần lấy:</span>
@@ -437,115 +555,124 @@ export default function CasioSpell() {
             )}
 
             <div className="pt-2 border-t border-slate-200 dark:border-zinc-800 text-[11px] text-slate-500 leading-relaxed">
-              💡 Thuật toán tự động tính toán byte tràn và chèn mã hex chuẩn xác vào RAM.
+              {method580 === 'advanced'
+                ? '🎮 Game chạy trực tiếp bằng mã máy native trên CPU Casio fx-580VN X.'
+                : '💡 Thuật toán tự động tính toán byte tràn và chèn mã hex chuẩn xác vào RAM.'}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Tabs Selector */}
-      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-zinc-800 pb-2">
-        <button
-          type="button"
-          onClick={() => handleSelectTab('steps')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition ${activeTab === 'steps'
-            ? 'bg-sky-500 text-white shadow-xs font-bold'
-            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-zinc-800'
-            }`}
-        >
-          <Layers size={16} />
-          <span>Hướng dẫn từng bước (Card View)</span>
-        </button>
+      {/* Content Section: Snake Game Guide if method580 === 'advanced', else Tabs View */}
+      {method580 === 'advanced' ? (
+        <SnakeGameGuide />
+      ) : (
+        <>
+          {/* Tabs Selector */}
+          <div className="flex items-center gap-2 border-b border-slate-200 dark:border-zinc-800 pb-2 overflow-x-auto custom-scrollbar">
+            <button
+              type="button"
+              onClick={() => handleSelectTab('steps')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition shrink-0 ${activeTab === 'steps'
+                ? 'bg-sky-500 text-white shadow-xs font-bold'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-zinc-800'
+                }`}
+            >
+              <Layers size={16} />
+              <span>Hướng dẫn từng bước (Card View)</span>
+            </button>
 
-        <button
-          type="button"
-          onClick={() => handleSelectTab('raw')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition ${activeTab === 'raw'
-            ? 'bg-sky-500 text-white shadow-xs font-bold'
-            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-zinc-800'
-            }`}
-        >
-          <Terminal size={16} />
-          <span>Màn hình Console</span>
-        </button>
+            <button
+              type="button"
+              onClick={() => handleSelectTab('raw')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition shrink-0 ${activeTab === 'raw'
+                ? 'bg-sky-500 text-white shadow-xs font-bold'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-zinc-800'
+                }`}
+            >
+              <Terminal size={16} />
+              <span>Màn hình Console</span>
+            </button>
 
-        <button
-          type="button"
-          onClick={() => handleSelectTab('hex')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition ${activeTab === 'hex'
-            ? 'bg-sky-500 text-white shadow-xs font-bold'
-            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-zinc-800'
-            }`}
-        >
-          <Sliders size={16} />
-          <span>Bảng phân tích mã Hex</span>
-        </button>
-      </div>
+            <button
+              type="button"
+              onClick={() => handleSelectTab('hex')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition shrink-0 ${activeTab === 'hex'
+                ? 'bg-sky-500 text-white shadow-xs font-bold'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-zinc-800'
+                }`}
+            >
+              <Sliders size={16} />
+              <span>Bảng phân tích mã Hex</span>
+            </button>
+          </div>
 
-      {/* TAB 1: STEP BY STEP GUIDE (CARD VIEW) - MẶC ĐỊNH */}
-      {activeTab === 'steps' && (
-        <div className="space-y-6">
-          <StepGuide steps={result580.steps} loading={isLoading} />
-        </div>
-      )}
-
-      {/* TAB 2: RAW TERMINAL OUTPUT */}
-      {activeTab === 'raw' && (
-        <div className="space-y-4">
-          {isLoading ? (
-            <TerminalSkeleton />
-          ) : (
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-5 sm:p-6 shadow-2xl space-y-3 font-mono">
-              {/* Terminal Window Header Bar */}
-              <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-red-500" />
-                  <div className="w-3 h-3 rounded-full bg-yellow-500" />
-                  <div className="w-3 h-3 rounded-full bg-green-500" />
-                  <span className="text-zinc-400 text-xs ml-2 font-mono font-medium">
-                    Casio fx-580VN X Spell
-                  </span>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleCopyRawTerminal}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition font-mono border border-zinc-700"
-                >
-                  {copiedRaw ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
-                  <span>{copiedRaw ? 'Đã sao chép' : 'Sao chép Output'}</span>
-                </button>
-              </div>
-
-              {/* Exact Terminal Console Text */}
-              <div className="pt-2 text-xs sm:text-sm text-emerald-400 font-mono whitespace-pre-wrap leading-relaxed select-all overflow-x-auto selection:bg-emerald-950 selection:text-emerald-300">
-                {result580.rawTerminalOutput}
-              </div>
-
-              {/* Verified Badge */}
-              <div className="pt-3 border-t border-zinc-900 flex items-center justify-between text-[11px] text-zinc-500">
-                <span className="flex items-center gap-1 text-emerald-500">
-                  <CheckCircle2 size={13} />
-                  <span>Chuẩn thuật toán Casio ClassWiz fx-580VN X</span>
-                </span>
-                <span className="text-zinc-600">Encoding: UTF-8</span>
-              </div>
+          {/* TAB 1: STEP BY STEP GUIDE (CARD VIEW) - MẶC ĐỊNH */}
+          {activeTab === 'steps' && (
+            <div className="space-y-6">
+              <StepGuide steps={result580.steps} loading={isLoading} />
             </div>
           )}
-        </div>
-      )}
 
-      {/* TAB 3: HEX BREAKDOWN */}
-      {activeTab === 'hex' && (
-        <HexBreakdown
-          text={
-            method580 === 'inj'
-              ? multiLines580.join(' ')
-              : inputText
-          }
-          model={selectedModel}
-          loading={isLoading}
-        />
+          {/* TAB 2: RAW TERMINAL OUTPUT */}
+          {activeTab === 'raw' && (
+            <div className="space-y-4">
+              {isLoading ? (
+                <TerminalSkeleton />
+              ) : (
+                <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-5 sm:p-6 shadow-2xl space-y-3 font-mono">
+                  {/* Terminal Window Header Bar */}
+                  <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-red-500" />
+                      <div className="w-3 h-3 rounded-full bg-yellow-500" />
+                      <div className="w-3 h-3 rounded-full bg-green-500" />
+                      <span className="text-zinc-400 text-xs ml-2 font-mono font-medium">
+                        Casio fx-580VN X Spell
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleCopyRawTerminal}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition font-mono border border-zinc-700"
+                    >
+                      {copiedRaw ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+                      <span>{copiedRaw ? 'Đã sao chép' : 'Sao chép Output'}</span>
+                    </button>
+                  </div>
+
+                  {/* Exact Terminal Console Text */}
+                  <div className="pt-2 text-xs sm:text-sm text-emerald-400 font-mono whitespace-pre-wrap leading-relaxed select-all overflow-x-auto selection:bg-emerald-950 selection:text-emerald-300">
+                    {result580.rawTerminalOutput}
+                  </div>
+
+                  {/* Verified Badge */}
+                  <div className="pt-3 border-t border-zinc-900 flex items-center justify-between text-[11px] text-zinc-500">
+                    <span className="flex items-center gap-1 text-emerald-500">
+                      <CheckCircle2 size={13} />
+                      <span>Chuẩn thuật toán Casio ClassWiz fx-580VN X</span>
+                    </span>
+                    <span className="text-zinc-600">Encoding: UTF-8</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 3: HEX BREAKDOWN */}
+          {activeTab === 'hex' && (
+            <HexBreakdown
+              text={
+                method580 === 'inj'
+                  ? multiLines580.join(' ')
+                  : inputText
+              }
+              model={selectedModel}
+              loading={isLoading}
+            />
+          )}
+        </>
       )}
 
       {/* Character Lookup Modal */}

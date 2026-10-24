@@ -20,9 +20,9 @@ function FileItem({
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, scale: 0.85 }} 
-      animate={{ opacity: 1, scale: 1 }} 
-      exit={{ opacity: 0, scale: 0.85 }} 
+      initial={{ opacity: 0, scale: 0.85 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.85 }}
       transition={{
         layout: { type: "spring", stiffness: 350, damping: 28 },
         default: { duration: 0.25, ease: "easeOut" }
@@ -43,7 +43,7 @@ function FileItem({
           <MoreVertical size={16} />
         </button>
       </div>
-      
+
       {file.isLocked && (
         <div className={`absolute z-10 rounded-lg bg-slate-900/80 p-1.5 text-white shadow-sm ${viewMode === 'grid' ? 'top-2 left-2' : 'left-3'}`}>
           <LockKeyhole size={14} />
@@ -51,30 +51,30 @@ function FileItem({
       )}
 
       <div className={`${viewMode === 'grid' ? 'w-full aspect-square' : 'w-12 h-12 shrink-0'} flex items-center justify-center bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden ${file.type === 'folder' ? 'cursor-pointer' : 'cursor-default'}`}>
-        
+
         {/* NẾU ĐÃ CÓ THUMBNAIL (Bất kể Video, Ảnh hay Tài liệu) -> HIỂN THỊ */}
         {file.thumbnailUrl ? (
           <div className="relative w-full h-full">
             <img src={file.thumbnailUrl} alt={file.name} className="w-full h-full object-cover bg-white dark:bg-[#111]" loading="lazy" />
           </div>
-        ) 
-        /* NẾU LÀ ẢNH THƯỜNG (Link direct đuôi .jpg, .png không phải GG Drive) -> Tải trực tiếp */
-        : file.type === 'image' && !file.url.includes('drive.google.com') && !file.url.includes('docs.google.com') ? (
-          <img src={file.url} alt={file.name} className="w-full h-full object-cover bg-white dark:bg-[#111]" loading="lazy" decoding="async" />
         )
-        
-        /* NẾU ĐÃ CÓ THUMBNAIL TỪ DATABASE (Video, PDF đã được người trước xem) */
-        : file.type === 'video' && file.thumbnailUrl ? (
-          <div className="relative w-full h-full">
-            <img src={file.thumbnailUrl} alt={file.name} className="w-full h-full object-cover" loading="lazy" />
-            {/* Chèn một lớp overlay mờ mờ và Icon gốc góc nhỏ để người dùng biết đây là file gì */}
-          </div>
-        ) 
-        
-        /* CÒN LẠI (Chưa có thumbnail hoặc là folder) -> Hiển thị icon mặc định */
-        : (
-          getFileIcon(file.type)
-        )}
+          /* NẾU LÀ ẢNH THƯỜNG (Link direct đuôi .jpg, .png không phải GG Drive) -> Tải trực tiếp */
+          : file.type === 'image' && !file.url.includes('drive.google.com') && !file.url.includes('docs.google.com') ? (
+            <img src={file.url} alt={file.name} className="w-full h-full object-cover bg-white dark:bg-[#111]" loading="lazy" decoding="async" />
+          )
+
+            /* NẾU ĐÃ CÓ THUMBNAIL TỪ DATABASE (Video, PDF đã được người trước xem) */
+            : file.type === 'video' && file.thumbnailUrl ? (
+              <div className="relative w-full h-full">
+                <img src={file.thumbnailUrl} alt={file.name} className="w-full h-full object-cover" loading="lazy" />
+                {/* Chèn một lớp overlay mờ mờ và Icon gốc góc nhỏ để người dùng biết đây là file gì */}
+              </div>
+            )
+
+              /* CÒN LẠI (Chưa có thumbnail hoặc là folder) -> Hiển thị icon mặc định */
+              : (
+                getFileIcon(file.type)
+              )}
 
       </div>
 

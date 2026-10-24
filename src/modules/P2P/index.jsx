@@ -170,7 +170,7 @@ export default function P2P() {
           setActivePeer(null);
         }
       },
-      onMessage: () => {},
+      onMessage: () => { },
       onSignal: (candidate) => {
         const targetId = activePeerIdRef.current;
         if (!sessionIdRef.current || !targetId || !signalingRef.current) {

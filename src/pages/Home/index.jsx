@@ -20,7 +20,7 @@ export default function Home() {
     const q = query(collection(db, 'windhub_files'), orderBy('timestamp', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      
+
       // Tính toán thống kê
       const filesByRoot = {
         video: getStoredFilesInRoot(docs, 'root_video'),
@@ -35,7 +35,7 @@ export default function Home() {
         video: filesByRoot.video.length,
         raw: filesByRoot.raw.length,
       };
-      
+
       setStats(newStats);
       setRecentFiles(docs.slice(0, 5)); // Lấy 5 file mới nhất
       setLoading(false);
@@ -94,86 +94,86 @@ export default function Home() {
       ) : (
         <AsciiReveal preset="decode" speed={1.1} className="flex-1 flex flex-col">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1">
-          {/* Cột trái: Thống kê */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {statCards.map((card, idx) => (
-                <motion.div key={idx} initial={{ opacity: 0, scale: 0.94, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} whileHover={{ y: -4, scale: 1.015 }} transition={{ delay: idx * 0.07 }} className={`${card.bg} p-6 rounded-2xl border border-white/50 dark:border-slate-800 shadow-sm flex flex-col justify-between`}>
-                  <div className={`w-12 h-12 rounded-full ${card.color} text-white flex items-center justify-center mb-4 shadow-sm`}>
-                    {card.icon}
-                  </div>
-                  <div>
-                    <h3 className="text-3xl font-black text-slate-800 dark:text-slate-100">{card.value}</h3>
-                    <p className={`text-sm font-medium mt-1 ${card.text}`}>{card.title}</p>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-            
-            {/* Thẻ Thông tin Dự án / Liên hệ */}
-            <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 min-h-[250px] flex flex-col relative overflow-hidden">
-              {/* Icon nền chìm (Watermark) */}
-              <div className="absolute -top-4 -right-4 p-4 opacity-[0.03] dark:opacity-10 pointer-events-none">
-                <ShieldCheck size={140} />
+            {/* Cột trái: Thống kê */}
+            <div className="lg:col-span-2 space-y-6">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {statCards.map((card, idx) => (
+                  <motion.div key={idx} initial={{ opacity: 0, scale: 0.94, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} whileHover={{ y: -4, scale: 1.015 }} transition={{ delay: idx * 0.07 }} className={`${card.bg} p-6 rounded-2xl border border-white/50 dark:border-slate-800 shadow-sm flex flex-col justify-between`}>
+                    <div className={`w-12 h-12 rounded-full ${card.color} text-white flex items-center justify-center mb-4 shadow-sm`}>
+                      {card.icon}
+                    </div>
+                    <div>
+                      <h3 className="text-3xl font-black text-slate-800 dark:text-slate-100">{card.value}</h3>
+                      <p className={`text-sm font-medium mt-1 ${card.text}`}>{card.title}</p>
+                    </div>
+                  </motion.div>
+                ))}
               </div>
-  
-              <div className="relative z-10 flex flex-col h-full">
-                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-2">Về WindHub</h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 max-w-[95%] leading-relaxed">
-                  Kho lưu trữ tập trung an toàn thuộc hệ sinh thái WindHub. Mọi tệp tin đều được duyệt và chia sẻ công khai bởi Admin. 
-                </p>
 
-                <div className="space-y-3 mt-auto">
-                  <a href="https://github.com/PingPlayVN" target="_blank" rel="noreferrer" className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-100 dark:border-slate-700/50 transition-colors group outline-none focus:ring-2 focus:ring-primary-500">
-                    <FaGithub size={18} className="text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white transition-colors" />
-                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Trịnh Gia Phong (GitHub)</span>
-                  </a>
-      
-                  <a href="https://www.youtube.com/@PingPlayVN" target="_blank" rel="noreferrer" className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-100 dark:border-slate-700/50 transition-colors group outline-none focus:ring-2 focus:ring-primary-500">
-                    <FaYoutube size={18} className="text-red-500 group-hover:scale-110 transition-transform" />
-                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Kênh YouTube</span>
-                  </a>
+              {/* Thẻ Thông tin Dự án / Liên hệ */}
+              <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 min-h-[250px] flex flex-col relative overflow-hidden">
+                {/* Icon nền chìm (Watermark) */}
+                <div className="absolute -top-4 -right-4 p-4 opacity-[0.03] dark:opacity-10 pointer-events-none">
+                  <ShieldCheck size={140} />
+                </div>
+
+                <div className="relative z-10 flex flex-col h-full">
+                  <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-2">Về WindHub</h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 max-w-[95%] leading-relaxed">
+                    Kho lưu trữ tập trung an toàn thuộc hệ sinh thái WindHub. Mọi tệp tin đều được duyệt và chia sẻ công khai bởi Admin.
+                  </p>
+
+                  <div className="space-y-3 mt-auto">
+                    <a href="https://github.com/PingPlayVN" target="_blank" rel="noreferrer" className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-100 dark:border-slate-700/50 transition-colors group outline-none focus:ring-2 focus:ring-primary-500">
+                      <FaGithub size={18} className="text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white transition-colors" />
+                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Trịnh Gia Phong (GitHub)</span>
+                    </a>
+
+                    <a href="https://www.youtube.com/@PingPlayVN" target="_blank" rel="noreferrer" className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-100 dark:border-slate-700/50 transition-colors group outline-none focus:ring-2 focus:ring-primary-500">
+                      <FaYoutube size={18} className="text-red-500 group-hover:scale-110 transition-transform" />
+                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Kênh YouTube</span>
+                    </a>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Cột phải: Hoạt động gần đây */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden">
-            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center gap-2">
-              <Clock className="text-blue-500" size={20} />
-              <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Hoạt động gần đây</h3>
-            </div>
-            <div className="flex-1 p-2 overflow-y-auto">
-              {recentFiles.length === 0 ? (
-                <div className="h-full flex items-center justify-center text-slate-400 p-6 text-center text-sm">
-                  Chưa có hoạt động nào được ghi nhận.
-                </div>
-              ) : (
-                <ul className="space-y-1 p-2">
-                  {recentFiles.map((file, index) => (
-                    <motion.li key={file.id} initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 + index * 0.05 }} whileHover={{ x: 3 }} className="flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl transition-colors">
-                      <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 shrink-0">
-                        {file.type === 'image' ? <ImageIcon size={18} /> : file.type === 'video' ? <Video size={18} /> : <FileText size={18} />}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">{file.name}</p>
-                        <p className="text-xs text-slate-400 mt-0.5">{file.createdAt}</p>
-                      </div>
-                    </motion.li>
-                  ))}
-                </ul>
-              )}
-            </div>
-            <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/30 text-center">
-              <Link to="/files" className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 transition-colors">
-                Xem tất cả tài nguyên →
-              </Link>
+            {/* Cột phải: Hoạt động gần đây */}
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden">
+              <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center gap-2">
+                <Clock className="text-blue-500" size={20} />
+                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Hoạt động gần đây</h3>
+              </div>
+              <div className="flex-1 p-2 overflow-y-auto">
+                {recentFiles.length === 0 ? (
+                  <div className="h-full flex items-center justify-center text-slate-400 p-6 text-center text-sm">
+                    Chưa có hoạt động nào được ghi nhận.
+                  </div>
+                ) : (
+                  <ul className="space-y-1 p-2">
+                    {recentFiles.map((file, index) => (
+                      <motion.li key={file.id} initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 + index * 0.05 }} whileHover={{ x: 3 }} className="flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl transition-colors">
+                        <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 shrink-0">
+                          {file.type === 'image' ? <ImageIcon size={18} /> : file.type === 'video' ? <Video size={18} /> : <FileText size={18} />}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">{file.name}</p>
+                          <p className="text-xs text-slate-400 mt-0.5">{file.createdAt}</p>
+                        </div>
+                      </motion.li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/30 text-center">
+                <Link to="/files" className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 transition-colors">
+                  Xem tất cả tài nguyên →
+                </Link>
+              </div>
             </div>
           </div>
-        </div>
-      </AsciiReveal>
-    )}
-  </motion.div>
+        </AsciiReveal>
+      )}
+    </motion.div>
   );
 }

@@ -49,6 +49,23 @@ export function unrollKeyBadges(text) {
 
 export function KeyBadgeRenderer({ text }) {
   if (!text) return null;
+
+  if (text.includes('\n')) {
+    const lines = text.split('\n');
+    return (
+      <div className="space-y-2">
+        {lines.map((line, lIdx) => {
+          if (!line.trim()) return <div key={lIdx} className="h-1" />;
+          return (
+            <div key={lIdx} className="leading-relaxed">
+              <KeyBadgeRenderer text={line} />
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
   const unrolled = unrollKeyBadges(text);
   const parts = unrolled.split(/(\[[^\]]+\])/g).filter(Boolean);
 
@@ -69,8 +86,10 @@ export function KeyBadgeRenderer({ text }) {
             keyColor = 'bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700 font-bold';
           } else if (/ac|del/i.test(keyName)) {
             keyColor = 'bg-orange-100 dark:bg-orange-950/70 text-orange-800 dark:text-orange-300 border-orange-300 dark:border-orange-700 font-bold';
-          } else if (/^[↑↓←→><∧∨]$/.test(keyName)) {
+          } else if (/^[↑↓←→><∧∨▲▼◀▶]$/.test(keyName)) {
             keyColor = 'bg-indigo-100 dark:bg-indigo-950/70 text-indigo-800 dark:text-indigo-300 border-indigo-300 dark:border-indigo-700 font-bold';
+          } else if (/x\^|x²|x⁻¹|°'"|□\/□|√|sin|cos|tan|ln/i.test(keyName)) {
+            keyColor = 'bg-purple-100 dark:bg-purple-950/70 text-purple-800 dark:text-purple-300 border-purple-300 dark:border-purple-700 font-bold';
           }
 
           return (

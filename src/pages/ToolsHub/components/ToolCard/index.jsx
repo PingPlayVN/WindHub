@@ -215,9 +215,8 @@ export default function ToolCard({ tool, index, onOpen, onShare }) {
         }
       }}
       aria-label={`Mở ${tool.title}`}
-      className={`group relative flex h-80 w-full flex-col overflow-hidden rounded-xl bg-[#3d3c3d] p-0 text-left text-white drop-shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 ${
-        tool.isLocked ? 'cursor-not-allowed opacity-90' : 'cursor-pointer'
-      }`}
+      className={`group relative flex h-80 w-full flex-col overflow-hidden rounded-xl bg-[#3d3c3d] p-0 text-left text-white drop-shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 ${tool.isLocked ? 'cursor-not-allowed opacity-90' : 'cursor-pointer'
+        }`}
     >
       <span className="absolute inset-0.5 z-[1] flex flex-col justify-between gap-5 rounded-[10px] bg-[#323132] p-4 opacity-95">
         {tool.id === 'Casio580Spell' ? (

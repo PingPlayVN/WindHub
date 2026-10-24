@@ -21,10 +21,10 @@ export default function Header() {
     : location.pathname === '/tools'
       ? 'Công cụ'
       : location.pathname === '/extensions'
-      ? 'Tiện ích'
-      : location.pathname === '/p2p'
-        ? 'P2P Share'
-        : 'Tổng quan';
+        ? 'Tiện ích'
+        : location.pathname === '/p2p'
+          ? 'P2P Share'
+          : 'Tổng quan';
 
   const handleLogout = async () => {
     try {
@@ -76,7 +76,7 @@ export default function Header() {
     <>
       <header className="bg-white dark:bg-black border-b border-slate-200 dark:border-zinc-800 flex items-center justify-between px-4 md:px-6 transition-colors duration-300 z-10 relative h-16">
         <div className="flex items-center gap-3">
-          <button 
+          <button
             onClick={toggleSidebar}
             className="md:hidden p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
           >
@@ -86,7 +86,7 @@ export default function Header() {
             {pageTitle}
           </span>
         </div>
-        
+
         <div className="flex items-center gap-2">
           {!isInstalled && (
             <button type="button" onClick={handleInstall} aria-label="Cài đặt WindHub" title="Cài đặt WindHub" className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300/50 px-2.5 py-2 text-xs font-semibold text-amber-700 transition hover:bg-amber-50 dark:border-amber-700/60 dark:text-amber-300 dark:hover:bg-amber-950/40">
@@ -98,7 +98,7 @@ export default function Header() {
               <div className="flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-800 dark:bg-amber-950 dark:text-amber-300">
                 <ShieldCheck size={15} /> Admin
               </div>
-              
+
               {/* NÚT BẬT ERUDA: Dùng md:hidden để chỉ hiện trên Mobile */}
               <button aria-label="Mobile DevTools" onClick={toggleEruda} className="md:hidden rounded-full p-1.5 text-amber-700 transition hover:bg-amber-100 dark:text-amber-300 dark:hover:bg-amber-950">
                 <Terminal size={17} />
@@ -145,16 +145,16 @@ export default function Header() {
         )}
         {showShortcuts && (
           <div className="fixed inset-0 z-[400] flex items-center justify-center p-4">
-            <motion.button 
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} 
-              onClick={() => setShowShortcuts(false)} 
-              className="absolute inset-0 cursor-default bg-black/60 backdrop-blur-sm border-0" 
+            <motion.button
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setShowShortcuts(false)}
+              className="absolute inset-0 cursor-default bg-black/60 backdrop-blur-sm border-0"
             />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 15 }} 
-              animate={{ opacity: 1, scale: 1, y: 0 }} 
-              exit={{ opacity: 0, scale: 0.95, y: 10 }} 
-              transition={{ type: 'spring', duration: 0.4 }} 
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ type: 'spring', duration: 0.4 }}
               className="relative w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-[#0a0a0a]"
             >
               <div className="mb-4 flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 pb-4">
@@ -165,7 +165,7 @@ export default function Header() {
                   <X size={20} />
                 </button>
               </div>
-              
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-slate-600 dark:text-slate-300">
                 <div className="flex justify-between items-center bg-slate-50 dark:bg-[#111] p-3 rounded-xl border border-slate-100 dark:border-slate-800/60">
                   <span className="font-medium">Chọn tất cả</span>

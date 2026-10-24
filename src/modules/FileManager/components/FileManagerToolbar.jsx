@@ -18,9 +18,8 @@ export default function FileManagerToolbar({
             <button
               key={tab.id}
               onClick={() => handleTabChange(tab)}
-              className={`relative min-w-0 flex-1 px-1 py-2.5 text-center rounded-xl text-xs font-bold transition-colors duration-300 whitespace-nowrap outline-none sm:px-3 sm:text-sm lg:px-3 ${
-                isActive ? 'text-primary-600 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-              }`}
+              className={`relative min-w-0 flex-1 px-1 py-2.5 text-center rounded-xl text-xs font-bold transition-colors duration-300 whitespace-nowrap outline-none sm:px-3 sm:text-sm lg:px-3 ${isActive ? 'text-primary-600 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                }`}
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
               {isActive && (
@@ -50,9 +49,9 @@ export default function FileManagerToolbar({
             className="w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2 sm:px-4 sm:py-2.5 text-sm text-slate-800 shadow-sm outline-none transition focus:border-primary-500 focus:ring-1 focus:ring-primary-500 dark:border-slate-800 dark:bg-[#111] dark:text-slate-100 placeholder:text-slate-500 truncate"
           />
         </div>
-        <SortDropdown 
-          value={effectiveSort} 
-          onChange={(newValue) => handleLocalSortChange(newValue)} 
+        <SortDropdown
+          value={effectiveSort}
+          onChange={(newValue) => handleLocalSortChange(newValue)}
         />
         <div className="flex items-center bg-white dark:bg-[#111] border border-slate-200 dark:border-slate-800 rounded-xl p-0.5 sm:p-1 shadow-sm shrink-0">
           <button onClick={() => setViewMode('grid')} className={`p-1.5 sm:p-2 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-slate-100 dark:bg-slate-800 text-primary-500' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`} title="Dạng lưới"><LayoutGrid size={16} className="sm:w-[18px] sm:h-[18px]" /></button>
