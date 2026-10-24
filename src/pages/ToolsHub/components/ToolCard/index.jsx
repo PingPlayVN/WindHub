@@ -19,7 +19,7 @@ import { toast } from 'sonner';
  * - Vỏ ngoài bo góc viền trắng (White rim)
  * - Mặt trước họa tiết vân carbon đen
  * - Logo CASIO, model fx-580VN X, chữ CLASSWIZ màu hồng đỏ
- * - Màn hình LCD màu xanh xám bạc nhạt chuẩn Casio, hiển thị chữ "Bá khí" ở chính giữa
+ * - Màn hình LCD màu xanh xám bạc nhạt chuẩn Casio, hiển thị chữ "Khá bí" ở chính giữa
  * - Các nhãn phím SHIFT (vàng), ALPHA (hồng), MENU SETUP, ON ở hàng dưới
  */
 function Casio580Thumbnail() {
@@ -73,17 +73,14 @@ function Casio580Thumbnail() {
               <span className="text-[9px] font-bold leading-none select-none">▼</span>
             </span>
 
-            {/* Centered 'Bá khí' Text Display */}
+            {/* Centered 'Khá bí' Text Display */}
             <span className="relative z-10 my-auto flex items-center justify-center text-center">
-              <span
-                className="font-bold text-xl sm:text-2xl tracking-wider text-[#101712] select-none drop-shadow-[0_1px_0_rgba(255,255,255,0.4)]"
-                style={{ fontFamily: "'CASIOClassWiz', 'JetBrains Mono', monospace" }}
-              >
-                Bá khí
+              <span className="font-mono font-black text-2xl sm:text-3xl tracking-widest text-[#101712] select-none drop-shadow-[0_1px_0_rgba(255,255,255,0.4)]">
+                Khá bí
               </span>
             </span>
 
-            {/* Bottom empty spacing to keep 'Bá khí' strictly in the center */}
+            {/* Bottom empty spacing to keep 'Khá bí' strictly in the center */}
             <span className="h-2" />
           </span>
         </span>
