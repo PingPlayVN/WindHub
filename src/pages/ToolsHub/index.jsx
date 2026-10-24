@@ -1,12 +1,63 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Wrench } from 'lucide-react';
+import { toast } from 'sonner';
 import ToolCard from './components/ToolCard';
 import ToolDialog from './components/ToolDialog';
+import ToolShareDialog from './components/ToolShareDialog';
 import { toolEntries } from './toolRegistry';
 
 export default function ToolsHub() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [selectedTool, setSelectedTool] = useState(null);
+  const [sharingTool, setSharingTool] = useState(null);
+
+  // Tự động mở công cụ khi truy cập qua liên kết chia sẻ trực tiếp (ví dụ: /tools?toolId=Casio580Spell)
+  useEffect(() => {
+    const toolParam = searchParams.get('toolId') || searchParams.get('tool');
+    if (!toolParam) {
+      setSelectedTool((current) => (current ? null : current));
+      return;
+    }
+
+    const matched = toolEntries.find(
+      (t) => t.id.toLowerCase() === toolParam.toLowerCase()
+    );
+
+    if (matched) {
+      if (matched.isLocked) {
+        toast.warning(matched.lockReason || 'Công cụ này hiện đang khóa.');
+        setSelectedTool(null);
+      } else {
+        setSelectedTool(matched);
+      }
+    } else {
+      toast.error(`Không tìm thấy công cụ "${toolParam}"`);
+      setSelectedTool(null);
+    }
+  }, [searchParams]);
+
+  const handleOpenTool = (tool) => {
+    if (tool.isLocked) {
+      toast.warning(tool.lockReason || 'Công cụ này hiện đang khóa.');
+      return;
+    }
+    setSelectedTool(tool);
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set('toolId', tool.id);
+    setSearchParams(nextParams);
+  };
+
+  const handleCloseTool = () => {
+    setSelectedTool(null);
+    const nextParams = new URLSearchParams(searchParams);
+    if (nextParams.has('toolId') || nextParams.has('tool')) {
+      nextParams.delete('toolId');
+      nextParams.delete('tool');
+      setSearchParams(nextParams);
+    }
+  };
 
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="min-h-full space-y-6">
@@ -21,7 +72,13 @@ export default function ToolsHub() {
       {toolEntries.length > 0 ? (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
           {toolEntries.map((tool, index) => (
-            <ToolCard key={tool.id} tool={tool} index={index} onOpen={() => setSelectedTool(tool)} />
+            <ToolCard
+              key={tool.id}
+              tool={tool}
+              index={index}
+              onOpen={() => handleOpenTool(tool)}
+              onShare={(t) => setSharingTool(t)}
+            />
           ))}
         </div>
       ) : (
@@ -31,7 +88,20 @@ export default function ToolsHub() {
         </div>
       )}
 
-      {selectedTool && <ToolDialog tool={selectedTool} onClose={() => setSelectedTool(null)} />}
+      {selectedTool && (
+        <ToolDialog
+          tool={selectedTool}
+          onClose={handleCloseTool}
+          onShare={(t) => setSharingTool(t)}
+        />
+      )}
+
+      {sharingTool && (
+        <ToolShareDialog
+          tool={sharingTool}
+          onClose={() => setSharingTool(null)}
+        />
+      )}
     </motion.div>
   );
 }

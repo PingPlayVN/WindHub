@@ -1,29 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { WifiOff } from 'lucide-react';
-
-function OfflineSkeleton() {
-  return (
-    <div aria-hidden="true" className="w-full animate-pulse space-y-5 py-2">
-      <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-        <div className="space-y-2">
-          <div className="h-3 w-28 rounded bg-slate-800" />
-          <div className="h-6 w-44 rounded bg-slate-800" />
-        </div>
-        <div className="h-8 w-24 rounded-lg bg-slate-800" />
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        {[0, 1, 2, 3].map((item) => (
-          <div key={item} className="space-y-3 rounded-xl border border-slate-800 bg-[#101319] p-4">
-            <div className="h-4 w-2/5 rounded bg-slate-800" />
-            <div className="h-3 w-3/4 rounded bg-slate-800" />
-            <div className="h-24 rounded-lg bg-slate-900" />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+import { OfflineAsciiSkeleton } from '@/components/ui/AsciiReveal';
 
 export default function OfflineGate({ pageTitle, children }) {
   const [isOnline, setIsOnline] = useState(() => navigator.onLine);
@@ -47,7 +25,7 @@ export default function OfflineGate({ pageTitle, children }) {
       ) : (
         <motion.div key="offline" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 z-30 flex items-center justify-center overflow-hidden bg-black/65 p-4 backdrop-blur-sm">
           <div className="pointer-events-none absolute inset-4 opacity-40">
-            <OfflineSkeleton />
+            <OfflineAsciiSkeleton variant="terminal" />
           </div>
           <motion.section
             role="status"

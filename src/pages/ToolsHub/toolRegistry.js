@@ -10,26 +10,48 @@ const formatToolName = (folderName) => folderName
   .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
   .join(' ');
 
-const toolModulesInDisplayOrder = Object.entries(toolModules).sort(([firstPath], [secondPath]) => {
-  const firstId = firstPath.split('/').slice(-2, -1)[0];
-  const secondId = secondPath.split('/').slice(-2, -1)[0];
-  if (firstId === 'VocabularyPractice') return -1;
-  if (secondId === 'VocabularyPractice') return 1;
-  return firstId.localeCompare(secondId);
-});
+let casioSpellImporter = null;
+const otherEntries = [];
 
-export const toolEntries = toolModulesInDisplayOrder.map(([path, importer]) => {
+for (const [path, importer] of Object.entries(toolModules)) {
   const id = path.split('/').slice(-2, -1)[0];
-  const title = id === 'ImageArtStudio'
-    ? 'Image → ASCII Studio'
-    : formatToolName(id);
+  if (id === 'CasioSpell') {
+    casioSpellImporter = importer;
+  } else {
+    const title = id === 'ImageArtStudio'
+      ? 'Image → ASCII Studio'
+      : formatToolName(id);
 
-  return {
-    id,
-    title,
-    Component: lazy(async () => {
-      const module = await importer();
+    otherEntries.push({
+      id,
+      title,
+      isLocked: false,
+      Component: lazy(async () => {
+        const module = await importer();
+        return { default: module.default?.tool?.Component || module.default };
+      }),
+    });
+  }
+}
+
+// Card Casio fx-580VN X (Chuẩn thuật toán Tool-spell-on-CASIO-fx-580VN-X của Phong2k11® & AxesMC)
+const casio580Entry = {
+  id: 'Casio580Spell',
+  title: 'Casio fx-580VN X Spell',
+  subtitle: 'Viết chữ & tràn bộ nhớ Basic Overflow trên Casio fx-580VN X',
+  badge: 'ClassWiz · 17 Ký tự',
+  isLocked: false,
+  Component: casioSpellImporter
+    ? lazy(async () => {
+      const module = await casioSpellImporter();
       return { default: module.default?.tool?.Component || module.default };
-    }),
-  };
-});
+    })
+    : null,
+};
+
+// Sắp xếp thứ tự hiển thị: Từ vựng -> Casio 580 -> Image Art -> Các công cụ khác
+export const toolEntries = [
+  ...otherEntries.filter((t) => t.id === 'VocabularyPractice'),
+  casio580Entry,
+  ...otherEntries.filter((t) => t.id !== 'VocabularyPractice'),
+].filter(Boolean);

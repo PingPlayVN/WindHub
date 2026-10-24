@@ -6,9 +6,17 @@ import * as XLSX from 'xlsx';
 import JSZip from 'jszip';
 import Loader from '@/components/ui/Loader';
 import { generateAndSaveVideoThumbnail } from '@/services/thumbnail';
+import { AsciiSkeleton, AsciiReveal } from '@/components/ui/AsciiReveal';
 
 function LoadingState({ label = 'Đang chuẩn bị nội dung xem trước...' }) {
-  return <Loader text={label} size="md" />;
+  return (
+    <div className="m-auto flex w-full max-w-md flex-col items-center gap-4 p-8 text-center">
+      <div className="w-full rounded-2xl border border-white/10 bg-white/[0.03] p-6 shadow-sm">
+        <AsciiSkeleton variant="scan" lines={4} widths={['90%', '100%', '75%', '50%']} className="font-mono text-xs opacity-75" />
+      </div>
+      <p className="font-mono text-xs text-slate-400">{label}</p>
+    </div>
+  );
 }
 
 function UnavailablePreview({ url, isLocked, message = 'Định dạng này chưa hỗ trợ xem trước trực tiếp.' }) {
@@ -30,7 +38,11 @@ function LocalTextViewer({ url }) {
   }, [url]);
   if (error) return <LoadingState label={error} />;
   if (content === null) return <LoadingState />;
-  return <pre className="min-h-full whitespace-pre-wrap break-words bg-white p-5 font-mono text-sm leading-6 text-slate-800">{content}</pre>;
+  return (
+    <AsciiReveal preset="decode" speed={1.5}>
+      <pre className="min-h-full whitespace-pre-wrap break-words bg-white p-5 font-mono text-sm leading-6 text-slate-800">{content}</pre>
+    </AsciiReveal>
+  );
 }
 
 function LocalDocxViewer({ url }) {

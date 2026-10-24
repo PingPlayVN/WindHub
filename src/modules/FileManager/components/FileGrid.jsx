@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { Folder as FolderIcon } from 'lucide-react';
 import FileItem from './FileItem';
+import { AsciiReveal, FileCardSkeleton, FileRowSkeleton } from '@/components/ui/AsciiReveal';
 
 export default function FileGrid({
   loadError, currentFiles, viewMode, isLoading, selectedItems, setSelectedItems,
@@ -8,7 +9,7 @@ export default function FileGrid({
   handleDragStart, handleDragOver, handleDrop, handleItemClick, handleItemDoubleClick, handleContextMenu,
   getFileIcon, handleBackgroundContextMenu, onRetry
 }) {
-  const skeletonItems = Array.from({ length: 8 }, (_, index) => index);
+  const skeletonItems = Array.from({ length: 12 }, (_, index) => index);
 
   return (
     <div
@@ -32,13 +33,13 @@ export default function FileGrid({
         </div>
       ) : isLoading ? (
         <div className={viewMode === 'grid' ? 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6' : 'flex flex-col gap-2'}>
-          {skeletonItems.map((item) => (
-            <div key={item} className="animate-pulse rounded-2xl border border-slate-200 bg-slate-100/60 dark:border-zinc-800 dark:bg-zinc-900/60 p-3">
-              <div className="h-28 rounded-xl bg-slate-200/80 dark:bg-zinc-800/90" />
-              <div className="mt-3 h-3 w-2/3 rounded-full bg-slate-200/80 dark:bg-zinc-800/90" />
-              <div className="mt-2 h-3 w-1/2 rounded-full bg-slate-200/80 dark:bg-zinc-800/90" />
-            </div>
-          ))}
+          {skeletonItems.map((item) =>
+            viewMode === 'grid' ? (
+              <FileCardSkeleton key={item} seed={item * 17 + 3} variant="dither" />
+            ) : (
+              <FileRowSkeleton key={item} seed={item * 17 + 3} variant="dither" />
+            )
+          )}
         </div>
       ) : currentFiles.length === 0 ? (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full flex flex-col items-center justify-center text-slate-400">
@@ -47,30 +48,32 @@ export default function FileGrid({
           <p className="mt-1 text-sm text-slate-500">Thêm tệp mới hoặc tạo thư mục để bắt đầu.</p>
         </motion.div>
       ) : (
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={viewMode}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
-            className={viewMode === 'grid' ? "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6" : "flex flex-col gap-2"}
-          >
-            <AnimatePresence>
-              {currentFiles.map((file) => (
-                <FileItem
-                  key={file.id} file={file} viewMode={viewMode}
-                  isSelected={selectedItems.has(file.id)}
-                  isRenaming={renamingItem === file.id}
-                  renameText={renameText} setRenameText={setRenameText} handleRenameSubmit={handleRenameSubmit}
-                  handleDragStart={handleDragStart} handleDragOver={handleDragOver} handleDrop={handleDrop}
-                  handleItemClick={handleItemClick} handleItemDoubleClick={handleItemDoubleClick} handleContextMenu={handleContextMenu}
-                  getFileIcon={getFileIcon}
-                />
-              ))}
-            </AnimatePresence>
-          </motion.div>
-        </AnimatePresence>
+        <AsciiReveal preset="decode" speed={1.2}>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={viewMode}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+              className={viewMode === 'grid' ? "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6" : "flex flex-col gap-2"}
+            >
+              <AnimatePresence>
+                {currentFiles.map((file) => (
+                  <FileItem
+                    key={file.id} file={file} viewMode={viewMode}
+                    isSelected={selectedItems.has(file.id)}
+                    isRenaming={renamingItem === file.id}
+                    renameText={renameText} setRenameText={setRenameText} handleRenameSubmit={handleRenameSubmit}
+                    handleDragStart={handleDragStart} handleDragOver={handleDragOver} handleDrop={handleDrop}
+                    handleItemClick={handleItemClick} handleItemDoubleClick={handleItemDoubleClick} handleContextMenu={handleContextMenu}
+                    getFileIcon={getFileIcon}
+                  />
+                ))}
+              </AnimatePresence>
+            </motion.div>
+          </AnimatePresence>
+        </AsciiReveal>
       )}
     </div>
   );

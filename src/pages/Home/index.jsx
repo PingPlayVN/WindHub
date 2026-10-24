@@ -8,6 +8,7 @@ import { FaGithub, FaYoutube } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import Loader from '@/components/ui/Loader';
 import { getStoredFilesInRoot } from '@/modules/FileManager/utils/fileUtils';
+import { AsciiReveal, StatCardSkeleton, AsciiSkeleton } from '@/components/ui/AsciiReveal';
 
 export default function Home() {
   const [stats, setStats] = useState({ total: 0, image: 0, document: 0, video: 0, raw: 0 });
@@ -61,13 +62,38 @@ export default function Home() {
       </div>
 
       {loading ? (
-        <Loader text="Đang tổng hợp dữ liệu..." size="lg" />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1">
+          <div className="lg:col-span-2 space-y-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {[0, 1, 2, 3].map((idx) => (
+                <StatCardSkeleton key={idx} seed={idx * 11 + 5} variant="dither" />
+              ))}
+            </div>
+            <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 min-h-[220px] space-y-4">
+              <AsciiSkeleton variant="dither" lines={1} widths={['30%']} className="font-mono text-base font-bold" />
+              <AsciiSkeleton variant="dither" lines={3} widths={['95%', '85%', '60%']} className="font-mono text-xs opacity-75" />
+            </div>
+          </div>
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-6 space-y-4">
+            <AsciiSkeleton variant="dither" lines={1} widths={['50%']} className="font-mono text-base font-bold mb-4" />
+            {[0, 1, 2, 3, 4].map((item) => (
+              <div key={item} className="flex items-center gap-3 py-2">
+                <AsciiSkeleton variant="dither" rows={2} width={40} height={40} seed={item * 13} className="rounded-lg shrink-0 font-mono text-[9px]" />
+                <div className="flex-1 space-y-1">
+                  <AsciiSkeleton variant="dither" lines={1} widths={['60%']} seed={item * 13 + 2} className="font-mono text-xs" />
+                  <AsciiSkeleton variant="dither" lines={1} widths={['30%']} seed={item * 13 + 4} className="font-mono text-[10px] opacity-60" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       ) : error ? (
         <div className="flex flex-1 items-center justify-center rounded-2xl border border-red-200 bg-red-50 p-6 text-center text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
           {error}
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1">
+        <AsciiReveal preset="decode" speed={1.1} className="flex-1 flex flex-col">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1">
           {/* Cột trái: Thống kê */}
           <div className="lg:col-span-2 space-y-6">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -146,7 +172,8 @@ export default function Home() {
             </div>
           </div>
         </div>
-      )}
-    </motion.div>
+      </AsciiReveal>
+    )}
+  </motion.div>
   );
 }
