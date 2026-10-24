@@ -15,110 +15,94 @@ import { toast } from 'sonner';
 
 /**
  * Card Thumbnail cho Casio fx-580VN X
- * Thiết kế chuẩn xác mô phỏng mặt trước và màn hình LCD dot-matrix của máy tính Casio ClassWiz fx-580VN X
+ * Mô phỏng chính xác 100% theo hình ảnh thực tế của Casio fx-580VN X:
+ * - Vỏ ngoài bo góc viền trắng (White rim)
+ * - Mặt trước họa tiết vân carbon đen
+ * - Logo CASIO, model fx-580VN X, chữ CLASSWIZ màu hồng đỏ
+ * - Màn hình LCD màu xanh xám bạc nhạt chuẩn Casio, hiển thị chữ "Bá khí" ở chính giữa
+ * - Các nhãn phím SHIFT (vàng), ALPHA (hồng), MENU SETUP, ON ở hàng dưới
  */
 function Casio580Thumbnail() {
   return (
-    <span className="relative flex min-h-0 w-full flex-1 flex-col justify-between overflow-hidden rounded-md border border-slate-700/60 bg-[#14171c] p-2.5 sm:p-3 select-none">
-      {/* Background carbon texture overlay */}
-      <span
-        className="pointer-events-none absolute inset-0 opacity-20"
-        style={{
-          backgroundImage: `radial-gradient(#475569 1px, transparent 1px), radial-gradient(#475569 1px, #14171c 1px)`,
-          backgroundSize: '8px 8px',
-          backgroundPosition: '0 0, 4px 4px',
-        }}
-      />
+    <span className="relative flex min-h-0 w-full flex-1 items-end justify-center overflow-hidden bg-slate-950 p-2 sm:p-2.5 select-none">
+      {/* Background ambient lighting */}
+      <span className="pointer-events-none absolute inset-0 bg-gradient-to-b from-slate-900/60 via-slate-950 to-black" />
 
-      {/* Top Header Plate (CASIO + Solar Cell + fx-580VN X ClassWiz) */}
-      <span className="relative z-10 flex items-center justify-between pb-1.5 border-b border-slate-700/40">
-        <span className="flex items-center gap-2">
-          <span className="font-sans font-black text-xs sm:text-sm tracking-[0.18em] text-slate-100">
-            CASIO
-          </span>
-          {/* Photovoltaic Solar Cell (4 segments) */}
-          <span className="hidden xs:flex items-center gap-[1.5px] px-1.5 py-0.5 rounded bg-[#1e130c] border border-amber-900/50 shadow-inner">
-            <span className="w-1.5 h-3 bg-gradient-to-b from-amber-700/70 to-amber-950 rounded-[1px]" />
-            <span className="w-1.5 h-3 bg-gradient-to-b from-amber-700/70 to-amber-950 rounded-[1px]" />
-            <span className="w-1.5 h-3 bg-gradient-to-b from-amber-700/70 to-amber-950 rounded-[1px]" />
-            <span className="w-1.5 h-3 bg-gradient-to-b from-amber-700/70 to-amber-950 rounded-[1px]" />
-          </span>
-        </span>
-
-        <span className="flex items-center gap-1.5 font-mono text-[9px] text-right">
-          <span className="font-bold italic text-slate-300 tracking-wider">fx-580VN X</span>
-          <span className="text-[7.5px] font-bold tracking-widest uppercase text-amber-400 bg-amber-400/10 px-1 py-0.5 rounded border border-amber-400/25">
-            CLASSWIZ
-          </span>
-        </span>
-      </span>
-
-      {/* Realistic Casio LCD Dot-Matrix Screen */}
-      <span className="relative z-10 my-1.5 flex flex-col justify-between rounded-lg border-2 border-slate-700/90 bg-[#0d1612] p-2 shadow-[inset_0_2px_6px_rgba(0,0,0,0.9)] overflow-hidden transition-all duration-300 group-hover:border-emerald-500/50">
-        {/* Subtle LCD Dot Grid Layer */}
+      {/* Calculator Body - Top half of Casio fx-580VN X with outer white rim */}
+      <span className="relative flex w-full max-w-[340px] flex-col justify-between overflow-hidden rounded-t-[26px] border-t-[4px] border-x-[4px] border-slate-100 bg-[#16181c] p-2.5 sm:p-3 shadow-2xl transition-transform duration-500 group-hover:scale-[1.015]">
+        {/* Carbon texture background overlay */}
         <span
-          className="pointer-events-none absolute inset-0 opacity-15"
+          className="pointer-events-none absolute inset-0 opacity-25"
           style={{
-            backgroundImage: 'radial-gradient(circle, #34d399 0.8px, transparent 0.8px)',
-            backgroundSize: '4px 4px',
+            backgroundImage: `radial-gradient(#52525b 1px, transparent 1px), radial-gradient(#52525b 1px, #16181c 1px)`,
+            backgroundSize: '6px 6px',
+            backgroundPosition: '0 0, 3px 3px',
           }}
         />
 
-        {/* Top LCD Status Indicators */}
-        <span className="relative z-10 flex items-center justify-between font-mono text-[7px] font-bold tracking-wider text-emerald-500/80 pb-1 border-b border-emerald-900/30">
-          <span className="flex items-center gap-1.5">
-            <span className="px-1 py-0.5 rounded bg-amber-400/20 text-amber-300 border border-amber-400/40">S</span>
-            <span className="px-1 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/40">A</span>
-            <span className="text-emerald-400/90">M</span>
-            <span className="text-emerald-400/90">STO</span>
+        {/* Top Header Plate: CASIO (left) and fx-580VN X (right) */}
+        <span className="relative z-10 flex items-center justify-between px-1 pt-0.5">
+          <span className="font-sans font-black text-xs sm:text-sm tracking-[0.16em] text-white">
+            CASIO
           </span>
-          <span className="flex items-center gap-1.5 text-emerald-400/90">
-            <span>LineI/O</span>
-            <span>Math ▲▼</span>
+          <span className="font-sans font-bold text-[10px] sm:text-xs tracking-tight text-slate-200">
+            fx-580VN X
           </span>
         </span>
 
-        {/* Main LCD Matrix Content (The Hack Display Line) */}
-        <span className="relative z-10 py-1 font-mono text-left">
-          <span className="block text-[8px] text-emerald-400/60 leading-none">
-            Basic Overflow (A-B-C)
-          </span>
-          <span className="block font-black text-xs sm:text-sm tracking-widest text-emerald-300 py-1 drop-shadow-[0_0_8px_rgba(52,211,153,0.5)] truncate">
-            \\\\\\PASS\KỲ\THI\\\\<span className="animate-pulse text-emerald-200">▌</span>
-          </span>
-          <span className="flex items-center justify-between text-[7.5px] text-emerald-400/80 pt-0.5 border-t border-emerald-950">
-            <span>hex: á=F471 · k=6B · í=F47D</span>
-            <span className="text-amber-300/90 font-bold">17 Ký tự</span>
-          </span>
-        </span>
-      </span>
-
-      {/* Calculator Keypad Top Row (SHIFT, ALPHA, REPLAY D-PAD, MENU) */}
-      <span className="relative z-10 flex items-center justify-between px-1 font-mono text-[8px] text-slate-400">
-        <span className="flex items-center gap-1.5">
-          <span className="px-1.5 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-amber-400 font-bold shadow-xs">
-            SHIFT
-          </span>
-          <span className="px-1.5 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-rose-400 font-bold shadow-xs">
-            ALPHA
-          </span>
+        {/* CLASSWIZ title in distinctive rose/magenta */}
+        <span className="relative z-10 block text-center font-sans font-bold text-[9px] sm:text-[10px] tracking-[0.32em] text-[#dc5877] -mt-0.5 mb-1.5 uppercase">
+          CLASSWIZ
         </span>
 
-        {/* Circular REPLAY D-PAD */}
-        <span className="relative grid place-items-center h-6 w-9 rounded-full bg-gradient-to-b from-zinc-700 via-zinc-800 to-zinc-900 border border-zinc-600 shadow-md text-[6.5px] text-zinc-300">
-          <span className="flex items-center justify-between w-full px-1 text-[7px] font-bold">
-            <span>◀</span>
-            <span className="text-[6px] tracking-tighter text-slate-400">REPLAY</span>
-            <span>▶</span>
+        {/* Screen Bezel (Recessed dark frame) */}
+        <span className="relative z-10 flex flex-col rounded-xl border border-zinc-700/80 bg-[#111316] p-1.5 sm:p-2 shadow-[inset_0_2px_8px_rgba(0,0,0,0.9)]">
+          {/* LCD Screen Glass (Authentic Casio Celadon Green/Gray tint) */}
+          <span className="relative flex aspect-[2.4/1] w-full flex-col justify-between overflow-hidden rounded-md border border-[#9ea99e] bg-[#cad7c9] p-1.5 shadow-[inset_0_1px_4px_rgba(0,0,0,0.35)]">
+            {/* Subtle dot matrix grid overlay */}
+            <span
+              className="pointer-events-none absolute inset-0 opacity-10"
+              style={{
+                backgroundImage: 'radial-gradient(circle, #000 0.8px, transparent 0.8px)',
+                backgroundSize: '3px 3px',
+              }}
+            />
+
+            {/* LCD Top indicator row */}
+            <span className="relative z-10 flex items-center justify-end font-mono text-[7px] text-[#1a221b] pr-1">
+              <span className="text-[9px] font-bold leading-none select-none">▼</span>
+            </span>
+
+            {/* Centered 'Bá khí' Text Display */}
+            <span className="relative z-10 my-auto flex items-center justify-center text-center">
+              <span
+                className="font-bold text-xl sm:text-2xl tracking-wider text-[#101712] select-none drop-shadow-[0_1px_0_rgba(255,255,255,0.4)]"
+                style={{ fontFamily: "'CASIOClassWiz', 'JetBrains Mono', monospace" }}
+              >
+                Bá khí
+              </span>
+            </span>
+
+            {/* Bottom empty spacing to keep 'Bá khí' strictly in the center */}
+            <span className="h-2" />
           </span>
         </span>
 
-        <span className="flex items-center gap-1.5">
-          <span className="px-1.5 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-slate-300 font-semibold shadow-xs">
-            OPTN
+        {/* Keypad Labels Row (SHIFT, ALPHA, MENU SETUP, ON) */}
+        <span className="relative z-10 flex items-center justify-between px-1.5 pt-2 font-sans font-bold text-[7.5px] sm:text-[8px] leading-tight">
+          <span className="flex items-center gap-3">
+            <span className="text-[#eab308]">SHIFT</span>
+            <span className="text-[#f43f5e]">ALPHA</span>
           </span>
-          <span className="px-1.5 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-slate-300 font-semibold shadow-xs">
-            MENU
+
+          {/* Peek of REPLAY button top curve */}
+          <span className="grid place-items-center h-2.5 w-9 rounded-t-full bg-zinc-700 border-t border-x border-zinc-600 -mb-1 opacity-70" />
+
+          <span className="flex items-center gap-3">
+            <span className="text-slate-200">
+              MENU <span className="text-[#eab308] text-[6.5px]">SETUP</span>
+            </span>
+            <span className="text-white">ON</span>
           </span>
         </span>
       </span>
