@@ -1,7 +1,7 @@
 // src/modules/FileManager/components/FileItem.jsx
 import { memo } from 'react';
 import { motion } from 'framer-motion';
-import { MoreVertical, LockKeyhole, Check, Play, Folder } from 'lucide-react';
+import { MoreVertical, LockKeyhole, Check, Play } from 'lucide-react';
 import { useTouchGestures } from '../hooks/useTouchGestures';
 import { getFileCategoryInfo } from '../utils/fileCardVisuals';
 
@@ -93,19 +93,32 @@ function FileItem({
   const renderGridVisual = () => {
     if (isFolder) {
       return (
-        <div className="w-full h-full flex flex-col items-center justify-center relative overflow-hidden bg-gradient-to-br from-amber-500/15 via-amber-500/5 to-transparent dark:from-amber-400/15 dark:via-zinc-900/60 dark:to-zinc-900/30">
-          {/* Vầng sáng vàng nền */}
-          <div className="absolute w-24 h-24 bg-amber-400/20 dark:bg-amber-500/15 rounded-full blur-2xl pointer-events-none -top-4 -right-4" />
+        <div className="w-full h-full flex flex-col items-center justify-center relative overflow-hidden bg-gradient-to-b from-amber-50 via-amber-100/50 to-orange-50 dark:from-zinc-900 dark:via-zinc-800/80 dark:to-zinc-900">
+          {/* Ánh sáng hắt mềm mại */}
+          <div className="absolute w-32 h-32 bg-amber-300/25 dark:bg-amber-500/10 rounded-full blur-3xl pointer-events-none -top-8 left-1/2 -translate-x-1/2" />
+          <div className="absolute w-16 h-16 bg-orange-300/20 dark:bg-orange-500/8 rounded-full blur-2xl pointer-events-none bottom-0 right-0" />
 
-          {/* Biểu tượng Thư mục phong cách 3D xúc giác */}
-          <div className="relative transform group-hover:scale-105 transition-transform duration-200">
-            <div className="w-16 h-12 sm:w-20 sm:h-14 relative flex items-center justify-center">
-              {/* Nắp tab sau */}
-              <div className="absolute top-0 left-2 w-8 h-3.5 bg-amber-400 dark:bg-amber-500 rounded-t-lg shadow-xs" />
-              {/* Thân cặp folder chính */}
-              <div className="absolute inset-x-0 bottom-0 h-10 sm:h-12 bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 dark:from-amber-500 dark:to-amber-700 rounded-xl shadow-md shadow-amber-500/25 flex items-center justify-center border border-amber-300/50 dark:border-amber-400/30">
-                <Folder size={24} className="text-amber-100 dark:text-amber-200/90 fill-amber-200/30" />
+          {/* Biểu tượng Thư mục 3D Premium */}
+          <div className="relative transform group-hover:scale-[1.08] group-hover:-translate-y-0.5 transition-all duration-300 ease-out">
+            <div className="w-[68px] h-[52px] sm:w-[80px] sm:h-[60px] relative">
+
+              {/* Tờ giấy sau (nhô ra phía trên) */}
+              <div className="absolute top-1.5 left-[14px] right-[14px] h-[10px] bg-white/80 dark:bg-zinc-400/20 rounded-t-[4px] border border-slate-200/60 dark:border-zinc-600/40" />
+              <div className="absolute top-[5px] left-[10px] right-[10px] h-[10px] bg-white/90 dark:bg-zinc-400/30 rounded-t-[5px] border border-slate-200/60 dark:border-zinc-600/40" />
+
+              {/* Nắp tab thư mục (tai folder) */}
+              <div className="absolute top-[9px] left-[5px] w-[38%] h-[11px] sm:h-[12px] bg-gradient-to-r from-amber-400 to-amber-500 dark:from-amber-500 dark:to-amber-600 rounded-t-lg" style={{ clipPath: 'polygon(0% 100%, 4px 0%, calc(100% - 6px) 0%, 100% 100%)' }} />
+
+              {/* Thân folder chính */}
+              <div className="absolute inset-x-0 bottom-0 top-[18px] sm:top-[18px] bg-gradient-to-br from-amber-400 via-amber-500 to-orange-500 dark:from-amber-500 dark:via-amber-600 dark:to-orange-700 rounded-[10px] shadow-lg shadow-amber-500/30 dark:shadow-amber-900/40 border border-amber-300/60 dark:border-amber-500/30 overflow-hidden">
+                {/* Đường kẻ ngang trang trí */}
+                <div className="absolute top-[4px] inset-x-2.5 h-[1px] bg-amber-300/60 dark:bg-amber-400/30 rounded-full" />
+                {/* Vầng sáng bóng trên mặt folder */}
+                <div className="absolute top-0 inset-x-0 h-1/2 bg-gradient-to-b from-white/20 to-transparent pointer-events-none" />
               </div>
+
+              {/* Viền sáng dưới đáy folder tạo chiều sâu */}
+              <div className="absolute bottom-0 inset-x-[2px] h-[2px] bg-gradient-to-r from-transparent via-amber-300/40 to-transparent dark:via-amber-500/20 rounded-full" />
             </div>
           </div>
         </div>
@@ -314,8 +327,18 @@ function FileItem({
       )}
 
       {/* THUMBNAIL / ICON NHỎ */}
-      <div className={`w-10 h-10 rounded-xl overflow-hidden shrink-0 flex items-center justify-center border border-slate-200/60 dark:border-white/[0.06] bg-gradient-to-br ${info.gradient}`}>
-        {file.thumbnailUrl || (file.type === 'image' && file.url && !file.url.includes('drive.google.com')) ? (
+      <div className={`w-10 h-10 rounded-xl overflow-hidden shrink-0 flex items-center justify-center border border-slate-200/60 dark:border-white/[0.06] ${isFolder ? 'bg-gradient-to-b from-amber-50 to-orange-50 dark:from-zinc-800 dark:to-zinc-900' : `bg-gradient-to-br ${info.gradient}`}`}>
+        {isFolder ? (
+          /* Mini 3D Folder cho List View */
+          <div className="relative w-7 h-6">
+            {/* Nắp tab nhỏ */}
+            <div className="absolute top-0 left-[3px] w-[40%] h-[4px] bg-gradient-to-r from-amber-400 to-amber-500 dark:from-amber-500 dark:to-amber-600 rounded-t-sm" />
+            {/* Thân folder nhỏ */}
+            <div className="absolute inset-x-0 bottom-0 top-[3px] bg-gradient-to-br from-amber-400 via-amber-500 to-orange-500 dark:from-amber-500 dark:to-orange-700 rounded-[4px] shadow-sm shadow-amber-500/20 border border-amber-300/40 dark:border-amber-500/20 overflow-hidden">
+              <div className="absolute top-0 inset-x-0 h-1/2 bg-gradient-to-b from-white/20 to-transparent" />
+            </div>
+          </div>
+        ) : file.thumbnailUrl || (file.type === 'image' && file.url && !file.url.includes('drive.google.com')) ? (
           <img
             src={file.thumbnailUrl || file.url}
             alt={file.name}
