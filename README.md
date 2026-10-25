@@ -410,8 +410,7 @@ npm --prefix signaling-server start
 
 ## 🤝 Tác giả & Đóng góp
 
-- **Tác giả & Nhà phát triển chính**: Phong2k11 / PingPlayVN.
-- **Thuật toán Casio fx-580VN X Spell**: Nghiên cứu & phát triển bởi **Phong2k11® & AxesMC**.
+- **Tác giả & Nhà phát triển chính**: PingPlayVN.
 - Mọi đóng góp, báo lỗi (Issues) và đề xuất tính năng (Pull Requests) luôn được chào đón trên GitHub Repository.
 
 ---
