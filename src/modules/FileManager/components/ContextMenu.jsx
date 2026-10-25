@@ -3,8 +3,9 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ClipboardPaste, Copy, Download, Edit2, Eye, FolderPlus, Link2, 
-  LockKeyhole, Scissors, Trash2, UnlockKeyhole, ChevronDown, Check, Share2
+  LockKeyhole, Scissors, Trash2, UnlockKeyhole, ChevronDown, Check, Share2, FolderInput
 } from 'lucide-react';
+import MobileBottomSheet from './MobileBottomSheet';
 
 const MenuItem = ({ icon: Icon, label, shortcut, onClick, danger }) => (
   <button type="button" onClick={onClick} className={`w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium transition-colors ${danger ? 'text-red-400 hover:bg-red-500/10 hover:text-red-300' : 'text-slate-300 hover:bg-primary-500/15 hover:text-primary-400'}`}>
@@ -15,16 +16,26 @@ const MenuItem = ({ icon: Icon, label, shortcut, onClick, danger }) => (
 
 const Divider = () => <div className="h-px bg-white/10 my-1.5 mx-3" />;
 
-export default function ContextMenu({
-  contextMenu, setContextMenu, selectedItems, isAdmin,
-  handlePreview, handleDownload, handleCopyLink, startRename, startEditLink,
-  handleToggleLock, handleCopy, handleCut, setShowDeleteModal,
-  onCreateFolder, onAddLink, handlePaste, hasClipboard, sortBy, onSortChange,
-  handleShare
-}) {
+export default function ContextMenu(props) {
+  const {
+    contextMenu, setContextMenu, selectedItems, isAdmin,
+    handlePreview, handleDownload, handleCopyLink, startRename, startEditLink,
+    handleToggleLock, handleCopy, handleCut, setShowDeleteModal,
+    onCreateFolder, onAddLink, handlePaste, hasClipboard, sortBy, onSortChange,
+    handleShare, startMove
+  } = props;
   const menuRef = useRef(null);
   const [position, setPosition] = useState({ top: -1000, left: -1000 });
   const [isSortOpen, setIsSortOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== 'undefined' ? window.innerWidth < 768 : false
+  );
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Lưu lại giá trị contextMenu của lần render trước
   const [prevContextMenu, setPrevContextMenu] = useState(contextMenu);
@@ -35,9 +46,9 @@ export default function ContextMenu({
     setIsSortOpen(false);            // Reset state ngay lập tức trong lần render này
   }
 
-  // Thuật toán chống tràn màn hình
+  // Thuật toán chống tràn màn hình (Desktop)
   useEffect(() => {
-    if (contextMenu && menuRef.current) {
+    if (!isMobile && contextMenu && menuRef.current) {
       const menuWidth = menuRef.current.offsetWidth;
       const menuHeight = menuRef.current.offsetHeight;
       const windowWidth = window.innerWidth;
@@ -53,9 +64,14 @@ export default function ContextMenu({
     } else {
       setPosition({ top: -1000, left: -1000 });
     }
-  }, [contextMenu]);
+  }, [contextMenu, isMobile]);
 
   if (!contextMenu) return null;
+
+  // Nếu trên thiết bị Mobile, render Bottom Sheet
+  if (isMobile) {
+    return createPortal(<MobileBottomSheet {...props} />, document.body);
+  }
 
   const { item } = contextMenu;
   const isMulti = selectedItems && selectedItems.size > 1;
@@ -93,6 +109,11 @@ export default function ContextMenu({
           {/* NÚT CHIA SẺ MỚI (Bất kỳ ai cũng có thể copy link chia sẻ) */}
           {hasItem && !isMulti && (
             <MenuItem icon={Share2} label="Chia sẻ liên kết" onClick={action(() => handleShare(item))} />
+          )}
+
+          {/* NÚT DI CHUYỂN TỆP (Admin) */}
+          {isAdmin && hasItem && !isMulti && (
+            <MenuItem icon={FolderInput} label="Di chuyển đến..." onClick={action(() => startMove?.(item))} />
           )}
           
           {/* LUẬT MỚI: Nếu file bị khóa, KHÔNG AI được tải xuống (Kể cả Admin) */}

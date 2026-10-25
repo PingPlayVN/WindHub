@@ -13,15 +13,19 @@ export function useFileOrganization({ isAdmin, activeTab, allFiles, selectedItem
   const [editLinkInput, setEditLinkInput] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
 
+  // Trạng thái modal "Di chuyển tệp" (Move To Modal cho Mobile Touch)
+  const [showMoveModal, setShowMoveModal] = useState(false);
+  const [itemsToMove, setItemsToMove] = useState([]);
+
   const handleDrop = async (event, targetFolder) => {
     event.preventDefault();
     if (!isAdmin || targetFolder.type !== 'folder') return;
 
     const draggedItemId = event.dataTransfer.getData('text/plain');
     const idsToMove = selectedItems.has(draggedItemId) ? selectedItems : new Set([draggedItemId]);
-    const itemsToMove = allFiles.filter((file) => idsToMove.has(file.id));
+    const items = allFiles.filter((file) => idsToMove.has(file.id));
 
-    if (wouldCreateFolderLoop(allFiles, targetFolder.id, itemsToMove)) {
+    if (wouldCreateFolderLoop(allFiles, targetFolder.id, items)) {
       toast.error('Không thể di chuyển thư mục vào chính nó hoặc thư mục con');
       return;
     }
@@ -37,6 +41,50 @@ export function useFileOrganization({ isAdmin, activeTab, allFiles, selectedItem
     } catch (error) {
       console.error('Lỗi kéo thả:', error);
       toast.error('Không thể di chuyển tài nguyên. Vui lòng thử lại.');
+    }
+  };
+
+  // Kích hoạt di chuyển tệp qua Modal
+  const startMove = (singleItem = null) => {
+    if (!isAdmin) return;
+    if (singleItem) {
+      setItemsToMove([singleItem]);
+    } else {
+      const selected = allFiles.filter((f) => selectedItems.has(f.id));
+      if (selected.length === 0) {
+        toast.warning('Chưa chọn tài nguyên nào để di chuyển');
+        return;
+      }
+      setItemsToMove(selected);
+    }
+    setShowMoveModal(true);
+  };
+
+  // Xác nhận chuyển tệp vào thư mục đích từ Modal
+  const handleMoveSubmit = async (targetFolderId) => {
+    if (!isAdmin || !itemsToMove || itemsToMove.length === 0) return false;
+
+    // Kiểm tra chống tạo vòng lặp thư mục
+    if (wouldCreateFolderLoop(allFiles, targetFolderId, itemsToMove)) {
+      toast.error('Không thể di chuyển thư mục vào chính nó hoặc thư mục con');
+      return false;
+    }
+
+    try {
+      await Promise.all(itemsToMove.map((item) => (
+        item.id === targetFolderId || item.parentId === targetFolderId
+          ? Promise.resolve()
+          : updateFile(item.id, { parentId: targetFolderId })
+      )));
+      setSelectedItems(new Set());
+      setShowMoveModal(false);
+      setItemsToMove([]);
+      toast.success('Đã di chuyển tài nguyên thành công');
+      return true;
+    } catch (error) {
+      console.error('Lỗi di chuyển tài nguyên:', error);
+      toast.error('Không thể di chuyển tài nguyên. Vui lòng thử lại.');
+      return false;
     }
   };
 
@@ -136,5 +184,6 @@ export function useFileOrganization({ isAdmin, activeTab, allFiles, selectedItem
     renamingItem, renameText, setRenameText, showDeleteModal, setShowDeleteModal,
     showEditLinkModal, setShowEditLinkModal, editLinkItem, editLinkInput, setEditLinkInput, isUpdating,
     handleDrop, startRename, handleRenameSubmit, confirmDelete, startEditLink, handleSaveEditLink, handleToggleLock,
+    showMoveModal, setShowMoveModal, itemsToMove, startMove, handleMoveSubmit,
   };
 }

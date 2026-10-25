@@ -1,20 +1,74 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { Folder as FolderIcon } from 'lucide-react';
 import FileItem from './FileItem';
-import { AsciiReveal, FileCardSkeleton, FileRowSkeleton } from '@/components/ui/AsciiReveal';
+import { FileCardSkeleton, FileRowSkeleton } from '@/components/ui/AsciiReveal';
+
+// Container variants cho chế độ hiển thị Lưới (Grid) - Kích hoạt hiệu ứng sóng cuộn bung (Cascade Stagger)
+const gridContainerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.055, // Mỗi tệp/thư mục bung cách nhau 55ms tạo hiệu ứng sóng tầng cực rõ
+      delayChildren: 0.02,
+    },
+  },
+  exit: {
+    opacity: 0,
+    y: -10,
+    transition: { duration: 0.12, ease: 'easeOut' },
+  },
+};
+
+// Container variants cho chế độ hiển thị Danh sách (List) - Thác nước trượt ngang
+const listContainerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.035,
+      delayChildren: 0.02,
+    },
+  },
+  exit: {
+    opacity: 0,
+    y: -8,
+    transition: { duration: 0.12, ease: 'easeOut' },
+  },
+};
 
 export default function FileGrid({
-  loadError, currentFiles, viewMode, isLoading, selectedItems, setSelectedItems,
-  renamingItem, renameText, setRenameText, handleRenameSubmit,
-  handleDragStart, handleDragOver, handleDrop, handleItemClick, handleItemDoubleClick, handleContextMenu,
-  getFileIcon, handleBackgroundContextMenu, onRetry
+  loadError,
+  currentFiles,
+  viewMode,
+  isLoading,
+  currentFolderId,
+  selectedItems,
+  setSelectedItems,
+  isSelectionMode,
+  handleLongPress,
+  toggleItemSelection,
+  onClearSelection,
+  renamingItem,
+  renameText,
+  setRenameText,
+  handleRenameSubmit,
+  handleDragStart,
+  handleDragOver,
+  handleDrop,
+  handleItemClick,
+  handleItemDoubleClick,
+  handleContextMenu,
+  getFileIcon,
+  handleBackgroundContextMenu,
+  onRetry,
 }) {
   const skeletonItems = Array.from({ length: 12 }, (_, index) => index);
 
   return (
     <div
-      className="min-h-0 flex-1 bg-white dark:bg-zinc-950 rounded-2xl shadow-sm border border-slate-200 dark:border-zinc-800 p-6 overflow-y-auto custom-scrollbar"
-      onClick={() => setSelectedItems(new Set())}
+      className="min-h-0 flex-1 bg-white/70 dark:bg-zinc-950/70 backdrop-blur-sm rounded-2xl shadow-sm border border-slate-200/80 dark:border-zinc-800/80 p-3 sm:p-5 md:p-6 overflow-y-auto overscroll-contain custom-scrollbar"
+      onClick={() => (onClearSelection ? onClearSelection() : setSelectedItems(new Set()))}
       onContextMenu={handleBackgroundContextMenu}
     >
       {loadError ? (
@@ -32,7 +86,13 @@ export default function FileGrid({
           </div>
         </div>
       ) : isLoading ? (
-        <div className={viewMode === 'grid' ? 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6' : 'flex flex-col gap-2'}>
+        <div
+          className={
+            viewMode === 'grid'
+              ? 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 md:gap-5'
+              : 'flex flex-col gap-2'
+          }
+        >
           {skeletonItems.map((item) =>
             viewMode === 'grid' ? (
               <FileCardSkeleton key={item} seed={item * 17 + 3} variant="dither" />
@@ -41,39 +101,63 @@ export default function FileGrid({
             )
           )}
         </div>
-      ) : currentFiles.length === 0 ? (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full flex flex-col items-center justify-center text-slate-400">
-          <FolderIcon size={64} className="mb-4 opacity-30" />
-          <p className="text-lg font-medium text-slate-600 dark:text-slate-300">Thư mục trống</p>
-          <p className="mt-1 text-sm text-slate-500">Thêm tệp mới hoặc tạo thư mục để bắt đầu.</p>
-        </motion.div>
       ) : (
-        <AsciiReveal preset="decode" speed={1.2}>
-          <AnimatePresence mode="wait">
+        <AnimatePresence mode="wait">
+          {currentFiles.length === 0 ? (
             <motion.div
-              key={viewMode}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.2 }}
-              className={viewMode === 'grid' ? "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6" : "flex flex-col gap-2"}
+              key="empty"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.15 }}
+              className="h-full min-h-[240px] flex flex-col items-center justify-center text-slate-400"
             >
-              <AnimatePresence>
-                {currentFiles.map((file) => (
-                  <FileItem
-                    key={file.id} file={file} viewMode={viewMode}
-                    isSelected={selectedItems.has(file.id)}
-                    isRenaming={renamingItem === file.id}
-                    renameText={renameText} setRenameText={setRenameText} handleRenameSubmit={handleRenameSubmit}
-                    handleDragStart={handleDragStart} handleDragOver={handleDragOver} handleDrop={handleDrop}
-                    handleItemClick={handleItemClick} handleItemDoubleClick={handleItemDoubleClick} handleContextMenu={handleContextMenu}
-                    getFileIcon={getFileIcon}
-                  />
-                ))}
-              </AnimatePresence>
+              <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-zinc-900 flex items-center justify-center mb-3">
+                <FolderIcon size={32} className="text-slate-400 dark:text-zinc-500" />
+              </div>
+              <p className="text-base font-semibold text-slate-700 dark:text-slate-300">Thư mục trống</p>
+              <p className="mt-1 text-xs text-slate-500">Thêm tệp mới hoặc tạo thư mục để bắt đầu.</p>
             </motion.div>
-          </AnimatePresence>
-        </AsciiReveal>
+          ) : (
+            <motion.div
+              key={`${currentFolderId || 'root'}-${viewMode}`}
+              variants={viewMode === 'grid' ? gridContainerVariants : listContainerVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              style={{ perspective: 1200 }}
+              className={
+                viewMode === 'grid'
+                  ? 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 md:gap-5'
+                  : 'flex flex-col gap-2'
+              }
+            >
+              {currentFiles.map((file, index) => (
+                <FileItem
+                  key={file.id}
+                  index={index}
+                  file={file}
+                  viewMode={viewMode}
+                  isSelected={selectedItems.has(file.id)}
+                  isSelectionMode={isSelectionMode}
+                  isRenaming={renamingItem === file.id}
+                  renameText={renameText}
+                  setRenameText={setRenameText}
+                  handleRenameSubmit={handleRenameSubmit}
+                  handleDragStart={handleDragStart}
+                  handleDragOver={handleDragOver}
+                  handleDrop={handleDrop}
+                  handleItemClick={handleItemClick}
+                  handleItemDoubleClick={handleItemDoubleClick}
+                  handleContextMenu={handleContextMenu}
+                  handleLongPress={handleLongPress}
+                  toggleItemSelection={toggleItemSelection}
+                  getFileIcon={getFileIcon}
+                />
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
       )}
     </div>
   );

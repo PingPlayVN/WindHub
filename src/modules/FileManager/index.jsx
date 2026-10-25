@@ -5,6 +5,7 @@ import { useSearchParams } from 'react-router-dom';
 import ContextMenu from './components/ContextMenu';
 import Breadcrumb from './components/Breadcrumb';
 import FileModals from './components/FileModals/index.jsx';
+import BottomActionBar from './components/BottomActionBar';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/store/useAuthStore';
 
@@ -34,7 +35,7 @@ export default function FileManager() {
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState('grid'); // Dạng hiển thị: 'grid' hoặc 'list'
 
-  // --- STATE TÍNH NĂNG WINDOWS ---
+  // --- STATE TÍNH NĂNG WINDOWS & MOBILE SELECTION ---
   const [contextMenu, setContextMenu] = useState(null);
   const [selectedItems, setSelectedItems] = useState(new Set()); 
   const {
@@ -63,9 +64,16 @@ export default function FileManager() {
     renamingItem, renameText, setRenameText, showDeleteModal, setShowDeleteModal,
     showEditLinkModal, setShowEditLinkModal, editLinkInput, setEditLinkInput, isUpdating,
     handleDrop, startRename, handleRenameSubmit, confirmDelete, startEditLink, handleSaveEditLink, handleToggleLock,
+    showMoveModal, setShowMoveModal, itemsToMove, startMove, handleMoveSubmit,
   } = organization;
-  const { handleItemClick, handleItemHover, handleDragStart } = useFileSelection({
-    handleOpenFolder, handlePreview, renamingItem, setSelectedItems,
+
+  const {
+    isSelectionMode,
+    handleItemClick, handleItemDoubleClick, handleLongPress,
+    toggleItemSelection, toggleSelectAll, clearSelection, toggleSelectionMode,
+    handleDragStart,
+  } = useFileSelection({
+    handleOpenFolder, handlePreview, renamingItem, selectedItems, setSelectedItems,
   });
 
   useSharedItemLink({
@@ -86,8 +94,8 @@ export default function FileManager() {
 
   const handleTabChangeAndReset = (tab) => {
     handleTabChange(tab);
-    setSelectedItems(new Set()); // Xóa các file đang chọn nếu có
-    setSearchTerm(''); // Xóa nội dung tìm kiếm khi đổi tab
+    clearSelection();
+    setSearchTerm('');
   };
 
   // Đóng Context Menu khi click ra ngoài
@@ -103,10 +111,9 @@ export default function FileManager() {
     showFolderModal, showDeleteModal, previewFile, setShowDeleteModal,
   });
 
-  // 4. CHUỘT PHẢI & CHỌN FILE
+  // CHUỘT PHẢI & CHỌN FILE
   const handleContextMenu = (e, item) => {
     e.preventDefault();
-    // Bỏ 2 dòng tính toán trừ tọa độ x, y cứng nhắc đi, chỉ truyền tọa độ gốc
     if (!selectedItems.has(item.id)) setSelectedItems(new Set([item.id]));
     setContextMenu({ x: e.clientX, y: e.clientY, item });
   };
@@ -114,13 +121,11 @@ export default function FileManager() {
   const handleBackgroundContextMenu = (e) => {
     e.preventDefault();
     if (!isAdmin) return;
-    
-    // Giao phó toàn bộ việc tính toán tọa độ cho component ContextMenu
     setSelectedItems(new Set());
     setContextMenu({ x: e.clientX, y: e.clientY, item: null });
   };
 
-  // 5. KÉO THẢ (DRAG & DROP)
+  // KÉO THẢ (DRAG & DROP)
   const handleDragOver = (e) => e.preventDefault();
 
   const itemToDelete = selectedItems.size > 1 
@@ -139,14 +144,18 @@ export default function FileManager() {
         searchTerm={searchTerm} setSearchTerm={setSearchTerm}
         effectiveSort={effectiveSort} handleLocalSortChange={handleLocalSortChange}
         viewMode={viewMode} setViewMode={setViewMode}
+        isSelectionMode={isSelectionMode} toggleSelectionMode={toggleSelectionMode}
       />
 
       <FileGrid 
         loadError={loadError} currentFiles={currentFiles} viewMode={viewMode} isLoading={isLoading}
+        currentFolderId={currentFolder.id}
         selectedItems={selectedItems} setSelectedItems={setSelectedItems}
+        isSelectionMode={isSelectionMode} handleLongPress={handleLongPress} toggleItemSelection={toggleItemSelection}
+        onClearSelection={clearSelection}
         renamingItem={renamingItem} renameText={renameText} setRenameText={setRenameText} handleRenameSubmit={handleRenameSubmit}
         handleDragStart={handleDragStart} handleDragOver={handleDragOver} handleDrop={handleDrop}
-        handleItemClick={handleItemClick} handleItemHover={handleItemHover} handleContextMenu={handleContextMenu} getFileIcon={getFileIcon}
+        handleItemClick={handleItemClick} handleItemDoubleClick={handleItemDoubleClick} handleContextMenu={handleContextMenu} getFileIcon={getFileIcon}
         handleBackgroundContextMenu={handleBackgroundContextMenu}
         onRetry={() => window.location.reload()}
       />
@@ -158,7 +167,7 @@ export default function FileManager() {
         startEditLink={startEditLink} handleToggleLock={handleToggleLock} onCreateFolder={() => setShowFolderModal(true)}
         onAddLink={() => setShowLinkModal(true)} handlePaste={handlePaste} hasClipboard={Boolean(clipboard?.itemIds?.length)}
         sortBy={globalSort[currentFolder.id] || 'newest'} onSortChange={handleGlobalSortChange}
-        handleShare={handleShare}
+        handleShare={handleShare} startMove={startMove}
       />
 
       <FileModals 
@@ -174,6 +183,24 @@ export default function FileManager() {
         previewFile={previewFile} setPreviewFile={setPreviewFile} viewerEngine={viewerEngine} setViewerEngine={setViewerEngine}
         shareItem={shareItem} shareUrl={shareUrl} closeShareDialog={closeShareDialog}
         copyShareUrl={copyShareUrl} shareNatively={shareNatively}
+        showMoveModal={showMoveModal} setShowMoveModal={setShowMoveModal}
+        itemsToMove={itemsToMove} handleMoveSubmit={handleMoveSubmit}
+        allFiles={allFiles} activeTabRootId={currentFolder.id}
+      />
+
+      <BottomActionBar 
+        isSelectionMode={isSelectionMode}
+        selectedItems={selectedItems}
+        allFiles={allFiles}
+        isAdmin={isAdmin}
+        onClearSelection={clearSelection}
+        onSelectAllToggle={() => toggleSelectAll(currentFiles)}
+        isAllSelected={currentFiles.length > 0 && currentFiles.every(f => selectedItems.has(f.id))}
+        onDownload={handleDownload}
+        onShare={handleShare}
+        onMove={() => startMove()}
+        onDelete={() => setShowDeleteModal(true)}
+        onToggleLock={handleToggleLock}
       />
     </motion.div>
   );

@@ -87,7 +87,7 @@ function App() {
   }, [isAdmin]);
 
   return (
-    <MotionConfig reducedMotion="user" transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}>
+    <MotionConfig reducedMotion="never" transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}>
       <MainLayout>
         <Toaster position="top-right" richColors theme={theme} />
         {isLoginOpen && <Suspense fallback={null}><LoginModal open={isLoginOpen} onClose={closeLogin} /></Suspense>}

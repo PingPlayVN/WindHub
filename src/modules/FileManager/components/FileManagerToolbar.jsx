@@ -1,12 +1,13 @@
 import { motion } from 'framer-motion';
-import { LayoutGrid, List } from 'lucide-react';
+import { LayoutGrid, List, CheckSquare } from 'lucide-react';
 import SortDropdown from '@/components/ui/SortDropdown';
 
 export default function FileManagerToolbar({
   TABS, activeTab, handleTabChange,
   searchTerm, setSearchTerm,
   effectiveSort, handleLocalSortChange,
-  viewMode, setViewMode
+  viewMode, setViewMode,
+  isSelectionMode, toggleSelectionMode,
 }) {
   return (
     <div className="flex w-full flex-col gap-3 lg:flex-row lg:items-stretch">
@@ -53,7 +54,21 @@ export default function FileManagerToolbar({
           value={effectiveSort}
           onChange={(newValue) => handleLocalSortChange(newValue)}
         />
-        <div className="flex items-center bg-white dark:bg-[#111] border border-slate-200 dark:border-slate-800 rounded-xl p-0.5 sm:p-1 shadow-sm shrink-0">
+        <div className="flex items-center bg-white dark:bg-[#111] border border-slate-200 dark:border-slate-800 rounded-xl p-0.5 sm:p-1 shadow-sm shrink-0 gap-0.5">
+          <button
+            type="button"
+            onClick={toggleSelectionMode}
+            className={`px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95 ${
+              isSelectionMode
+                ? 'bg-primary-600 text-white shadow-md shadow-primary-500/25 ring-2 ring-primary-500/20'
+                : 'text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800'
+            }`}
+            title={isSelectionMode ? 'Xong / Thoát chế độ chọn' : 'Bật chế độ chọn tệp'}
+          >
+            <CheckSquare size={16} className={isSelectionMode ? 'text-white' : 'text-primary-500'} />
+            <span>{isSelectionMode ? 'Xong' : 'Chọn'}</span>
+          </button>
+          <div className="h-4 w-px bg-slate-200 dark:bg-zinc-800 mx-0.5" />
           <button onClick={() => setViewMode('grid')} className={`p-1.5 sm:p-2 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-slate-100 dark:bg-slate-800 text-primary-500' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`} title="Dạng lưới"><LayoutGrid size={16} className="sm:w-[18px] sm:h-[18px]" /></button>
           <button onClick={() => setViewMode('list')} className={`p-1.5 sm:p-2 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-slate-100 dark:bg-slate-800 text-primary-500' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`} title="Dạng danh sách"><List size={16} className="sm:w-[18px] sm:h-[18px]" /></button>
         </div>
