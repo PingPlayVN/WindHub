@@ -137,23 +137,6 @@ Module Quản lý File hiện tại (`src/modules/FileManager/`) được xây d
 
 Khi người dùng thao tác trên màn hình cảm ứng điện thoại hoặc máy tính bảng (iOS Safari, Android Chrome), môi trường trình duyệt di động chuyển đổi hoàn toàn sang **Touch/Pointer Events**. Điều này dẫn đến sự đứt gãy trải nghiệm nghiêm trọng.
 
----
-
-### 4.2 Ma trận đối chiếu trải nghiệm Desktop vs Mobile Touch
-
-| Hành vi thao tác | Trải nghiệm trên Desktop (Hiện tại) | Trải nghiệm trên Mobile Touch (Hiện trạng thực tế) | Đánh giá mức độ |
-| :--- | :--- | :--- | :---: |
-| **Mở xem tệp / Thư mục** | Click chọn; Double click hoặc Enter để mở. | Chạm đơn (`tap`) mở ngay lập tức do `onClick` tự trigger. | ⚠️ Trung bình |
-| **Chọn tệp (Selection)** | Giữ `Ctrl`/`Shift` + Click để chọn 1 hoặc nhiều tệp. | **Không thể thực hiện**: Mobile không có phím `Ctrl`, chạm vào là bị mở tệp ngay. | ❌ **Rất nghiêm trọng** |
-| **Menu tác vụ (Context Menu)** | Chuột phải tại vị trí trỏ chuột hiển thị menu tuỳ biến. | **Xung đột**: Nhấn giữ kích hoạt menu hệ điều hành mặc định (Save image, Copy link); Menu web bị lệch hoặc không mở được. | ❌ **Nghiêm trọng** |
-| **Nút 3 chấm mở nhanh** | Hiện khi rê chuột vào tệp (`group-hover:opacity-100`). | **Bị ẩn hoàn toàn**: Màn hình cảm ứng không có hover, người dùng không nhìn thấy nút để thao tác. | ❌ **Rất nghiêm trọng** |
-| **Kéo thả tệp (Drag & Drop)** | Kéo tệp thả vào thư mục khác trực quan. | **Tê liệt hoàn toàn**: HTML5 Drag & Drop API không hỗ trợ Touch Pointer trên trình duyệt di động. | ❌ **Nghiêm trọng** |
-| **Đổi tên / Khóa / Xóa tệp** | Dùng phím `F2`, `Delete` hoặc Context Menu chuột phải. | Phụ thuộc hoàn toàn vào menu; nếu không mở được menu thì không thể đổi tên/xóa. | ❌ **Nghiêm trọng** |
-| **Đọc tên tệp dài (Marquee)** | Rê chuột vào tên tệp để chữ chạy ngang (`onMouseEnter`). | Chạm vào không kích hoạt được cuộn marquee, tên tệp dài bị cắt cụt `...`. | ⚠️ Nhẹ |
-| **Điều hướng Breadcrumb** | Thanh Breadcrumb trải ngang rộng rãi. | Bị tràn màn hình khi đi vào thư mục sâu; vùng chạm (tap target) quá nhỏ khó bấm bằng ngón cái. | ⚠️ Trung bình |
-
----
-
 ### 4.3 Chi tiết các điểm nghẽn tương tác cảm ứng (Touch Pain Points)
 
 #### 1. Xung đột giữa "Chạm để Chọn" và "Chạm để Mở" (Tap vs Selection Conflict)
