@@ -195,72 +195,76 @@ export default function SoiCauModal({ isOpen, onClose, history = [] }) {
                 <span className="text-[11px] text-amber-400/70 font-semibold">({stats.total} phiên gần nhất)</span>
               </div>
 
-              {/* KHU VỰC CHÍNH MẪU 1: 2 CỘT SONG SONG (BẢNG LƯỚI & DÂY CẦU CON RẮN THEO ẢNH) */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-stretch">
-                {/* CỘT TRÁI (7 phần): BẢNG LƯỚI SOI CẦU MA TRẬN 6 HÀNG (KÉO VUỐT SANG PHẢI) */}
-                <div className="lg:col-span-7 flex flex-col justify-between rounded-2xl border border-amber-600/50 bg-[#120803]/90 p-3 shadow-inner">
-                  <div className="mb-2 flex items-center justify-between text-xs font-bold text-amber-300">
-                    <span>Bảng Lưới Soi Cầu (6 hàng dọc)</span>
-                    <span className="text-[10px] text-amber-400/70">Mới nhất ở bên phải ➔</span>
+              {/* ========================================================
+                  1. KHỐI TRÊN: DÂY CẦU ZIC-ZAC CON RẮN THEO HÀNG NGANG
+                 ======================================================== */}
+              <div className="rounded-2xl border border-amber-600/50 bg-[#120803]/90 p-3.5 shadow-inner">
+                <div className="mb-2 flex items-center justify-between text-xs font-bold text-amber-300">
+                  <div className="flex items-center gap-2">
+                    <span className="text-amber-200">Dây Cầu Zic-Zac (Biến thiên qua các phiên)</span>
+                    <span className="text-[10px] text-amber-400/60 hidden sm:inline">• Đen: Tài • Trắng: Xỉu • Xanh: Bão</span>
                   </div>
-
-                  <div
-                    ref={scrollRef}
-                    className="flex gap-1.5 overflow-x-auto pb-2 pt-1 scrollbar-thin scrollbar-thumb-amber-600 cursor-grab active:cursor-grabbing"
-                    style={{ minHeight: '190px' }}
-                  >
-                    {gridColumns.length === 0 ? (
-                      <div className="flex h-36 w-full items-center justify-center text-xs text-amber-400/60">
-                        Chưa có đủ dữ liệu phiên để soi cầu
-                      </div>
-                    ) : (
-                      gridColumns.map((col, cIdx) => (
-                        <div key={cIdx} className="flex flex-col gap-1.5 justify-start">
-                          {Array.from({ length: 6 }).map((_, rIdx) => {
-                            const item = col.rounds[rIdx];
-                            return (
-                              <div
-                                key={rIdx}
-                                className="flex size-7 sm:size-8 items-center justify-center rounded-lg border border-amber-800/50 bg-[#1c0f07]/80 shadow-inner"
-                              >
-                                {item ? (() => {
-                                  const isBao = item.isTriple || item.outcome === 'BAO';
-                                  const isTai = !isBao && (item.outcome === 'TAI' || item.total >= 11);
-                                  return (
-                                    <div
-                                      title={`Phiên #${item.roundId} • Xúc xắc: ${item.dice?.join('-')} • Tổng: ${item.total} (${item.outcome})`}
-                                      className={`flex size-6 sm:size-6.5 items-center justify-center rounded-full text-[10px] sm:text-xs font-black shadow-sm transition-transform hover:scale-110 ${
-                                        isBao
-                                          ? 'border border-cyan-300 bg-cyan-600 text-white'
-                                          : isTai
-                                            ? 'border-2 border-amber-400 bg-black text-amber-300'
-                                            : 'border-2 border-slate-300 bg-slate-100 text-slate-950'
-                                      }`}
-                                    >
-                                      {item.total}
-                                    </div>
-                                  );
-                                })() : null}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ))
-                    )}
-                  </div>
+                  <span className="text-[10px] text-amber-400/70">50 phiên gần nhất</span>
                 </div>
 
-                {/* CỘT PHẢI (5 phần): DÂY CẦU ZIC-ZAC (ĐÚNG THEO ẢNH MẪU 1: CON RẮN 5 CỘT & HUY HIỆU DỌC) */}
-                <div className="lg:col-span-5 flex flex-col justify-between rounded-2xl border border-amber-600/50 bg-[#120803]/90 p-3 shadow-inner">
-                  <div className="mb-2 flex items-center justify-between text-xs font-bold text-amber-300">
-                    <span>Dây Cầu Zic-Zac (Đúng Mẫu Ảnh 1)</span>
-                    <span className="text-[10px] text-amber-400/70">50 phiên gần nhất</span>
-                  </div>
+                <SerpentineSnakeGraph
+                  history={chronologicalHistory}
+                  stats={stats}
+                />
+              </div>
 
-                  <SerpentineSnakeGraph
-                    history={chronologicalHistory}
-                    stats={stats}
-                  />
+              {/* ========================================================
+                  2. KHỐI DƯỚI: BẢNG LƯỚI SOI CẦU THEO HÀNG NGANG (KÉO VUỐT SANG PHẢI)
+                 ======================================================== */}
+              <div className="rounded-2xl border border-amber-600/50 bg-[#120803]/90 p-3.5 shadow-inner">
+                <div className="mb-2 flex items-center justify-between text-xs font-bold text-amber-300">
+                  <span className="text-amber-200">Bảng Lưới Soi Cầu (Kéo vuốt sang trái/phải)</span>
+                  <span className="text-[10px] text-amber-400/70">Mới nhất ở bên phải ➔</span>
+                </div>
+
+                <div
+                  ref={scrollRef}
+                  className="flex gap-1.5 overflow-x-auto pb-2 pt-1 scrollbar-thin scrollbar-thumb-amber-600 cursor-grab active:cursor-grabbing"
+                  style={{ minHeight: '190px' }}
+                >
+                  {gridColumns.length === 0 ? (
+                    <div className="flex h-36 w-full items-center justify-center text-xs text-amber-400/60">
+                      Chưa có đủ dữ liệu phiên để soi cầu
+                    </div>
+                  ) : (
+                    gridColumns.map((col, cIdx) => (
+                      <div key={cIdx} className="flex flex-col gap-1.5 justify-start shrink-0">
+                        {Array.from({ length: 6 }).map((_, rIdx) => {
+                          const item = col.rounds[rIdx];
+                          return (
+                            <div
+                              key={rIdx}
+                              className="flex size-7 sm:size-8 items-center justify-center rounded-lg border border-amber-800/50 bg-[#1c0f07]/80 shadow-inner"
+                            >
+                              {item ? (() => {
+                                const isBao = item.isTriple || item.outcome === 'BAO';
+                                const isTai = !isBao && (item.outcome === 'TAI' || item.total >= 11);
+                                return (
+                                  <div
+                                    title={`Phiên #${item.roundId} • Xúc xắc: ${item.dice?.join('-')} • Tổng: ${item.total} (${item.outcome})`}
+                                    className={`flex size-6 sm:size-6.5 items-center justify-center rounded-full text-[10px] sm:text-xs font-black shadow-sm transition-transform hover:scale-110 ${
+                                      isBao
+                                        ? 'border border-cyan-300 bg-cyan-600 text-white'
+                                        : isTai
+                                          ? 'border-2 border-amber-400 bg-black text-amber-300'
+                                          : 'border-2 border-slate-300 bg-slate-100 text-slate-950'
+                                    }`}
+                                  >
+                                    {item.total}
+                                  </div>
+                                );
+                              })() : null}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             </div>
@@ -520,18 +524,18 @@ function DiceTrajectoryGraph({ history, showDice1, showDice2, showDice3 }) {
 }
 
 // -------------------------------------------------------------
-// DÂY CẦU ZIC-ZAC (DẠNG CON RẮN 5 CỘT X 10 HÀNG THEO ẢNH MẪU 1)
+// DÂY CẦU ZIC-ZAC (DẠNG CON RẮN 10 CỘT X 5 HÀNG THEO HÀNG NGANG)
 // -------------------------------------------------------------
 function SerpentineSnakeGraph({ history = [], stats = { tai: 0, xiu: 0, bao: 0 } }) {
   const rounds = useMemo(() => {
     return history.slice(-50);
   }, [history]);
 
-  const COLS = 5;
-  const colWidth = 26;
-  const rowHeight = 22;
-  const padX = 14;
-  const padY = 14;
+  const COLS = 10;
+  const colWidth = 42;
+  const rowHeight = 24;
+  const padX = 20;
+  const padY = 16;
 
   const points = useMemo(() => {
     return rounds.map((r, i) => {
@@ -555,29 +559,29 @@ function SerpentineSnakeGraph({ history = [], stats = { tai: 0, xiu: 0, bao: 0 }
     const { x, y, col, isEvenRow } = lastPoint;
     if (isEvenRow) {
       if (col < COLS - 1) {
-        return { type: 'right', x1: x, y1: y, x2: x + 12, y2: y };
+        return { type: 'right', x1: x, y1: y, x2: x + 14, y2: y };
       }
-      return { type: 'down', x1: x, y1: y, x2: x, y2: y + 12 };
+      return { type: 'down', x1: x, y1: y, x2: x, y2: y + 14 };
     } else {
       if (col > 0) {
-        return { type: 'left', x1: x, y1: y, x2: x - 12, y2: y };
+        return { type: 'left', x1: x, y1: y, x2: x - 14, y2: y };
       }
-      return { type: 'down', x1: x, y1: y, x2: x, y2: y + 12 };
+      return { type: 'down', x1: x, y1: y, x2: x, y2: y + 14 };
     }
   }, [lastPoint]);
 
-  const totalRows = Math.max(10, Math.ceil(rounds.length / COLS));
+  const totalRows = Math.max(5, Math.ceil(rounds.length / COLS));
   const svgWidth = padX * 2 + (COLS - 1) * colWidth;
   const svgHeight = padY * 2 + (totalRows - 1) * rowHeight;
 
   return (
-    <div className="flex items-center justify-between gap-3 p-2 bg-gradient-to-b from-[#180d05] to-[#0c0602] rounded-2xl border border-amber-600/40">
-      {/* 1. ĐỒ THỊ DÂY CẦU ZIC-ZAC DẠNG CON RẮN */}
-      <div className="relative">
+    <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-3 bg-gradient-to-b from-[#180d05] to-[#0c0602] rounded-2xl border border-amber-600/40">
+      {/* 1. ĐỒ THỊ DÂY CẦU ZIC-ZAC DẠNG CON RẮN THEO HÀNG NGANG */}
+      <div className="overflow-x-auto w-full flex justify-center scrollbar-thin scrollbar-thumb-amber-700">
         <svg
           width={svgWidth}
           height={svgHeight}
-          className="overflow-visible select-none"
+          className="overflow-visible select-none shrink-0"
         >
           {points.length > 1 && (
             <polyline
