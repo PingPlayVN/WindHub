@@ -1,0 +1,17 @@
+name = "windhub-worker"
+main = "src/index.js"
+compatibility_date = "2024-09-23"
+workers_dev = true
+
+[vars]
+# Set this to your deployed WindHub origin in production. Keep * for local development.
+ALLOWED_ORIGIN = "*"
+
+[durable_objects]
+bindings = [
+  { name = "LOTTERY_ROOM", class_name = "LotteryRoom" }
+]
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["LotteryRoom"]

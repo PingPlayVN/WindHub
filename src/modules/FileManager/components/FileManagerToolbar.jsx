@@ -1,0 +1,78 @@
+import { motion } from 'framer-motion';
+import { LayoutGrid, List, CheckSquare } from 'lucide-react';
+import SortDropdown from '@/components/ui/SortDropdown';
+
+export default function FileManagerToolbar({
+  TABS, activeTab, handleTabChange,
+  searchTerm, setSearchTerm,
+  effectiveSort, handleLocalSortChange,
+  viewMode, setViewMode,
+  isSelectionMode, toggleSelectionMode,
+}) {
+  return (
+    <div className="flex w-full flex-col gap-3 lg:flex-row lg:items-stretch">
+      {/* THANH TAB PHÂN KHÔNG GIAN */}
+      <div className="grid w-full shrink-0 grid-cols-4 overflow-hidden rounded-2xl border border-slate-200 bg-white/80 p-1.5 shadow-sm backdrop-blur-xl dark:border-white/10 dark:bg-[#111] dark:shadow-[0_12px_30px_rgba(0,0,0,0.25)] lg:flex lg:w-2/5 lg:max-w-[520px] relative z-20 mb-3 lg:mb-0">
+        {TABS.map((tab) => {
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => handleTabChange(tab)}
+              className={`relative min-w-0 flex-1 px-1 py-2.5 text-center rounded-xl text-xs font-bold transition-colors duration-300 whitespace-nowrap outline-none sm:px-3 sm:text-sm lg:px-3 ${isActive ? 'text-primary-600 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                }`}
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              {isActive && (
+                <motion.div
+                  layoutId="active-tab-indicator"
+                  className="absolute inset-0 rounded-xl bg-primary-100 dark:bg-primary-500/20 shadow-sm border border-primary-200 dark:border-primary-500/30"
+                  initial={false}
+                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                  style={{ zIndex: -1 }}
+                />
+              )}
+              <span className="relative z-10">{tab.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* KHU VỰC TÌM KIẾM VÀ LỌC (Nằm ngang trên Mobile) */}
+      <div className="flex w-full flex-1 flex-row items-center gap-2 z-10">
+        <div className="relative flex-1 min-w-0">
+          <span className="sr-only">Tìm kiếm</span>
+          <input
+            type="search"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Tìm kiếm..."
+            className="w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2 sm:px-4 sm:py-2.5 text-sm text-slate-800 shadow-sm outline-none transition focus:border-primary-500 focus:ring-1 focus:ring-primary-500 dark:border-slate-800 dark:bg-[#111] dark:text-slate-100 placeholder:text-slate-500 truncate"
+          />
+        </div>
+        <SortDropdown
+          value={effectiveSort}
+          onChange={(newValue) => handleLocalSortChange(newValue)}
+        />
+        <div className="flex items-center bg-white dark:bg-[#111] border border-slate-200 dark:border-slate-800 rounded-xl p-0.5 sm:p-1 shadow-sm shrink-0 gap-0.5">
+          <button
+            type="button"
+            onClick={toggleSelectionMode}
+            className={`px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95 ${
+              isSelectionMode
+                ? 'bg-primary-600 text-white shadow-md shadow-primary-500/25 ring-2 ring-primary-500/20'
+                : 'text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800'
+            }`}
+            title={isSelectionMode ? 'Xong / Thoát chế độ chọn' : 'Bật chế độ chọn tệp'}
+          >
+            <CheckSquare size={16} className={isSelectionMode ? 'text-white' : 'text-primary-500'} />
+            <span>{isSelectionMode ? 'Xong' : 'Chọn'}</span>
+          </button>
+          <div className="h-4 w-px bg-slate-200 dark:bg-zinc-800 mx-0.5" />
+          <button onClick={() => setViewMode('grid')} className={`p-1.5 sm:p-2 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-slate-100 dark:bg-slate-800 text-primary-500' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`} title="Dạng lưới"><LayoutGrid size={16} className="sm:w-[18px] sm:h-[18px]" /></button>
+          <button onClick={() => setViewMode('list')} className={`p-1.5 sm:p-2 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-slate-100 dark:bg-slate-800 text-primary-500' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`} title="Dạng danh sách"><List size={16} className="sm:w-[18px] sm:h-[18px]" /></button>
+        </div>
+      </div>
+    </div>
+  );
+}
