@@ -586,34 +586,71 @@ export class LotteryRoom {
     }
 
     const betId = `bet_${roundId}_${userId}_${side}`;
+    let finalAmount = betAmount;
+
     if (this.sql) {
       try {
-        const checkCursor = this.sql.exec('SELECT id FROM bets WHERE round_id = ? AND user_id = ? AND bet_side = ?', roundId, userId, side);
-        for (const _ of checkCursor) {
-          return { success: false, code: 'DUPLICATE_BET', message: `Bạn đã cược cửa ${side === 'TAI' ? 'Tài' : side === 'XIU' ? 'Xỉu' : 'Bão'} lượt này rồi!` };
-        }
-
-        this.sql.exec(
-          'UPDATE player_points SET points = points - ?, updated_at = ? WHERE user_id = ? AND points >= ?',
-          betAmount,
-          Date.now(),
-          userId,
-          betAmount
-        );
-        this.syncSharedWalletDelta(userId, -betAmount);
-
-        this.sql.exec(
-          'INSERT INTO bets (id, round_id, user_id, user_name, bet_side, amount, payout, created_at) VALUES (?, ?, ?, ?, ?, ?, 0, ?)',
-          betId,
+        const checkCursor = this.sql.exec(
+          'SELECT id, amount FROM bets WHERE round_id = ? AND user_id = ? AND bet_side = ?',
           roundId,
           userId,
-          userName || 'Người làng',
-          side,
-          betAmount,
-          Date.now()
+          side
         );
+        let existingBet = null;
+        for (const row of checkCursor) {
+          existingBet = row;
+          break;
+        }
 
-        this.sql.exec('UPDATE rounds SET total_bets = total_bets + 1 WHERE id = ?', roundId);
+        if (existingBet) {
+          finalAmount = existingBet.amount + betAmount;
+          if (finalAmount > 50000) {
+            return {
+              success: false,
+              code: 'MAX_BET_EXCEEDED',
+              message: 'Tổng cược cửa này đã đạt giới hạn tối đa 50,000 xu!'
+            };
+          }
+
+          this.sql.exec(
+            'UPDATE player_points SET points = points - ?, updated_at = ? WHERE user_id = ? AND points >= ?',
+            betAmount,
+            Date.now(),
+            userId,
+            betAmount
+          );
+          this.syncSharedWalletDelta(userId, -betAmount);
+
+          this.sql.exec(
+            'UPDATE bets SET amount = amount + ? WHERE round_id = ? AND user_id = ? AND bet_side = ?',
+            betAmount,
+            roundId,
+            userId,
+            side
+          );
+        } else {
+          this.sql.exec(
+            'UPDATE player_points SET points = points - ?, updated_at = ? WHERE user_id = ? AND points >= ?',
+            betAmount,
+            Date.now(),
+            userId,
+            betAmount
+          );
+          this.syncSharedWalletDelta(userId, -betAmount);
+
+          this.sql.exec(
+            'INSERT INTO bets (id, round_id, user_id, user_name, bet_side, amount, payout, created_at) VALUES (?, ?, ?, ?, ?, ?, 0, ?)',
+            betId,
+            roundId,
+            userId,
+            userName || 'Người làng',
+            side,
+            betAmount,
+            Date.now()
+          );
+
+          this.sql.exec('UPDATE rounds SET total_bets = total_bets + 1 WHERE id = ?', roundId);
+        }
 
       } catch (err) {
         console.error('[LotteryRoom] placeBet error:', err);
@@ -629,7 +666,8 @@ export class LotteryRoom {
         id: betId,
         roundId,
         side,
-        amount: betAmount,
+        amount: finalAmount,
+        addedAmount: betAmount,
         sideName: side === 'TAI' ? 'Tài' : side === 'XIU' ? 'Xỉu' : 'Bão'
       },
       newBalance: updatedPoints

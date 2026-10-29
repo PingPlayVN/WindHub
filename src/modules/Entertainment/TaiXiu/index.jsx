@@ -6,7 +6,6 @@ import { useTaiXiuSocket } from './hooks/useTaiXiuSocket';
 import RoomSwitchHeader from './components/RoomSwitchHeader';
 import DicePlate from './components/DicePlate';
 import BetBoard from './components/BetBoard';
-import SoiCauHistory from './components/SoiCauHistory';
 import SoiCauModal from './components/SoiCauModal';
 import { Sparkles } from 'lucide-react';
 
@@ -178,7 +177,7 @@ export default function TaiXiuGame() {
             </h3>
             {myCurrentBets.length === 0 ? (
               <p className="text-xs text-slate-400 italic">
-                Chưa vào cược ván này. Hãy chọn cửa Tài, Xỉu hoặc Bão nhé!
+                Chưa vào cược ván này. Hãy chọn cửa Tài hoặc Xỉu nhé!
               </p>
             ) : (
               <div className="flex flex-wrap gap-2">
@@ -195,7 +194,7 @@ export default function TaiXiuGame() {
           </div>
         </div>
 
-        {/* CỘT PHẢI: BÀN CƯỢC TÀI / XỈU / BÃO (7 phần) */}
+        {/* CỘT PHẢI: BÀN CƯỢC TÀI / XỈU (7 phần) */}
         <div className="lg:col-span-7">
           <BetBoard
             state={roomState}
@@ -207,8 +206,7 @@ export default function TaiXiuGame() {
         </div>
       </div>
 
-      {/* SOI CẦU & LỊCH SỬ VÁN CHƠI DƯỚI BÀN */}
-      <SoiCauHistory history={history} onOpenModal={() => setIsSoiCauOpen(true)} />
+
 
       {/* POPUP HOÀNG GIA: LỊCH SỬ PHIÊN (KÉO THẢ TỰ DO, 2 MẪU SOI CẦU, TOGGLE 3 XÍ NGẦU) */}
       <SoiCauModal

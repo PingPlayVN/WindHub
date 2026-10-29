@@ -173,20 +173,22 @@ test('4. Kết quả và điểm số đã lưu vẫn tồn tại sau khi Durabl
   assert.equal(history[0].outcome, 'TAI');
 });
 
-test('5. Yêu cầu trùng (duplicate bet) vào cùng 1 cửa không làm tính điểm hai lần (Idempotency)', () => {
+test('5. Cho phép cược cộng dồn vào cùng 1 cửa và trừ điểm chính xác', () => {
   const { ctx } = createMockDOContext();
   const room = new LotteryRoom(ctx, {});
 
   const bet1 = room.handlePlaceBet('user_dup', 'Dân làng', room.currentRoundId, 'TAI', 100);
   assert.equal(bet1.success, true);
+  assert.equal(bet1.bet.amount, 100);
+  assert.equal(bet1.bet.addedAmount, 100);
   assert.equal(room.getPlayerPoints('user_dup'), 9900);
 
-  // Cược lại cùng cửa TAI trong cùng ván
+  // Cược thêm cùng cửa TAI trong cùng ván (cộng dồn)
   const bet2 = room.handlePlaceBet('user_dup', 'Dân làng', room.currentRoundId, 'TAI', 100);
-  assert.equal(bet2.success, false);
-  assert.equal(bet2.code, 'DUPLICATE_BET');
-
-  assert.equal(room.getPlayerPoints('user_dup'), 9900);
+  assert.equal(bet2.success, true);
+  assert.equal(bet2.bet.amount, 200);
+  assert.equal(bet2.bet.addedAmount, 100);
+  assert.equal(room.getPlayerPoints('user_dup'), 9800);
 });
 
 test('6. Client không thể tự sửa kết quả 3 xúc xắc', async () => {

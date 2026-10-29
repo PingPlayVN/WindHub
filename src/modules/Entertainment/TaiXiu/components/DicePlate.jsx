@@ -3,12 +3,12 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Sparkles, Flame, Hand, Move } from 'lucide-react';
 
-// Render mặt xúc xắc chấm chuẩn truyền thống Á Đông (Mặt 1 và 4 chấm đỏ)
-function DiceFace({ value, size = 'md' }) {
+// Render mặt xúc xắc chấm chuẩn truyền thống Á Đông (Mặt 1 và 4 chấm đỏ, kích thước đồng nhất 100%)
+function DiceFace({ value }) {
   const dotClass = (isRed) =>
     `rounded-full shadow-inner ${isRed ? 'bg-red-600' : 'bg-slate-900 dark:bg-black'}`;
 
-  const dim = size === 'lg' ? 'size-14 sm:size-16' : 'size-12 sm:size-14';
+  const dim = 'size-12 sm:size-14';
 
   const renderDots = () => {
     switch (value) {
@@ -153,12 +153,14 @@ export default function DicePlate({
           <div className="absolute inset-2 rounded-full border-2 border-dashed border-amber-800/40 pointer-events-none" />
           <div className="absolute inset-6 rounded-full border border-sky-900/30 pointer-events-none" />
 
-          {/* 3 VIÊN XÚC XẮC NẰM TRÊN ĐĨA */}
-          <div className="relative z-10 flex items-center justify-center gap-3">
-            <DiceFace value={dice[0]} size="lg" />
-            <div className="flex flex-col gap-2">
-              <DiceFace value={dice[1]} size="md" />
-              <DiceFace value={dice[2]} size="md" />
+          {/* 3 VIÊN XÚC XẮC NẰM TRÊN ĐĨA - KÍCH THƯỚC ĐỒNG NHẤT 100% */}
+          <div className="relative z-10 flex flex-col items-center justify-center gap-2">
+            <div className="flex items-center justify-center">
+              <DiceFace value={dice[0]} />
+            </div>
+            <div className="flex items-center justify-center gap-3">
+              <DiceFace value={dice[1]} />
+              <DiceFace value={dice[2]} />
             </div>
           </div>
         </div>
@@ -185,8 +187,8 @@ export default function DicePlate({
         <motion.div
           key={state === 'RESULT' ? 'bowl-result' : 'bowl-waiting'}
           drag={canDrag}
-          dragConstraints={{ left: -260, right: 260, top: -260, bottom: 260 }}
-          dragElastic={0}
+          dragConstraints={{ left: -380, right: 380, top: -380, bottom: 380 }}
+          dragElastic={0.08}
           dragMomentum={false}
           whileDrag={{ scale: 1.08, cursor: 'grabbing', zIndex: 50 }}
           onDrag={(_, info) => {
@@ -194,15 +196,15 @@ export default function DicePlate({
             const currentY = info.offset.y;
             setDragOffset({ x: currentX, y: currentY });
             const dist = Math.hypot(currentX, currentY);
-            const pct = Math.min(100, Math.round((dist / 100) * 100));
+            const pct = Math.min(100, Math.round((dist / 180) * 100));
             setSqueezeProgress(pct);
-            if (dist >= 110) {
+            if (dist >= 210) {
               setIsAutoRevealed(true);
             }
           }}
           onDragEnd={(_, info) => {
             const dist = Math.hypot(info.offset.x, info.offset.y);
-            if (dist >= 85) {
+            if (dist >= 170) {
               setIsAutoRevealed(true);
             }
           }}
@@ -220,8 +222,8 @@ export default function DicePlate({
                   }
               : state === 'RESULT' && isRevealed
                 ? {
-                    x: dragOffset.x !== 0 ? Math.sign(dragOffset.x || 1) * 320 : 0,
-                    y: dragOffset.y !== 0 ? Math.sign(dragOffset.y || -1) * 320 : -320,
+                    x: dragOffset.x !== 0 ? Math.sign(dragOffset.x || 1) * 380 : 0,
+                    y: dragOffset.y !== 0 ? Math.sign(dragOffset.y || -1) * 380 : -380,
                     opacity: 0,
                     scale: 0.7,
                     transition: { duration: 0.35, ease: 'easeOut' }

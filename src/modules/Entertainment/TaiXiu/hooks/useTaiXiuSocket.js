@@ -141,8 +141,20 @@ export function useTaiXiuSocket({ roomId = 'tai-xiu-30s', userId, userName, cust
           break;
 
         case 'BET_ACCEPTED':
-          toast.success(`Đã cược cửa ${data.bet.sideName} (+${data.bet.amount.toLocaleString()} xu)`);
-          setMyCurrentBets((prev) => [...prev, data.bet]);
+          if (data.bet?.addedAmount && data.bet?.amount > data.bet?.addedAmount) {
+            toast.success(`Đã cược thêm +${data.bet.addedAmount.toLocaleString()} xu vào cửa ${data.bet.sideName} (Tổng: ${data.bet.amount.toLocaleString()} xu)`);
+          } else {
+            toast.success(`Đã cược cửa ${data.bet?.sideName} (+${data.bet?.amount.toLocaleString()} xu)`);
+          }
+          setMyCurrentBets((prev) => {
+            const existingIdx = prev.findIndex((b) => b.side === data.bet.side);
+            if (existingIdx >= 0) {
+              const updated = [...prev];
+              updated[existingIdx] = data.bet;
+              return updated;
+            }
+            return [...prev, data.bet];
+          });
           if (data.newBalance !== undefined) setMyPoints(data.newBalance);
           break;
 
