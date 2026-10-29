@@ -1,5 +1,5 @@
 // src/modules/Entertainment/TaiXiu/index.jsx
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useTaiXiuSocket } from './hooks/useTaiXiuSocket';
@@ -42,7 +42,9 @@ class SoundEffects {
       gain.connect(this.ctx.destination);
       osc.start();
       osc.stop(this.ctx.currentTime + 0.08);
-    } catch {}
+    } catch {
+      // AudioContext unavailable or blocked by user gesture
+    }
   }
 
   playWinFanfare() {
@@ -62,7 +64,9 @@ class SoundEffects {
         osc.start(this.ctx.currentTime + idx * 0.09);
         osc.stop(this.ctx.currentTime + idx * 0.09 + 0.28);
       });
-    } catch {}
+    } catch {
+      // AudioContext unavailable or blocked by user gesture
+    }
   }
 }
 
@@ -74,7 +78,7 @@ export default function TaiXiuGame() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [isSoiCauOpen, setIsSoiCauOpen] = useState(false);
 
-  const { localUserId, localUserName } = useMemo(() => {
+  const [{ localUserId, localUserName }] = useState(() => {
     let id = localStorage.getItem('windhub_lottery_user_id');
     let name = localStorage.getItem('windhub_lottery_user_name');
     if (!id) {
@@ -87,7 +91,7 @@ export default function TaiXiuGame() {
       localStorage.setItem('windhub_lottery_user_name', name);
     }
     return { localUserId: id, localUserName: name };
-  }, []);
+  });
 
   const activeUserId = user?.uid || localUserId;
   const activeUserName = user?.displayName || user?.email?.split('@')[0] || localUserName;

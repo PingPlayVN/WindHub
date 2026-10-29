@@ -1,5 +1,5 @@
 // src/modules/Entertainment/TaiXiu/components/SoiCauHistory.jsx
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const PAGE_SIZE = 6;
@@ -30,14 +30,8 @@ export default function SoiCauHistory({ history = [], onOpenModal }) {
   }, [history]);
 
   const totalPages = Math.max(1, Math.ceil(history.length / PAGE_SIZE));
-
-  useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    }
-  }, [totalPages, currentPage]);
-
-  const displayedItems = history.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const safePage = Math.min(currentPage, totalPages);
+  const displayedItems = history.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   const formatTime = (ts) => {
     if (!ts) return '--:--';
@@ -166,20 +160,20 @@ export default function SoiCauHistory({ history = [], onOpenModal }) {
 
       {totalPages > 1 && (
         <div className="flex items-center justify-between border-t border-slate-100 pt-3 text-xs dark:border-slate-800">
-          <span className="text-slate-400">Trang {currentPage} / {totalPages}</span>
+          <span className="text-slate-400">Trang {safePage} / {totalPages}</span>
           <div className="flex items-center gap-1">
             <button
               type="button"
-              disabled={currentPage <= 1}
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={safePage <= 1}
+              onClick={() => setCurrentPage(Math.max(1, safePage - 1))}
               className="rounded-lg border border-slate-200 p-1.5 text-slate-600 hover:bg-slate-50 disabled:opacity-30 dark:border-slate-800 dark:text-slate-300"
             >
               <ChevronLeft size={14} />
             </button>
             <button
               type="button"
-              disabled={currentPage >= totalPages}
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={safePage >= totalPages}
+              onClick={() => setCurrentPage(Math.min(totalPages, safePage + 1))}
               className="rounded-lg border border-slate-200 p-1.5 text-slate-600 hover:bg-slate-50 disabled:opacity-30 dark:border-slate-800 dark:text-slate-300"
             >
               <ChevronRight size={14} />

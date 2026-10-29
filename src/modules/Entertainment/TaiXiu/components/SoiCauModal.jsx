@@ -1,5 +1,5 @@
 // src/modules/Entertainment/TaiXiu/components/SoiCauModal.jsx
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronLeft, ChevronRight, Sparkles, TrendingUp, Move } from 'lucide-react';
 
@@ -7,6 +7,14 @@ export default function SoiCauModal({ isOpen, onClose, history = [] }) {
   // Mode 1: Bảng lưới + Dây zic-zac (Ảnh 1)
   // Mode 2: Biểu đồ Tổng Điểm + 3 Xí Ngầu (Ảnh 2)
   const [activeTab, setActiveTab] = useState(1);
+  const scrollRef = useRef(null);
+
+  // Tự động cuộn sang phải (phiên mới nhất) khi mở hoặc cập nhật bảng lưới
+  useEffect(() => {
+    if (activeTab === 1 && scrollRef.current) {
+      scrollRef.current.scrollLeft = scrollRef.current.scrollWidth;
+    }
+  }, [activeTab, isOpen]);
 
   // Bộ lọc bật/tắt từng xí ngầu ở Mode 2
   const [showDice1, setShowDice1] = useState(true);

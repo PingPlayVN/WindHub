@@ -111,9 +111,12 @@ export default function DicePlate({
   // Reset nặn đĩa khi sang ván mới hoặc bắt đầu lắc
   useEffect(() => {
     if (state === 'WAITING' || state === 'PLAYING') {
-      setSqueezeProgress(0);
-      setIsAutoRevealed(false);
-      setDragOffset({ x: 0, y: 0 });
+      const timer = setTimeout(() => {
+        setSqueezeProgress(0);
+        setIsAutoRevealed(false);
+        setDragOffset({ x: 0, y: 0 });
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [state]);
 

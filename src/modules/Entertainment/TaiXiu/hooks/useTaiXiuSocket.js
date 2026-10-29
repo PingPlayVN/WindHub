@@ -250,11 +250,21 @@ export function useTaiXiuSocket({ roomId = 'tai-xiu-30s', userId, userName, cust
         const sock = socketRef.current;
         if (sock.readyState === WebSocket.CONNECTING) {
           sock.onopen = () => {
-            try { sock.close(); } catch {}
+            try {
+              sock.close();
+            } catch {
+              // ignore socket close error during cleanup
+            }
           };
-          sock.onerror = () => {};
+          sock.onerror = () => {
+            // ignore error during cleanup
+          };
         } else if (sock.readyState === WebSocket.OPEN) {
-          try { sock.close(); } catch {}
+          try {
+            sock.close();
+          } catch {
+            // ignore socket close error during cleanup
+          }
         }
         socketRef.current = null;
       }
