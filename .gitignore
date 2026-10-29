@@ -4,3 +4,4 @@ gitpush.bat
 .agents
 .wrangler
 .wrangler/
+.vite_cache/

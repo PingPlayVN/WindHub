@@ -61,6 +61,7 @@ function offlineAppPlugin() {
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  cacheDir: './.vite_cache',
   plugins: [
     react(),
     tailwindcss(),
