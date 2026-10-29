@@ -1,5 +1,5 @@
 // src/modules/Entertainment/TaiXiu/index.jsx
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useTaiXiuSocket } from './hooks/useTaiXiuSocket';
@@ -7,12 +7,14 @@ import RoomSwitchHeader from './components/RoomSwitchHeader';
 import DicePlate from './components/DicePlate';
 import BetBoard from './components/BetBoard';
 import SoiCauModal from './components/SoiCauModal';
+import SoundSettingsModal from './components/SoundSettingsModal';
 import { Sparkles } from 'lucide-react';
 
 class SoundEffects {
   constructor() {
     this.ctx = null;
     this.enabled = true;
+    this.volume = 0.8;
   }
 
   init() {
@@ -26,7 +28,7 @@ class SoundEffects {
   }
 
   playPop() {
-    if (!this.enabled) return;
+    if (!this.enabled || this.volume <= 0) return;
     try {
       this.init();
       if (!this.ctx) return;
@@ -35,7 +37,8 @@ class SoundEffects {
       osc.type = 'sine';
       osc.frequency.setValueAtTime(480, this.ctx.currentTime);
       osc.frequency.exponentialRampToValueAtTime(960, this.ctx.currentTime + 0.08);
-      gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
+      const v = 0.14 * this.volume;
+      gain.gain.setValueAtTime(v, this.ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.08);
       osc.connect(gain);
       gain.connect(this.ctx.destination);
@@ -47,7 +50,7 @@ class SoundEffects {
   }
 
   playWinFanfare() {
-    if (!this.enabled) return;
+    if (!this.enabled || this.volume <= 0) return;
     try {
       this.init();
       if (!this.ctx) return;
@@ -56,7 +59,8 @@ class SoundEffects {
         const gain = this.ctx.createGain();
         osc.type = 'triangle';
         osc.frequency.setValueAtTime(freq, this.ctx.currentTime + idx * 0.09);
-        gain.gain.setValueAtTime(0.14, this.ctx.currentTime + idx * 0.09);
+        const v = 0.16 * this.volume;
+        gain.gain.setValueAtTime(v, this.ctx.currentTime + idx * 0.09);
         gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + idx * 0.09 + 0.28);
         osc.connect(gain);
         gain.connect(this.ctx.destination);
@@ -74,8 +78,68 @@ const sfx = new SoundEffects();
 export default function TaiXiuGame() {
   const { user } = useAuthStore();
   const [roomId, setRoomId] = useState('tai-xiu-30s');
-  const [soundEnabled, setSoundEnabled] = useState(true);
   const [isSoiCauOpen, setIsSoiCauOpen] = useState(false);
+  const [isSoundSettingsOpen, setIsSoundSettingsOpen] = useState(false);
+
+  // Cấu hình âm thanh: SFX/VFX và Nhạc nền Lofi
+  const [sfxEnabled, setSfxEnabled] = useState(() => localStorage.getItem('windhub_taixiu_sfx_enabled') !== 'false');
+  const [sfxVolume, setSfxVolume] = useState(() => {
+    const v = localStorage.getItem('windhub_taixiu_sfx_vol');
+    return v !== null ? parseFloat(v) : 0.8;
+  });
+  const [bgmEnabled, setBgmEnabled] = useState(() => localStorage.getItem('windhub_taixiu_bgm_enabled') !== 'false');
+  const [bgmVolume, setBgmVolume] = useState(() => {
+    const v = localStorage.getItem('windhub_taixiu_bgm_vol');
+    return v !== null ? parseFloat(v) : 0.35;
+  });
+  const bgmAudioRef = useRef(null);
+
+  // Đồng bộ SFX volume & trạng thái bật tắt
+  useEffect(() => {
+    sfx.enabled = sfxEnabled;
+    sfx.volume = sfxVolume;
+  }, [sfxEnabled, sfxVolume]);
+
+  // Quản lý phát nhạc nền Lofi
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    if (!bgmAudioRef.current) {
+      const audio = new Audio('/audio/vietnameselofi.mp3');
+      audio.loop = true;
+      audio.preload = 'auto';
+      bgmAudioRef.current = audio;
+    }
+
+    const audio = bgmAudioRef.current;
+    audio.volume = Math.min(1, Math.max(0, bgmVolume));
+
+    if (bgmEnabled) {
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(() => {
+          // Trình duyệt chặn autoplay khi chưa có user gesture
+          const handleFirstClick = () => {
+            if (bgmEnabled && bgmAudioRef.current) {
+              bgmAudioRef.current.play().catch(() => {});
+            }
+            window.removeEventListener('click', handleFirstClick);
+            window.removeEventListener('keydown', handleFirstClick);
+          };
+          window.addEventListener('click', handleFirstClick, { once: true });
+          window.addEventListener('keydown', handleFirstClick, { once: true });
+        });
+      }
+    } else {
+      audio.pause();
+    }
+
+    return () => {
+      if (bgmAudioRef.current) {
+        bgmAudioRef.current.pause();
+      }
+    };
+  }, [bgmEnabled, bgmVolume]);
 
   const [{ localUserId, localUserName }] = useState(() => {
     let id = localStorage.getItem('windhub_lottery_user_id');
@@ -123,11 +187,35 @@ export default function TaiXiuGame() {
     }
   }, [roomState]);
 
-  const handleToggleSound = () => {
-    const next = !soundEnabled;
-    setSoundEnabled(next);
-    sfx.enabled = next;
-    if (next) sfx.playPop();
+  const handleToggleSfx = () => {
+    setSfxEnabled(prev => {
+      const next = !prev;
+      localStorage.setItem('windhub_taixiu_sfx_enabled', String(next));
+      if (next) sfx.playPop();
+      return next;
+    });
+  };
+
+  const handleChangeSfxVolume = (vol) => {
+    setSfxVolume(vol);
+    localStorage.setItem('windhub_taixiu_sfx_vol', String(vol));
+  };
+
+  const handleToggleBgm = () => {
+    setBgmEnabled(prev => {
+      const next = !prev;
+      localStorage.setItem('windhub_taixiu_bgm_enabled', String(next));
+      return next;
+    });
+  };
+
+  const handleChangeBgmVolume = (vol) => {
+    setBgmVolume(vol);
+    localStorage.setItem('windhub_taixiu_bgm_vol', String(vol));
+  };
+
+  const handleTestSound = () => {
+    sfx.playWinFanfare();
   };
 
   const handlePlaceBet = useCallback((betSide, amount) => {
@@ -149,8 +237,10 @@ export default function TaiXiuGame() {
         onlineCount={onlineCount}
         myPoints={myPoints}
         onClaimFreePoints={claimFreePoints}
-        soundEnabled={soundEnabled}
-        onToggleSound={handleToggleSound}
+        soundEnabled={sfxEnabled || bgmEnabled}
+        sfxEnabled={sfxEnabled}
+        bgmEnabled={bgmEnabled}
+        onOpenSoundSettings={() => setIsSoundSettingsOpen(true)}
         onToggleSoiCau={() => setIsSoiCauOpen((prev) => !prev)}
         isSoiCauOpen={isSoiCauOpen}
       />
@@ -213,6 +303,21 @@ export default function TaiXiuGame() {
         isOpen={isSoiCauOpen}
         onClose={() => setIsSoiCauOpen(false)}
         history={history}
+      />
+
+      {/* MODAL CÀI ĐẶT ÂM THANH (SFX/VFX & NHẠC NỀN LOFI) */}
+      <SoundSettingsModal
+        isOpen={isSoundSettingsOpen}
+        onClose={() => setIsSoundSettingsOpen(false)}
+        sfxEnabled={sfxEnabled}
+        onToggleSfx={handleToggleSfx}
+        sfxVolume={sfxVolume}
+        onChangeSfxVolume={handleChangeSfxVolume}
+        bgmEnabled={bgmEnabled}
+        onToggleBgm={handleToggleBgm}
+        bgmVolume={bgmVolume}
+        onChangeBgmVolume={handleChangeBgmVolume}
+        onTestSound={handleTestSound}
       />
     </motion.div>
   );

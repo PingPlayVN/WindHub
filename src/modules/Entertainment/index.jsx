@@ -1,7 +1,7 @@
 // src/modules/Entertainment/index.jsx
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Dices, Sparkles, ArrowRight, ShieldCheck, Flame, Lock } from 'lucide-react';
+import { Dices, Sparkles, ArrowRight, Lock } from 'lucide-react';
 
 const GAMES = [
   {
@@ -25,28 +25,6 @@ const GAMES = [
     features: ['Bầu - Cua - Tôm - Cá - Gà - Nai', 'Âm thanh chợ tết vui nhộn', 'Mở thưởng đồng bộ'],
     link: '#',
     isLive: false
-  },
-  {
-    id: 'tien-len',
-    title: 'Tiến Lên Miền Nam',
-    subtitle: 'Đấu trí 52 lá bài tây cùng bạn bè bốn phương',
-    tag: 'ĐANG PHÁT TRIỂN',
-    tagColor: 'bg-sky-500/15 text-sky-400 border-sky-500/30',
-    icon: <Flame size={28} className="text-sky-400" />,
-    features: ['Bàn 4 người chơi', 'Tứ quý chặt heo', 'Thời gian thực P2P/Server'],
-    link: '#',
-    isLive: false
-  },
-  {
-    id: 'co-tuong',
-    title: 'Cờ Tướng Thôn Quê',
-    subtitle: 'Kỳ đài xóm làng đọ trí anh tài cao niên',
-    tag: 'DỰ KIẾN',
-    tagColor: 'bg-purple-500/15 text-purple-400 border-purple-500/30',
-    icon: <ShieldCheck size={28} className="text-purple-400" />,
-    features: ['Bàn cờ gỗ cổ truyền', 'Đấu trí 1 vs 1', 'Khán giả xem trực tiếp'],
-    link: '#',
-    isLive: false
   }
 ];
 
@@ -62,7 +40,7 @@ export default function Entertainment() {
         <div className="pointer-events-none absolute inset-0 opacity-20 [background-image:linear-gradient(rgba(245,158,11,.1)_1px,transparent_1px),linear-gradient(90deg,rgba(245,158,11,.1)_1px,transparent_1px)] [background-size:28px_28px]" />
 
         <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div className="max-w-2xl">
+          <div className="max-w-3xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-300">
               <Sparkles size={14} className="text-amber-400" />
               <span>GÓC GIẢI TRÍ LÀNG QUÊ WINDHUB</span>
@@ -75,15 +53,6 @@ export default function Entertainment() {
               Tất cả các trò chơi đều sử dụng điểm mô phỏng miễn phí, phi thương mại và tuyệt đối không có yếu tố tiền thật.
             </p>
           </div>
-
-          <div className="flex flex-col sm:flex-row items-center gap-3">
-            <Link
-              to="/entertainment/tai-xiu"
-              className="inline-flex items-center gap-2 rounded-2xl bg-amber-500 px-6 py-3 font-bold text-slate-950 shadow-lg shadow-amber-500/25 transition hover:bg-amber-400 active:scale-95"
-            >
-              <Dices size={20} /> Chơi Tài Xỉu Ngay
-            </Link>
-          </div>
         </div>
       </section>
 
@@ -94,7 +63,7 @@ export default function Entertainment() {
             <Dices size={20} className="text-amber-500" />
             Các Trò Chơi Dân Gian
           </h2>
-          <span className="text-xs text-slate-400 font-mono">1 đang chạy · 3 sắp ra mắt</span>
+          <span className="text-xs text-slate-400 font-mono">1 đang chạy · 1 sắp ra mắt</span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">

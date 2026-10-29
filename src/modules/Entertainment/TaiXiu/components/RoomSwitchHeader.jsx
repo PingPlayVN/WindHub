@@ -9,8 +9,9 @@ export default function RoomSwitchHeader({
   onlineCount = 1,
   myPoints = 10000,
   onClaimFreePoints,
-  soundEnabled = true,
-  onToggleSound,
+  sfxEnabled = true,
+  bgmEnabled = true,
+  onOpenSoundSettings,
   onToggleSoiCau,
   isSoiCauOpen = false,
 }) {
@@ -117,14 +118,22 @@ export default function RoomSwitchHeader({
             </button>
           </div>
 
+          {/* Nút cài đặt âm thanh (SFX + Nhạc nền) */}
           <button
             type="button"
-            onClick={onToggleSound}
-            title={soundEnabled ? 'Tắt âm thanh' : 'Bật âm thanh'}
-            aria-label={soundEnabled ? 'Tắt âm thanh' : 'Bật âm thanh'}
-            className="rounded-xl bg-amber-950/80 border border-amber-700/50 p-2 text-amber-300 hover:bg-amber-900 transition"
+            onClick={onOpenSoundSettings}
+            title="Cài đặt âm thanh & nhạc nền Lofi"
+            aria-label="Cài đặt âm thanh & nhạc nền Lofi"
+            className="flex items-center gap-1 rounded-xl bg-amber-950/80 border border-amber-700/50 px-2.5 py-1.5 text-xs text-amber-300 hover:bg-amber-900 transition"
           >
-            {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+            {sfxEnabled || bgmEnabled ? (
+              <Volume2 size={16} className="text-amber-400" />
+            ) : (
+              <VolumeX size={16} className="text-zinc-500" />
+            )}
+            {bgmEnabled && (
+              <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" title="Đang phát nhạc nền" />
+            )}
           </button>
         </div>
       </div>

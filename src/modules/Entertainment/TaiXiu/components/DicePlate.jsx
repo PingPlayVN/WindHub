@@ -131,9 +131,8 @@ export default function DicePlate({
       {/* Đồng hồ đếm ngược và trạng thái */}
       <div className="relative z-10 mb-3 flex items-center justify-between w-full max-w-sm px-2">
         <div className="flex items-center gap-2">
-          <span className={`size-2.5 rounded-full ${
-            state === 'WAITING' ? 'bg-emerald-400 animate-ping' : state === 'PLAYING' ? 'bg-orange-400 animate-bounce' : 'bg-amber-400'
-          }`} />
+          <span className={`size-2.5 rounded-full ${state === 'WAITING' ? 'bg-emerald-400 animate-ping' : state === 'PLAYING' ? 'bg-orange-400 animate-bounce' : 'bg-amber-400'
+            }`} />
           <span className="text-xs font-bold uppercase tracking-wider text-amber-300">
             {state === 'WAITING' ? 'ĐANG NHẬN CƯỢC' : state === 'PLAYING' ? 'ĐANG LẮC BÁT (2S)...' : 'KẾT QUẢ - KÉO BÁT MỌI HƯỚNG!'}
           </span>
@@ -213,40 +212,39 @@ export default function DicePlate({
               ? shouldReduceMotion
                 ? { scale: [1, 1.04, 1], opacity: 1, transition: { repeat: Infinity, duration: 0.8 } }
                 : {
-                    x: [0, -12, 12, -10, 10, -6, 6, 0],
-                    y: [0, -8, 8, -6, 6, -3, 3, 0],
-                    rotate: [0, -6, 6, -5, 5, -2, 2, 0],
-                    opacity: 1,
-                    scale: 1,
-                    transition: { repeat: Infinity, duration: 0.15, ease: 'easeInOut' }
-                  }
+                  x: [0, -12, 12, -10, 10, -6, 6, 0],
+                  y: [0, -8, 8, -6, 6, -3, 3, 0],
+                  rotate: [0, -6, 6, -5, 5, -2, 2, 0],
+                  opacity: 1,
+                  scale: 1,
+                  transition: { repeat: Infinity, duration: 0.15, ease: 'easeInOut' }
+                }
               : state === 'RESULT' && isRevealed
                 ? {
-                    x: dragOffset.x !== 0 ? Math.sign(dragOffset.x || 1) * 550 : 0,
-                    y: dragOffset.y !== 0 ? Math.sign(dragOffset.y || -1) * 550 : -550,
-                    opacity: 0,
-                    scale: 0.7,
-                    transition: { duration: 0.35, ease: 'easeOut' }
-                  }
+                  x: dragOffset.x !== 0 ? Math.sign(dragOffset.x || 1) * 550 : 0,
+                  y: dragOffset.y !== 0 ? Math.sign(dragOffset.y || -1) * 550 : -550,
+                  opacity: 0,
+                  scale: 0.7,
+                  transition: { duration: 0.35, ease: 'easeOut' }
+                }
                 : state === 'WAITING'
                   ? {
-                      x: 0,
-                      y: 0,
-                      opacity: 1,
-                      scale: 1,
-                      rotate: 0,
-                      transition: { duration: 0.3 }
-                    }
+                    x: 0,
+                    y: 0,
+                    opacity: 1,
+                    scale: 1,
+                    rotate: 0,
+                    transition: { duration: 0.3 }
+                  }
                   : undefined
           }
           style={{ touchAction: 'none' }}
-          className={`absolute inset-4 rounded-full border-4 border-amber-500/70 bg-gradient-to-b from-[#854d0e] via-[#451a03] to-[#1c0c05] shadow-[0_22px_40px_rgba(0,0,0,0.85)] z-20 flex flex-col items-center justify-center transition-shadow ${
-            canDrag
-              ? 'cursor-grab active:cursor-grabbing ring-4 ring-amber-400/50 shadow-[0_0_30px_rgba(245,158,11,0.5)]'
-              : isRevealed
-                ? 'pointer-events-none'
-                : ''
-          }`}
+          className={`absolute inset-4 rounded-full border-4 border-amber-500/70 bg-gradient-to-b from-[#854d0e] via-[#451a03] to-[#1c0c05] shadow-[0_22px_40px_rgba(0,0,0,0.85)] z-20 flex flex-col items-center justify-center transition-shadow ${canDrag
+            ? 'cursor-grab active:cursor-grabbing ring-4 ring-amber-400/50 shadow-[0_0_30px_rgba(245,158,11,0.5)]'
+            : isRevealed
+              ? 'pointer-events-none'
+              : ''
+            }`}
         >
           {/* Hiệu ứng hào quang khi đang ở trạng thái nặn */}
           {canDrag && (
