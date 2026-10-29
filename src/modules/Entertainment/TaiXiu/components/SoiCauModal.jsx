@@ -1,6 +1,6 @@
 // src/modules/Entertainment/TaiXiu/components/SoiCauModal.jsx
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import { X, ChevronLeft, ChevronRight, Sparkles, TrendingUp, Move } from 'lucide-react';
 
 export default function SoiCauModal({ isOpen, onClose, history = [] }) {
@@ -8,11 +8,20 @@ export default function SoiCauModal({ isOpen, onClose, history = [] }) {
   // Mode 2: Biểu đồ Tổng Điểm + 3 Xí Ngầu (Ảnh 2)
   const [activeTab, setActiveTab] = useState(1);
   const scrollRef = useRef(null);
+  const dragControls = useDragControls();
 
-  // Tự động cuộn sang phải (phiên mới nhất) khi mở hoặc cập nhật bảng lưới
+  // Tự động cuộn sang phải mượt mà sau khi popup render xong (tránh giật lag khi mở)
   useEffect(() => {
-    if (activeTab === 1 && scrollRef.current) {
-      scrollRef.current.scrollLeft = scrollRef.current.scrollWidth;
+    if (activeTab === 1 && isOpen) {
+      const timer = setTimeout(() => {
+        if (scrollRef.current) {
+          scrollRef.current.scrollTo({
+            left: scrollRef.current.scrollWidth,
+            behavior: 'smooth'
+          });
+        }
+      }, 80);
+      return () => clearTimeout(timer);
     }
   }, [activeTab, isOpen]);
 
@@ -93,20 +102,22 @@ export default function SoiCauModal({ isOpen, onClose, history = [] }) {
           aria-hidden="true"
         />
 
-        {/* CỬA SỔ POPUP HOÀNG GIA - CÓ THỂ KÉO DI CHUYỂN AN TOÀN TRÊN MỌI THIẾT BỊ */}
+        {/* CỬA SỔ POPUP HOÀNG GIA - CÓ THỂ KÉO DI CHUYỂN AN TOÀN QUA THANH TIÊU ĐỀ */}
         <motion.div
           role="dialog"
           aria-modal="true"
           aria-labelledby="soicau-modal-title"
           drag
-          dragConstraints={{ left: -180, right: 180, top: -160, bottom: 160 }}
-          dragElastic={0.05}
+          dragListener={false}
+          dragControls={dragControls}
+          dragConstraints={{ left: -240, right: 240, top: -200, bottom: 200 }}
+          dragElastic={0.06}
           dragMomentum={false}
-          initial={{ opacity: 0, scale: 0.9, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.9, y: 20 }}
-          transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-          className="relative z-10 w-full max-w-2xl max-h-[92vh] overflow-y-auto rounded-[28px] border-2 border-amber-500/90 bg-gradient-to-b from-[#2a1708] via-[#160b03] to-[#0a0502] p-4 sm:p-6 text-amber-50 shadow-[0_20px_60px_rgba(0,0,0,0.9),0_0_35px_rgba(245,158,11,0.35)] select-none scrollbar-thin scrollbar-thumb-amber-700"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          transition={{ duration: 0.16, ease: 'easeOut' }}
+          className="relative z-10 w-full max-w-2xl max-h-[92vh] overflow-y-auto rounded-[28px] border-2 border-amber-500/90 bg-gradient-to-b from-[#2a1708] via-[#160b03] to-[#0a0502] p-4 sm:p-6 text-amber-50 shadow-2xl select-none scrollbar-thin scrollbar-thumb-amber-700 transform-gpu will-change-transform"
         >
           {/* NÚT ĐÓNG "X" MÀU ĐỎ HOÀNG GIA GÓC TRÊN BÊN PHẢI */}
           <button
@@ -119,8 +130,11 @@ export default function SoiCauModal({ isOpen, onClose, history = [] }) {
             <X size={18} className="stroke-[3]" />
           </button>
 
-          {/* THANH TIÊU ĐỀ RỒNG VÀNG CÓ THỂ CẦM KÉO DI CHUYỂN */}
-          <div className="relative mb-4 flex items-center justify-between border-b border-amber-600/40 pb-3 cursor-grab active:cursor-grabbing">
+          {/* THANH TIÊU ĐỀ RỒNG VÀNG - CẦM THANH NÀY ĐỂ KÉO DI CHUYỂN POPUP */}
+          <div
+            onPointerDown={(e) => dragControls.start(e)}
+            className="relative mb-4 flex items-center justify-between border-b border-amber-600/40 pb-3 cursor-grab active:cursor-grabbing touch-none select-none"
+          >
             {/* Nút lật trang sang trái (<) */}
             <button
               type="button"
@@ -219,12 +233,12 @@ export default function SoiCauModal({ isOpen, onClose, history = [] }) {
                             <div
                               key={rIdx}
                               title={`Phiên #${item.roundId} • Xúc xắc: ${item.dice?.join('-')} • Tổng: ${item.total} (${item.outcome})`}
-                              className={`flex size-6 sm:size-7 items-center justify-center rounded-full text-[10px] sm:text-xs font-black shadow-md transform transition hover:scale-125 ${
+                              className={`flex size-6 sm:size-7 items-center justify-center rounded-full text-[10px] sm:text-xs font-black hover:scale-110 ${
                                 isBao
-                                  ? 'border-2 border-red-400 bg-gradient-to-br from-red-600 to-rose-900 text-white animate-pulse'
+                                  ? 'border-2 border-red-400 bg-red-600 text-white'
                                   : isTai
-                                    ? 'border-2 border-amber-400 bg-black text-amber-300 shadow-[0_0_8px_rgba(245,158,11,0.5)]'
-                                    : 'border-2 border-slate-500 bg-slate-100 text-slate-950'
+                                    ? 'border-2 border-amber-400 bg-black text-amber-300'
+                                    : 'border-2 border-slate-400 bg-slate-100 text-slate-950'
                               }`}
                             >
                               {item.total}

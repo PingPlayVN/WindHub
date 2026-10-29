@@ -566,7 +566,7 @@ export class LotteryRoom {
       return { success: false, code: 'NOT_ACCEPTING_BETS', message: 'Bát đã úp, đã khóa cược! Chờ ván sau nhé.' };
     }
 
-    if (roundId !== this.currentRoundId) {
+    if (roundId && roundId.trim() !== this.currentRoundId.trim()) {
       return { success: false, code: 'INVALID_ROUND', message: 'Mã lượt chơi đã thay đổi.' };
     }
 
@@ -585,14 +585,14 @@ export class LotteryRoom {
       return { success: false, code: 'INSUFFICIENT_POINTS', message: 'Bạn không đủ xu vui vẻ! Nhấn nút nhận thêm xu nhé.' };
     }
 
-    const betId = `bet_${roundId}_${userId}_${side}`;
+    const betId = `bet_${this.currentRoundId}_${userId}_${side}`;
     let finalAmount = betAmount;
 
     if (this.sql) {
       try {
         const checkCursor = this.sql.exec(
           'SELECT id, amount FROM bets WHERE round_id = ? AND user_id = ? AND bet_side = ?',
-          roundId,
+          this.currentRoundId,
           userId,
           side
         );
@@ -603,7 +603,7 @@ export class LotteryRoom {
         }
 
         if (existingBet) {
-          finalAmount = existingBet.amount + betAmount;
+          finalAmount = (Number(existingBet.amount) || 0) + betAmount;
           if (finalAmount > 50000) {
             return {
               success: false,
@@ -622,9 +622,9 @@ export class LotteryRoom {
           this.syncSharedWalletDelta(userId, -betAmount);
 
           this.sql.exec(
-            'UPDATE bets SET amount = amount + ? WHERE round_id = ? AND user_id = ? AND bet_side = ?',
-            betAmount,
-            roundId,
+            'UPDATE bets SET amount = ? WHERE round_id = ? AND user_id = ? AND bet_side = ?',
+            finalAmount,
+            this.currentRoundId,
             userId,
             side
           );
@@ -687,7 +687,7 @@ export class LotteryRoom {
       for (const row of cursor) {
         bets.push({
           side: row.bet_side,
-          amount: row.amount,
+          amount: Number(row.amount) || 0,
           sideName: row.bet_side === 'TAI' ? 'Tài' : row.bet_side === 'XIU' ? 'Xỉu' : 'Bão'
         });
       }

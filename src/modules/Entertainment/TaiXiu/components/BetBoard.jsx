@@ -39,7 +39,7 @@ export default function BetBoard({
           type="button"
           disabled={isLocked || myPoints < selectedChip}
           onClick={() => handleBetSide('XIU')}
-          className={`relative flex flex-col items-center justify-between p-6 rounded-2xl border-2 transition-all ${
+          className={`relative flex flex-col items-center justify-between p-6 rounded-2xl border-2 transition-all active:scale-[0.98] ${
             myXiuBet
               ? 'border-sky-500 bg-sky-500/15 shadow-lg shadow-sky-500/10'
               : 'border-slate-200 hover:border-sky-400 bg-gradient-to-b from-sky-50/60 to-white dark:from-sky-950/20 dark:to-[#111] dark:border-slate-800'
@@ -52,17 +52,22 @@ export default function BetBoard({
             <h2 className="text-4xl font-black text-sky-600 dark:text-sky-400 mt-1">XỈU</h2>
           </div>
 
-          <div className="mt-5 flex flex-col items-center gap-1.5 w-full">
+          <div className="mt-5 flex flex-col items-center gap-2 w-full">
             <span className="text-xs text-slate-500 dark:text-slate-400">
               Làng cược: <strong className="font-mono text-slate-700 dark:text-slate-200">{(betSummary.xiuTotal || 0).toLocaleString()}</strong> xu
             </span>
             {myXiuBet ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-sky-500 px-3.5 py-1 font-mono text-xs font-bold text-white shadow-md animate-pulse">
-                <Check size={13} strokeWidth={3} /> Bạn cược: {myXiuBet.amount.toLocaleString()} xu
-              </span>
+              <div className="flex flex-col items-center gap-1.5 w-full">
+                <span className="inline-flex items-center gap-1 rounded-full bg-sky-500 px-3.5 py-1 font-mono text-xs font-bold text-white shadow-md">
+                  <Check size={13} strokeWidth={3} /> Đang cược: {myXiuBet.amount.toLocaleString()} xu
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-sky-500/20 border border-sky-500/40 px-3 py-1 text-xs font-bold text-sky-600 dark:text-sky-300">
+                  + Click cược thêm {selectedChip.toLocaleString()} xu ({(myXiuBet.amount + selectedChip).toLocaleString()} xu)
+                </span>
+              </div>
             ) : (
-              <span className="text-[11px] text-sky-600/70 dark:text-sky-400/70 font-medium">
-                Click để cược +{selectedChip.toLocaleString()} xu
+              <span className="text-xs text-sky-600/80 dark:text-sky-400/80 font-bold bg-sky-50 dark:bg-sky-950/40 px-3 py-1 rounded-full border border-sky-200 dark:border-sky-800/60">
+                + Click để cược {selectedChip.toLocaleString()} xu
               </span>
             )}
           </div>
@@ -73,7 +78,7 @@ export default function BetBoard({
           type="button"
           disabled={isLocked || myPoints < selectedChip}
           onClick={() => handleBetSide('TAI')}
-          className={`relative flex flex-col items-center justify-between p-6 rounded-2xl border-2 transition-all ${
+          className={`relative flex flex-col items-center justify-between p-6 rounded-2xl border-2 transition-all active:scale-[0.98] ${
             myTaiBet
               ? 'border-rose-500 bg-rose-500/15 shadow-lg shadow-rose-500/10'
               : 'border-slate-200 hover:border-rose-400 bg-gradient-to-b from-rose-50/60 to-white dark:from-rose-950/20 dark:to-[#111] dark:border-slate-800'
@@ -86,17 +91,22 @@ export default function BetBoard({
             <h2 className="text-4xl font-black text-rose-600 dark:text-rose-400 mt-1">TÀI</h2>
           </div>
 
-          <div className="mt-5 flex flex-col items-center gap-1.5 w-full">
+          <div className="mt-5 flex flex-col items-center gap-2 w-full">
             <span className="text-xs text-slate-500 dark:text-slate-400">
               Làng cược: <strong className="font-mono text-slate-700 dark:text-slate-200">{(betSummary.taiTotal || 0).toLocaleString()}</strong> xu
             </span>
             {myTaiBet ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-rose-500 px-3.5 py-1 font-mono text-xs font-bold text-white shadow-md animate-pulse">
-                <Check size={13} strokeWidth={3} /> Bạn cược: {myTaiBet.amount.toLocaleString()} xu
-              </span>
+              <div className="flex flex-col items-center gap-1.5 w-full">
+                <span className="inline-flex items-center gap-1 rounded-full bg-rose-500 px-3.5 py-1 font-mono text-xs font-bold text-white shadow-md">
+                  <Check size={13} strokeWidth={3} /> Đang cược: {myTaiBet.amount.toLocaleString()} xu
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/20 border border-rose-500/40 px-3 py-1 text-xs font-bold text-rose-600 dark:text-rose-300">
+                  + Click cược thêm {selectedChip.toLocaleString()} xu ({(myTaiBet.amount + selectedChip).toLocaleString()} xu)
+                </span>
+              </div>
             ) : (
-              <span className="text-[11px] text-rose-600/70 dark:text-rose-400/70 font-medium">
-                Click để cược +{selectedChip.toLocaleString()} xu
+              <span className="text-xs text-rose-600/80 dark:text-rose-400/80 font-bold bg-rose-50 dark:bg-rose-950/40 px-3 py-1 rounded-full border border-rose-200 dark:border-rose-800/60">
+                + Click để cược {selectedChip.toLocaleString()} xu
               </span>
             )}
           </div>

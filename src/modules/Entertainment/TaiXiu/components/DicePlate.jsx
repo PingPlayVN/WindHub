@@ -120,7 +120,7 @@ export default function DicePlate({
     }
   }, [state]);
 
-  const isRevealed = squeezeProgress >= 90 || isAutoRevealed;
+  const isRevealed = squeezeProgress >= 98 || isAutoRevealed;
   const canDrag = state === 'RESULT' && !isRevealed;
 
   return (
@@ -187,8 +187,8 @@ export default function DicePlate({
         <motion.div
           key={state === 'RESULT' ? 'bowl-result' : 'bowl-waiting'}
           drag={canDrag}
-          dragConstraints={{ left: -380, right: 380, top: -380, bottom: 380 }}
-          dragElastic={0.08}
+          dragConstraints={{ left: -600, right: 600, top: -600, bottom: 600 }}
+          dragElastic={0.15}
           dragMomentum={false}
           whileDrag={{ scale: 1.08, cursor: 'grabbing', zIndex: 50 }}
           onDrag={(_, info) => {
@@ -196,15 +196,15 @@ export default function DicePlate({
             const currentY = info.offset.y;
             setDragOffset({ x: currentX, y: currentY });
             const dist = Math.hypot(currentX, currentY);
-            const pct = Math.min(100, Math.round((dist / 180) * 100));
+            const pct = Math.min(100, Math.round((dist / 320) * 100));
             setSqueezeProgress(pct);
-            if (dist >= 210) {
+            if (dist >= 350) {
               setIsAutoRevealed(true);
             }
           }}
           onDragEnd={(_, info) => {
             const dist = Math.hypot(info.offset.x, info.offset.y);
-            if (dist >= 170) {
+            if (dist >= 240) {
               setIsAutoRevealed(true);
             }
           }}
@@ -222,8 +222,8 @@ export default function DicePlate({
                   }
               : state === 'RESULT' && isRevealed
                 ? {
-                    x: dragOffset.x !== 0 ? Math.sign(dragOffset.x || 1) * 380 : 0,
-                    y: dragOffset.y !== 0 ? Math.sign(dragOffset.y || -1) * 380 : -380,
+                    x: dragOffset.x !== 0 ? Math.sign(dragOffset.x || 1) * 550 : 0,
+                    y: dragOffset.y !== 0 ? Math.sign(dragOffset.y || -1) * 550 : -550,
                     opacity: 0,
                     scale: 0.7,
                     transition: { duration: 0.35, ease: 'easeOut' }

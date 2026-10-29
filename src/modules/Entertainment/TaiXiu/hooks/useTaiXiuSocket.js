@@ -28,6 +28,7 @@ export function useTaiXiuSocket({ roomId = 'tai-xiu-30s', userId, userName, cust
   const isManuallyClosedRef = useRef(false);
   const lastProcessedSeqRef = useRef(0);
   const paramsRef = useRef({ roomId, userId, userName, customWorkerUrl });
+  const backupStateRef = useRef({ bets: [], points: 10000 });
 
   useEffect(() => {
     paramsRef.current = { roomId, userId, userName, customWorkerUrl };
@@ -164,6 +165,10 @@ export function useTaiXiuSocket({ roomId = 'tai-xiu-30s', userId, userName, cust
 
         case 'BET_ERROR':
           toast.error(data.message || 'Không thể đặt cược.');
+          if (backupStateRef.current) {
+            setMyCurrentBets(backupStateRef.current.bets);
+            setMyPoints(backupStateRef.current.points);
+          }
           break;
 
         case 'POINTS_UPDATED':
@@ -284,15 +289,54 @@ export function useTaiXiuSocket({ roomId = 'tai-xiu-30s', userId, userName, cust
   }, [roomId, getWebSocketUrl, handleMessage]);
 
   const placeBet = useCallback((betSide, amount) => {
-    return send({
+    if (roomState !== 'WAITING') {
+      toast.warning('Bát đã úp, đã khóa cược! Chờ ván sau nhé.');
+      return false;
+    }
+    const betNum = parseInt(amount, 10);
+    if (isNaN(betNum) || betNum <= 0) {
+      toast.error('Số điểm cược không hợp lệ.');
+      return false;
+    }
+    if (myPoints < betNum) {
+      toast.warning('Bạn không đủ xu vui vẻ! Nhấn nút nhận thêm xu nhé.');
+      return false;
+    }
+
+    // Sao lưu state hiện tại để rollback nếu gặp lỗi
+    backupStateRef.current = { bets: myCurrentBets, points: myPoints };
+
+    const sideName = betSide === 'TAI' ? 'Tài' : betSide === 'XIU' ? 'Xỉu' : 'Bão';
+
+    // Cập nhật lạc quan (Optimistic update) ngay lập tức không cần đợi round-trip mạng
+    setMyCurrentBets((prev) => {
+      const idx = prev.findIndex((b) => b.side === betSide);
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = { ...next[idx], amount: next[idx].amount + betNum };
+        return next;
+      }
+      return [...prev, { side: betSide, amount: betNum, sideName }];
+    });
+    setMyPoints((p) => Math.max(0, p - betNum));
+
+    const sent = send({
       type: 'PREDICT',
       roundId: currentRoundId,
       side: betSide,
-      amount,
+      amount: betNum,
       userId: paramsRef.current.userId,
       userName: paramsRef.current.userName
     });
-  }, [currentRoundId, send]);
+
+    if (!sent) {
+      setMyCurrentBets(backupStateRef.current.bets);
+      setMyPoints(backupStateRef.current.points);
+      toast.error('Mất kết nối tới máy chủ. Đang thử kết nối lại...');
+      return false;
+    }
+    return true;
+  }, [roomState, myPoints, myCurrentBets, currentRoundId, send]);
 
   const claimFreePoints = useCallback(() => {
     return send({
