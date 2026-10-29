@@ -1,5 +1,5 @@
 // src/modules/Entertainment/TaiXiu/components/SoiCauModal.jsx
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronLeft, ChevronRight, Sparkles, TrendingUp, Move } from 'lucide-react';
 
@@ -60,31 +60,53 @@ export default function SoiCauModal({ isOpen, onClose, history = [] }) {
     return cols;
   }, [chronologicalHistory]);
 
-  const scrollRef = useRef(null);
+  // Đóng modal bằng phím Escape
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 pointer-events-none flex items-center justify-center p-3 sm:p-6 overflow-hidden">
-        {/* CỬA SỔ POPUP HOÀNG GIA - CÓ THỂ KÉO DI CHUYỂN TOÀN MÀN HÌNH */}
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-hidden">
+        {/* NỀN TỐI BACKDROP HỖ TRỢ BẤM RA NGOÀI ĐỂ ĐÓNG */}
         <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onClose}
+          className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"
+          aria-hidden="true"
+        />
+
+        {/* CỬA SỔ POPUP HOÀNG GIA - CÓ THỂ KÉO DI CHUYỂN AN TOÀN TRÊN MỌI THIẾT BỊ */}
+        <motion.div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="soicau-modal-title"
           drag
-          dragConstraints={{ left: -320, right: 320, top: -240, bottom: 240 }}
+          dragConstraints={{ left: -180, right: 180, top: -160, bottom: 160 }}
           dragElastic={0.05}
           dragMomentum={false}
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
           transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-          className="pointer-events-auto relative w-full max-w-2xl rounded-[28px] border-2 border-amber-500/90 bg-gradient-to-b from-[#2a1708] via-[#160b03] to-[#0a0502] p-4 sm:p-6 text-amber-50 shadow-[0_20px_60px_rgba(0,0,0,0.9),0_0_35px_rgba(245,158,11,0.35)] select-none"
+          className="relative z-10 w-full max-w-2xl max-h-[92vh] overflow-y-auto rounded-[28px] border-2 border-amber-500/90 bg-gradient-to-b from-[#2a1708] via-[#160b03] to-[#0a0502] p-4 sm:p-6 text-amber-50 shadow-[0_20px_60px_rgba(0,0,0,0.9),0_0_35px_rgba(245,158,11,0.35)] select-none scrollbar-thin scrollbar-thumb-amber-700"
         >
           {/* NÚT ĐÓNG "X" MÀU ĐỎ HOÀNG GIA GÓC TRÊN BÊN PHẢI */}
           <button
             type="button"
             onClick={onClose}
-            className="absolute -top-3 -right-3 z-30 flex size-9 items-center justify-center rounded-full border-2 border-amber-400 bg-gradient-to-br from-red-600 to-rose-950 text-white shadow-lg hover:scale-110 active:scale-95 transition"
-            title="Đóng popup"
+            className="absolute top-3 right-3 z-30 flex size-9 items-center justify-center rounded-full border-2 border-amber-400 bg-gradient-to-br from-red-600 to-rose-950 text-white shadow-lg hover:scale-110 active:scale-95 transition"
+            title="Đóng popup (Esc)"
+            aria-label="Đóng cửa sổ lịch sử phiên"
           >
             <X size={18} className="stroke-[3]" />
           </button>
@@ -106,7 +128,7 @@ export default function SoiCauModal({ isOpen, onClose, history = [] }) {
             <div className="flex flex-col items-center">
               <div className="flex items-center gap-2">
                 <Sparkles size={18} className="text-amber-400 animate-pulse" />
-                <h2 className="text-lg sm:text-2xl font-black uppercase tracking-wider bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-200 bg-clip-text text-transparent drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                <h2 id="soicau-modal-title" className="text-lg sm:text-2xl font-black uppercase tracking-wider bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-200 bg-clip-text text-transparent drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
                   LỊCH SỬ PHIÊN
                 </h2>
                 <Sparkles size={18} className="text-amber-400 animate-pulse" />

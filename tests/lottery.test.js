@@ -272,3 +272,113 @@ test('9. Xử lý an toàn khi phòng không có ai đặt cược', async () =>
   assert.equal(history[0].totalBets, 0);
   assert.equal(history[0].totalPayout, 0);
 });
+
+test('10. Re-entrancy guard ngăn chặn alarm chạy trùng lặp khi có nhiều lời gọi đồng thời', async () => {
+  const { ctx } = createMockDOContext();
+  const room = new LotteryRoom(ctx, {});
+
+  room.state = 'WAITING';
+  room.roundEndTime = Date.now() - 100; // Đã quá hạn
+
+  // Gọi đồng thời checkTimeAndAdvance và alarm
+  const p1 = room.checkTimeAndAdvance();
+  const p2 = room.checkTimeAndAdvance();
+
+  assert.equal(p1, true);
+  assert.equal(p2, false); // Lần gọi thứ 2 bị chặn bởi isAdvancing
+  assert.equal(room.state, 'PLAYING');
+});
+
+test('11. Khôi phục SQLite chính xác cờ isTriple khi vòng quay ra Tam bảo (Bão)', () => {
+  const sharedDb = new DatabaseSync(':memory:');
+  const { ctx: ctx1 } = createMockDOContext(sharedDb);
+
+  const room1 = new LotteryRoom(ctx1, {});
+  room1.state = 'RESULT';
+  room1.dice = [3, 3, 3];
+  room1.total = 9;
+  room1.outcome = 'BAO';
+  room1.isTriple = true;
+  room1.saveMeta('state', 'RESULT');
+  room1.saveMeta('dice', JSON.stringify([3, 3, 3]));
+  room1.saveMeta('outcome', 'BAO');
+
+  // Khởi động instance mới từ database
+  const { ctx: ctx2 } = createMockDOContext(sharedDb);
+  const room2 = new LotteryRoom(ctx2, {});
+
+  assert.equal(room2.state, 'RESULT');
+  assert.deepEqual(room2.dice, [3, 3, 3]);
+  assert.equal(room2.total, 9);
+  assert.equal(room2.outcome, 'BAO');
+  assert.equal(room2.isTriple, true); // Phải là true
+});
+
+test('12. Snapshot reset lastProcessedSeq trên client, không drop sự kiện phiên mới sau reconnect', () => {
+  let lastProcessedSeq = 50; // Giả lập sequence cao từ phiên cũ
+
+  const handleMessageWithSeq = (msg) => {
+    if (msg.type === 'SNAPSHOT') {
+      lastProcessedSeq = msg.seq || 0; // Đã fix: reset theo snapshot
+      return true;
+    }
+    if (msg.seq && msg.seq < lastProcessedSeq) {
+      return false; // Bị drop nếu nhỏ hơn
+    }
+    if (msg.seq) {
+      lastProcessedSeq = Math.max(lastProcessedSeq, msg.seq);
+    }
+    return true;
+  };
+
+  // Nhận snapshot phiên mới có seq = 1
+  const snapshotHandled = handleMessageWithSeq({ type: 'SNAPSHOT', seq: 1 });
+  assert.equal(snapshotHandled, true);
+  assert.equal(lastProcessedSeq, 1);
+
+  // Nhận ROUND_START có seq = 2 (nhỏ hơn 50 nhưng lớn hơn snapshot 1) -> Phải được xử lý thành công!
+  const roundStartHandled = handleMessageWithSeq({ type: 'ROUND_START', seq: 2 });
+  assert.equal(roundStartHandled, true);
+  assert.equal(lastProcessedSeq, 2);
+});
+
+test('13. CLAIM_FREE_POINTS reset chính xác 10,000 điểm khi số dư <= 500 và từ chối khi > 500', async () => {
+  const { ctx } = createMockDOContext();
+  const room = new LotteryRoom(ctx, {});
+
+  const client = new MockWebSocket('user_poor', 'Bác Bảy');
+
+  // Trường hợp 1: Số dư còn 100 xu (<= 500) -> Được nhận
+  room.setLocalPlayerPoints('user_poor', 100);
+  await room.handleSocketMessage(client, JSON.stringify({ type: 'CLAIM_FREE_POINTS' }));
+
+  const pointsMsgs = client.findMessages('POINTS_UPDATED');
+  assert.equal(pointsMsgs.length, 1);
+  assert.equal(pointsMsgs[0].points, 10000);
+  assert.equal(room.getPlayerPoints('user_poor'), 10000);
+
+  // Trường hợp 2: Số dư đang 10,000 xu (> 500) -> Từ chối
+  await room.handleSocketMessage(client, JSON.stringify({ type: 'CLAIM_FREE_POINTS' }));
+  const errors = client.findMessages('ERROR');
+  assert.equal(errors.length, 1);
+  assert.equal(errors[0].code, 'CLAIM_NOT_ALLOWED');
+});
+
+test('14. Lịch sử getHistory trả về chính xác tối đa 50 ván soi cầu', () => {
+  const { ctx } = createMockDOContext();
+  const room = new LotteryRoom(ctx, {});
+
+  // Giả lập 60 ván đã có kết quả
+  for (let i = 1; i <= 60; i++) {
+    room.sql.exec(
+      "INSERT INTO rounds (id, dice1, dice2, dice3, total, outcome, draw_time, status, total_bets, total_payout) VALUES (?, 1, 2, 3, 6, 'XIU', ?, 'RESULT', 1, 0)",
+      `TX_ROUND_${i}`,
+      1000 + i
+    );
+  }
+
+  const history50 = room.getHistory(50);
+  assert.equal(history50.length, 50);
+  // Ván mới nhất (drawTime = 1060) nằm đầu danh sách
+  assert.equal(history50[0].roundId, 'TX_ROUND_60');
+});

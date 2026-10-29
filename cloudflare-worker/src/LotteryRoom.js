@@ -34,6 +34,7 @@ export class LotteryRoom {
     this.isTriple = false;
     this.participants = new Map(); // socketId -> { userId, userName }
     this.lastSeq = 0;
+    this.isAdvancing = false;
 
     this.loadCurrentState();
   }
@@ -125,6 +126,7 @@ export class LotteryRoom {
           try {
             this.dice = JSON.parse(meta.dice);
             this.total = this.dice.reduce((a, b) => a + b, 0);
+            this.isTriple = (this.dice[0] === this.dice[1] && this.dice[1] === this.dice[2]);
           } catch {}
         }
         this.outcome = meta.outcome || 'XIU';
@@ -169,11 +171,17 @@ export class LotteryRoom {
     this.currentRoundId = this.generateRoundId();
     this.state = 'WAITING';
     this.roundEndTime = Date.now() + this.waitingDuration * 1000;
+    this.dice = [1, 2, 3];
+    this.total = 6;
+    this.outcome = 'XIU';
+    this.isTriple = false;
 
     this.saveMeta('currentRoundId', this.currentRoundId);
     this.saveMeta('state', this.state);
     this.saveMeta('roundEndTime', this.roundEndTime);
     this.saveMeta('roomId', this.roomId);
+    this.saveMeta('dice', JSON.stringify(this.dice));
+    this.saveMeta('outcome', this.outcome);
 
     if (this.sql) {
       try {
@@ -230,6 +238,7 @@ export class LotteryRoom {
   }
 
   checkTimeAndAdvance() {
+    if (this.isAdvancing) return false;
     const now = Date.now();
     if (this.roundEndTime && now >= this.roundEndTime) {
       if (this.alarmTimer) {
@@ -242,41 +251,48 @@ export class LotteryRoom {
     return false;
   }
 
-  // Cloudflare Alarm xử lý chuyển đổi trạng thái
+  // Cloudflare Alarm xử lý chuyển đổi trạng thái (với re-entrancy lock)
   async alarm() {
-    const now = Date.now();
+    if (this.isAdvancing) return;
+    this.isAdvancing = true;
 
-    if (this.state === 'WAITING') {
-      // 1. Chuyển sang LẮC BÁT (PLAYING)
-      this.state = 'PLAYING';
-      this.roundEndTime = now + this.shakingDuration * 1000;
-      this.saveMeta('state', this.state);
-      this.saveMeta('roundEndTime', this.roundEndTime);
+    try {
+      const now = Date.now();
 
-      if (this.sql) {
-        try {
-          this.sql.exec("UPDATE rounds SET status = 'PLAYING' WHERE id = ?", this.currentRoundId);
-        } catch {}
+      if (this.state === 'WAITING') {
+        // 1. Chuyển sang LẮC BÁT (PLAYING)
+        this.state = 'PLAYING';
+        this.roundEndTime = now + this.shakingDuration * 1000;
+        this.saveMeta('state', this.state);
+        this.saveMeta('roundEndTime', this.roundEndTime);
+
+        if (this.sql) {
+          try {
+            this.sql.exec("UPDATE rounds SET status = 'PLAYING' WHERE id = ?", this.currentRoundId);
+          } catch {}
+        }
+
+        this.scheduleNextAlarm(this.roundEndTime);
+
+        this.broadcast({
+          type: 'ROUND_SHAKE',
+          seq: ++this.lastSeq,
+          roundId: this.currentRoundId,
+          state: this.state,
+          endsAt: this.roundEndTime,
+          duration: this.shakingDuration
+        });
+
+      } else if (this.state === 'PLAYING') {
+        // 2. Chốt kết quả 3 xúc xắc trên máy chủ & bắt đầu thời gian NẶN BÁT
+        await this.finalizeRound();
+
+      } else if (this.state === 'RESULT') {
+        // 3. Kết thúc thời gian xem kết quả, sang vòng mới
+        this.startNewRound();
       }
-
-      this.scheduleNextAlarm(this.roundEndTime);
-
-      this.broadcast({
-        type: 'ROUND_SHAKE',
-        seq: ++this.lastSeq,
-        roundId: this.currentRoundId,
-        state: this.state,
-        endsAt: this.roundEndTime,
-        duration: this.shakingDuration
-      });
-
-    } else if (this.state === 'PLAYING') {
-      // 2. Chốt kết quả 3 xúc xắc trên máy chủ & bắt đầu thời gian NẶN BÁT
-      await this.finalizeRound();
-
-    } else if (this.state === 'RESULT') {
-      // 3. Kết thúc thời gian xem kết quả, sang vòng mới
-      this.startNewRound();
+    } finally {
+      this.isAdvancing = false;
     }
   }
 
@@ -915,8 +931,15 @@ export class LotteryRoom {
       case 'CLAIM_FREE_POINTS': {
         const cur = await this.fetchSharedWalletPoints(userId);
         if (cur <= 500) {
+          const stub = this.getWalletStub();
+          if (stub) {
+            try {
+              await stub.fetch(`http://internal/api/wallet/claim?userId=${encodeURIComponent(userId)}`);
+            } catch (err) {
+              console.error('[LotteryRoom] claim stub error:', err);
+            }
+          }
           const newPoints = this.resetPlayerPoints(userId);
-          this.syncSharedWalletDelta(userId, 10000);
           ws.send(JSON.stringify({
             type: 'POINTS_UPDATED',
             seq: ++this.lastSeq,
@@ -927,7 +950,7 @@ export class LotteryRoom {
           ws.send(JSON.stringify({
             type: 'ERROR',
             code: 'CLAIM_NOT_ALLOWED',
-            message: 'Bạn vẫn còn đủ điểm giải trí để vui chơi!'
+            message: 'Chỉ được nhận thêm xu khi số dư dưới 500 xu!'
           }));
         }
         break;

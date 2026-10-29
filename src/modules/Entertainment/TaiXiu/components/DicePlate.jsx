@@ -1,6 +1,6 @@
 // src/modules/Entertainment/TaiXiu/components/DicePlate.jsx
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Sparkles, Flame, Hand, Move } from 'lucide-react';
 
 // Render mặt xúc xắc chấm chuẩn truyền thống Á Đông (Mặt 1 và 4 chấm đỏ)
@@ -89,21 +89,22 @@ export default function DicePlate({
   isTriple = false,
   roundEndTime
 }) {
+  const shouldReduceMotion = useReducedMotion();
   const [timeLeft, setTimeLeft] = useState(0);
   const [squeezeProgress, setSqueezeProgress] = useState(0); // 0 (kín) đến 100 (mở hoàn toàn)
   const [isAutoRevealed, setIsAutoRevealed] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
-  // Đếm ngược thời gian
+  // Đếm ngược thời gian (chỉ update state khi giây thay đổi thực tế)
   useEffect(() => {
     const updateCountdown = () => {
       const now = Date.now();
       const remaining = Math.max(0, Math.ceil((roundEndTime - now) / 1000));
-      setTimeLeft(remaining);
+      setTimeLeft((prev) => (prev !== remaining ? remaining : prev));
     };
 
     updateCountdown();
-    const interval = setInterval(updateCountdown, 200);
+    const interval = setInterval(updateCountdown, 250);
     return () => clearInterval(interval);
   }, [roundEndTime]);
 
@@ -204,14 +205,16 @@ export default function DicePlate({
           }}
           animate={
             state === 'PLAYING'
-              ? {
-                  x: [0, -12, 12, -10, 10, -6, 6, 0],
-                  y: [0, -8, 8, -6, 6, -3, 3, 0],
-                  rotate: [0, -6, 6, -5, 5, -2, 2, 0],
-                  opacity: 1,
-                  scale: 1,
-                  transition: { repeat: Infinity, duration: 0.15, ease: 'easeInOut' }
-                }
+              ? shouldReduceMotion
+                ? { scale: [1, 1.04, 1], opacity: 1, transition: { repeat: Infinity, duration: 0.8 } }
+                : {
+                    x: [0, -12, 12, -10, 10, -6, 6, 0],
+                    y: [0, -8, 8, -6, 6, -3, 3, 0],
+                    rotate: [0, -6, 6, -5, 5, -2, 2, 0],
+                    opacity: 1,
+                    scale: 1,
+                    transition: { repeat: Infinity, duration: 0.15, ease: 'easeInOut' }
+                  }
               : state === 'RESULT' && isRevealed
                 ? {
                     x: dragOffset.x !== 0 ? Math.sign(dragOffset.x || 1) * 320 : 0,

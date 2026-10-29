@@ -82,6 +82,7 @@ export function useTaiXiuSocket({ roomId = 'tai-xiu-30s', userId, userName, cust
 
       switch (data.type) {
         case 'SNAPSHOT':
+          lastProcessedSeqRef.current = data.seq || 0;
           setRoomState(data.state || 'WAITING');
           setCurrentRoundId(data.currentRoundId || '');
           setRoundEndTime(data.roundEndTime || 0);
@@ -125,7 +126,7 @@ export function useTaiXiuSocket({ roomId = 'tai-xiu-30s', userId, userName, cust
           setLatestWinners(data.winners || []);
 
           if (data.historyItem) {
-            setHistory((prev) => [data.historyItem, ...prev.slice(0, 29)]);
+            setHistory((prev) => [data.historyItem, ...prev.slice(0, 49)]);
           }
 
           if (data.winners && data.winners.length > 0) {
@@ -181,11 +182,12 @@ export function useTaiXiuSocket({ roomId = 'tai-xiu-30s', userId, userName, cust
   // Kết nối WebSocket (chống reload bão socket)
   useEffect(() => {
     isManuallyClosedRef.current = false;
+    lastProcessedSeqRef.current = 0;
     let ws = null;
 
     const connectSocket = () => {
       if (isManuallyClosedRef.current) return;
-      setConnectionStatus((prev) => (prev === 'CONNECTED' ? 'CONNECTED' : 'CONNECTING'));
+      setConnectionStatus((prev) => (prev === 'CONNECTED' ? 'CONNECTED' : prev === 'DISCONNECTED' ? 'RECONNECTING' : 'CONNECTING'));
 
       const url = getWebSocketUrl();
       try {
@@ -197,6 +199,7 @@ export function useTaiXiuSocket({ roomId = 'tai-xiu-30s', userId, userName, cust
       }
 
       ws.onopen = () => {
+        if (isManuallyClosedRef.current) return;
         setConnectionStatus('CONNECTED');
         clearInterval(heartbeatTimerRef.current);
         heartbeatTimerRef.current = setInterval(() => {
@@ -216,10 +219,9 @@ export function useTaiXiuSocket({ roomId = 'tai-xiu-30s', userId, userName, cust
 
       ws.onclose = () => {
         clearInterval(heartbeatTimerRef.current);
+        if (isManuallyClosedRef.current) return;
         setConnectionStatus('DISCONNECTED');
-        if (!isManuallyClosedRef.current) {
-          scheduleNextReconnect();
-        }
+        scheduleNextReconnect();
       };
 
       ws.onerror = () => {
@@ -228,6 +230,8 @@ export function useTaiXiuSocket({ roomId = 'tai-xiu-30s', userId, userName, cust
     };
 
     const scheduleNextReconnect = () => {
+      if (isManuallyClosedRef.current) return;
+      setConnectionStatus('RECONNECTING');
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = setTimeout(() => {
         if (!isManuallyClosedRef.current) {

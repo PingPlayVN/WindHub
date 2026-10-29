@@ -1,5 +1,5 @@
 // src/modules/Entertainment/TaiXiu/components/SoiCauHistory.jsx
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const PAGE_SIZE = 6;
@@ -30,6 +30,13 @@ export default function SoiCauHistory({ history = [], onOpenModal }) {
   }, [history]);
 
   const totalPages = Math.max(1, Math.ceil(history.length / PAGE_SIZE));
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [totalPages, currentPage]);
+
   const displayedItems = history.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const formatTime = (ts) => {

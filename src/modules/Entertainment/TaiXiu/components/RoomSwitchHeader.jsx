@@ -109,8 +109,9 @@ export default function RoomSwitchHeader({
             <button
               type="button"
               onClick={onClaimFreePoints}
-              title="Nhận thêm 10,000 xu giải trí"
-              className="text-amber-400 hover:text-amber-300 ml-1"
+              title={myPoints <= 500 ? "Nhận thêm 10,000 xu giải trí miễn phí" : "Chỉ nhận được khi số dư dưới 500 xu"}
+              aria-label="Nhận thêm 10,000 xu giải trí miễn phí"
+              className="text-amber-400 hover:text-amber-300 ml-1 transition"
             >
               <PlusCircle size={15} />
             </button>
@@ -120,6 +121,7 @@ export default function RoomSwitchHeader({
             type="button"
             onClick={onToggleSound}
             title={soundEnabled ? 'Tắt âm thanh' : 'Bật âm thanh'}
+            aria-label={soundEnabled ? 'Tắt âm thanh' : 'Bật âm thanh'}
             className="rounded-xl bg-amber-950/80 border border-amber-700/50 p-2 text-amber-300 hover:bg-amber-900 transition"
           >
             {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}

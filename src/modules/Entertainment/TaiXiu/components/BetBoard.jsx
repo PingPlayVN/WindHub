@@ -155,13 +155,21 @@ export default function BetBoard({
 
           <button
             type="button"
-            onClick={() => setSelectedChip(Math.min(myPoints, 20000))}
-            className="rounded-xl border border-amber-500/50 px-2.5 py-1 text-xs font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition"
+            disabled={myPoints < 50}
+            onClick={() => setSelectedChip(Math.max(50, Math.min(myPoints, 20000)))}
+            className="rounded-xl border border-amber-500/50 px-2.5 py-1 text-xs font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 disabled:opacity-40 transition"
           >
             Tất tay
           </button>
         </div>
       </div>
+
+      {/* CẢNH BÁO HOẶC HƯỚNG DẪN MỨC CƯỢC */}
+      {myPoints < selectedChip && (
+        <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-xs text-rose-600 dark:text-rose-400 font-medium">
+          Số dư ({myPoints.toLocaleString()} xu) không đủ mức cược {selectedChip.toLocaleString()} xu. Hãy chọn chip nhỏ hơn hoặc nhận thêm xu miễn phí!
+        </div>
+      )}
 
       {/* BỎ QUA LƯỢT */}
       <div className="flex items-center justify-between text-xs text-slate-500 pt-1">
