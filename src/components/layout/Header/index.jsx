@@ -24,7 +24,11 @@ export default function Header() {
         ? 'Tiện ích'
         : location.pathname === '/p2p'
           ? 'P2P Share'
-          : 'Tổng quan';
+          : location.pathname === '/entertainment/tai-xiu'
+            ? 'Tài Xỉu Dân Gian'
+            : (location.pathname === '/entertainment' || location.pathname === '/lottery')
+              ? 'Giải trí & Trò chơi'
+              : 'Tổng quan';
 
   const handleLogout = async () => {
     try {

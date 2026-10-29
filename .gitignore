@@ -2,3 +2,5 @@ dist
 node_modules
 gitpush.bat
 .agents
+.wrangler
+.wrangler/

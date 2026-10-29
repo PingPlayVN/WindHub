@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, FileArchive, Command, Wrench, Radio } from 'lucide-react';
+import { LayoutDashboard, FileArchive, Command, Wrench, Radio, Sparkles } from 'lucide-react';
 import { useUIStore } from '@/store/useUIStore';
 import { useThemeStore } from '@/store/useThemeStore';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -10,7 +10,9 @@ export default function Sidebar() {
   const location = useLocation();
 
   // Hàm kiểm tra menu đang active
-  const isActive = (path) => location.pathname === path;
+  const isActive = (path) => path === '/entertainment'
+    ? location.pathname.startsWith('/entertainment') || location.pathname === '/lottery'
+    : location.pathname === path;
 
   return (
     <>
@@ -110,6 +112,14 @@ export default function Sidebar() {
           >
             <Radio size={20} />
             <span>P2P Share</span>
+          </Link>
+          <Link
+            to="/entertainment"
+            onClick={closeSidebar}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 ${isActive('/entertainment') ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-400 font-semibold' : 'hover:bg-slate-100 dark:hover:bg-zinc-900 text-slate-600 dark:text-slate-400'}`}
+          >
+            <Sparkles size={20} className="text-amber-500" />
+            <span>Giải trí</span>
           </Link>
         </nav>
       </aside>

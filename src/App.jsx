@@ -16,6 +16,8 @@ const Tools = lazy(() => import('@/pages/Tools'));
 const ToolsHub = lazy(() => import('@/pages/ToolsHub'));
 const P2P = lazy(() => import('@/modules/P2P'));
 const LoginModal = lazy(() => import('@/modules/Auth/LoginModal'));
+const Entertainment = lazy(() => import('@/modules/Entertainment'));
+const TaiXiu = lazy(() => import('@/modules/Entertainment/TaiXiu'));
 
 function App() {
   const navigate = useNavigate();
@@ -100,6 +102,10 @@ function App() {
             <Route path="/extensions" element={<OfflineGate pageTitle="Tiện ích"><Tools /></OfflineGate>} />
             <Route path="/ai-lab" element={<Navigate to="/" replace />} />
             <Route path="/p2p" element={<P2P />} />
+            <Route path="/entertainment" element={<OfflineGate pageTitle="Giải trí"><Entertainment /></OfflineGate>} />
+            <Route path="/entertainment/tai-xiu" element={<OfflineGate pageTitle="Tài Xỉu Dân Gian"><TaiXiu /></OfflineGate>} />
+            <Route path="/lottery" element={<Navigate to="/entertainment/tai-xiu" replace />} />
+            <Route path="/tai-xiu" element={<Navigate to="/entertainment/tai-xiu" replace />} />
           </Routes>
         </Suspense>
       </MainLayout>
