@@ -13,7 +13,7 @@ import SoundSettingsModal from './components/SoundSettingsModal';
 import MyBetsModal from './components/MyBetsModal';
 import RoomSelectorModal from './components/RoomSelectorModal';
 import GameInfoModal from './components/GameInfoModal';
-import { Ticket } from 'lucide-react';
+import { Ticket, ChevronDown } from 'lucide-react';
 
 class SoundEffects {
   constructor() {
@@ -313,34 +313,10 @@ export default function TaiXiuGame() {
         onOpenGameInfo={() => setIsGameInfoOpen(true)}
       />
 
-      {/* 2. LAYOUT MOBILE: TỐI GIẢN GÓI GỌN TRONG 1 TRANG VỪA KHÍT MÀN HÌNH KHÔNG CẦN CUỘN (< 1024PX) */}
-      <div className="flex flex-col justify-between flex-1 min-h-0 gap-2 lg:hidden overflow-hidden">
-        {/* DICE STAGE: Khay đồng sơn mài & bát nặn là tâm điểm thị giác */}
-        <DicePlate
-          state={roomState}
-          dice={dice}
-          total={total}
-          outcome={outcome}
-          isTriple={isTriple}
-          roundEndTime={roundEndTime}
-          waitingDuration={waitingDuration}
-          onReveal={handleReveal}
-        />
-
-        {/* BÀN CƯỢC TÀI / XỈU & CHIP CONTROLS */}
-        <BetBoard
-          state={roomState}
-          myBets={myCurrentBets}
-          myPoints={myPoints}
-          betSummary={betSummary}
-          onPlaceBet={handlePlaceBet}
-        />
-      </div>
-
-      {/* 3. LAYOUT DESKTOP TẬN DỤNG KHÔNG GIAN CÂN ĐỐI (>= 1024PX) */}
-      <div className="hidden lg:grid lg:grid-cols-12 gap-5 items-start">
-        {/* CỘT TRÁI (5 phần): Khay xúc xắc + Vé cược cá nhân */}
-        <div className="lg:col-span-5 flex flex-col gap-4">
+      {/* 2. LAYOUT CHÍNH: BÀN CHƠI TÀI XỈU (TỰ ĐỘNG THÍCH ỨNG MOBILE / DESKTOP) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 sm:gap-4 lg:gap-5 items-start flex-1 min-h-0">
+        {/* CỘT TRÁI (Mobile: Trên / Desktop: 5 phần): Khay xúc xắc + Vé cược cá nhân */}
+        <div className="lg:col-span-5 flex flex-col gap-2 sm:gap-4">
           <DicePlate
             state={roomState}
             dice={dice}
@@ -352,11 +328,38 @@ export default function TaiXiuGame() {
             onReveal={handleReveal}
           />
 
-          <MyBetsCard myCurrentBets={myCurrentBets} />
+          {/* NÚT CHUYỂN BÀN CHƠI TRÊN MOBILE (NẰM DƯỚI NẶN BÁT VÀ TRÊN ĐẶT CƯỢC) */}
+          <div className="flex lg:hidden items-center w-full">
+            <button
+              type="button"
+              onClick={() => setIsRoomSelectorOpen(true)}
+              className="w-full flex items-center justify-between px-3 py-2 rounded-xl border border-[#D5B46B]/40 bg-gradient-to-r from-[#241712] via-[#2d1e17] to-[#241712] text-xs font-bold text-[#E8DDC8] shadow-md active:scale-[0.98] transition-all hover:border-[#D5B46B]"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-base">{roomId === 'tai-xiu-15s' ? '⚡' : '🏛️'}</span>
+                <div className="text-left">
+                  <span className="text-[9px] text-[#D5B46B] font-semibold uppercase tracking-wider block leading-tight">
+                    BÀN ĐANG CHƠI
+                  </span>
+                  <span className="text-xs font-black text-[#FAF5EB]">
+                    {roomId === 'tai-xiu-15s' ? 'Chợ Phiên (25s)' : 'Xóm Đình (50s)'}
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 text-[11px] font-black text-[#D5B46B] bg-[#171411]/90 px-2.5 py-1 rounded-lg border border-[#A87932]/50 shadow-inner">
+                <span>Đổi bàn</span>
+                <ChevronDown size={14} />
+              </div>
+            </button>
+          </div>
+
+          <div className="hidden lg:block">
+            <MyBetsCard myCurrentBets={myCurrentBets} />
+          </div>
         </div>
 
-        {/* CỘT PHẢI (7 phần): Bàn cược Tài/Xỉu + Lịch sử kết quả trực quan */}
-        <div className="lg:col-span-7 flex flex-col gap-4">
+        {/* CỘT PHẢI (Mobile: Dưới / Desktop: 7 phần): Bàn cược Tài/Xỉu + Lịch sử kết quả trực quan */}
+        <div className="lg:col-span-7 flex flex-col gap-2 sm:gap-4">
           <BetBoard
             state={roomState}
             myBets={myCurrentBets}
@@ -365,10 +368,12 @@ export default function TaiXiuGame() {
             onPlaceBet={handlePlaceBet}
           />
 
-          <SoiCauHistory
-            history={history}
-            onOpenModal={() => setIsSoiCauOpen(true)}
-          />
+          <div className="hidden lg:block">
+            <SoiCauHistory
+              history={history}
+              onOpenModal={() => setIsSoiCauOpen(true)}
+            />
+          </div>
         </div>
       </div>
 

@@ -1,6 +1,6 @@
 // src/modules/Entertainment/TaiXiu/components/RoomSwitchHeader.jsx
 import React from 'react';
-import { Wifi, WifiOff, Users, PlusCircle, Volume2, VolumeX, ShieldAlert, ArrowLeft, TrendingUp, Ticket, ChevronDown } from 'lucide-react';
+import { Wifi, WifiOff, Users, PlusCircle, Volume2, VolumeX, ShieldAlert, ArrowLeft, TrendingUp, Ticket } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { DongSonSun, HeritageCoinIcon } from './HeritageIcons';
 
@@ -16,7 +16,7 @@ export default function RoomSwitchHeader({
   onOpenSoundSettings,
   onToggleSoiCau,
   isSoiCauOpen = false,
-  onOpenRoomSelector,
+  _onOpenRoomSelector,
   onOpenMyBets,
   myBetsCount = 0,
   onOpenGameInfo,
@@ -30,7 +30,7 @@ export default function RoomSwitchHeader({
           1. HEADER TỐI GIẢN GÓI GỌN 1 HÀNG DÀNH RIÊNG CHO MOBILE (< 1024PX)
           ========================================================================= */}
       <div className="flex lg:hidden items-center justify-between gap-1.5 rounded-2xl border border-[#A87932]/45 bg-gradient-to-r from-[#241712] via-[#1a120e] to-[#241712] p-1.5 text-[#E8DDC8] shadow-md">
-        {/* Nhóm bên trái: Quay lại & Chọn phòng */}
+        {/* Nhóm bên trái: Quay lại sảnh */}
         <div className="flex items-center gap-1 min-w-0">
           <Link
             to="/entertainment"
@@ -40,17 +40,6 @@ export default function RoomSwitchHeader({
           >
             <ArrowLeft size={16} />
           </Link>
-
-          {/* Nút chọn phòng dạng pill */}
-          <button
-            type="button"
-            onClick={onOpenRoomSelector}
-            className="flex items-center gap-1 rounded-xl border border-[#A87932]/40 bg-[#171411]/90 px-2 py-1 text-[11px] font-bold text-[#E8DDC8] active:scale-95 transition-all"
-            title="Bấm để đổi bàn chơi"
-          >
-            <span>{currentRoomId === 'tai-xiu-15s' ? '⚡ 25s' : '🏛️ 50s'}</span>
-            <ChevronDown size={12} className="text-[#D5B46B]" />
-          </button>
         </div>
 
         {/* Nhóm trung tâm: VÍ XU & NÚT NHẬN THÊM */}

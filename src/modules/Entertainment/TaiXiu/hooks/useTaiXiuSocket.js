@@ -96,7 +96,19 @@ export function useTaiXiuSocket({ roomId = 'tai-xiu-30s', userId, userName, cust
           if (data.myPoints !== undefined) setMyPoints(data.myPoints);
           if (data.myCurrentBets) setMyCurrentBets(data.myCurrentBets);
           if (data.betSummary) setBetSummary(data.betSummary);
-          if (data.history) setHistory(data.history);
+          if (data.history) {
+            const seen = new Set();
+            const uniqueHistory = [];
+            for (const item of data.history) {
+              if (item?.roundId && !seen.has(item.roundId)) {
+                seen.add(item.roundId);
+                uniqueHistory.push(item);
+              } else if (!item?.roundId) {
+                uniqueHistory.push(item);
+              }
+            }
+            setHistory(uniqueHistory);
+          }
           break;
 
         case 'ROUND_START':
@@ -127,7 +139,10 @@ export function useTaiXiuSocket({ roomId = 'tai-xiu-30s', userId, userName, cust
           setLatestWinners(data.winners || []);
 
           if (data.historyItem) {
-            setHistory((prev) => [data.historyItem, ...prev.slice(0, 49)]);
+            setHistory((prev) => {
+              const withoutDuplicate = prev.filter((item) => item.roundId !== data.historyItem.roundId);
+              return [data.historyItem, ...withoutDuplicate.slice(0, 49)];
+            });
           }
 
           // Thông báo thắng/thua sẽ được phát ra khi người dùng hoặc hệ thống mở bát xong

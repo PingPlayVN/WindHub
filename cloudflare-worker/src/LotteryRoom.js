@@ -576,7 +576,7 @@ export class LotteryRoom {
     }
 
     const betAmount = parseInt(amount, 10);
-    if (isNaN(betAmount) || betAmount <= 0 || betAmount > 50000) {
+    if (isNaN(betAmount) || betAmount <= 0 || betAmount > 50000000) {
       return { success: false, code: 'INVALID_AMOUNT', message: 'Số điểm cược không hợp lệ.' };
     }
 
@@ -604,11 +604,11 @@ export class LotteryRoom {
 
         if (existingBet) {
           finalAmount = (Number(existingBet.amount) || 0) + betAmount;
-          if (finalAmount > 50000) {
+          if (finalAmount > 200000000) {
             return {
               success: false,
               code: 'MAX_BET_EXCEEDED',
-              message: 'Tổng cược cửa này đã đạt giới hạn tối đa 50,000 xu!'
+              message: 'Tổng cược cửa này đã đạt giới hạn tối đa 200,000,000 xu!'
             };
           }
 

@@ -101,7 +101,7 @@ export default function SoiCauHistory({ history = [], onOpenModal }) {
 
               return (
                 <div
-                  key={h.roundId || i}
+                  key={`${h.roundId || 'round'}-${i}`}
                   title={`Ván ${h.roundId}: ${h.dice?.join('-')} (${h.total} điểm) -> ${isBao ? 'BÃO' : isTai ? 'TÀI' : 'XỈU'}`}
                   className={`flex size-8 shrink-0 flex-col items-center justify-center rounded-xl font-mono text-xs font-black shadow-md border transition-transform hover:scale-110 ${isBao
                       ? 'bg-gradient-to-br from-cyan-600 to-cyan-950 text-white border-cyan-400/80 shadow-[0_0_8px_rgba(6,182,212,0.4)]'
@@ -144,7 +144,7 @@ export default function SoiCauHistory({ history = [], onOpenModal }) {
                 const isTai = item.outcome === 'TAI';
 
                 return (
-                  <tr key={item.roundId || idx} className="hover:bg-[#261a14]/50 transition-colors">
+                  <tr key={`${item.roundId || 'item'}-${idx}`} className="hover:bg-[#261a14]/50 transition-colors">
                     <td className="py-2 px-3 text-[#FAF5EB] font-bold">
                       #{item.roundId}
                     </td>

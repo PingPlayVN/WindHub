@@ -1,5 +1,5 @@
 // src/modules/Entertainment/TaiXiu/components/DicePlate.jsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Sparkles, Flame, Hand, Move, Crown } from 'lucide-react';
 import { DongSonSun, ChimLac } from './HeritageIcons';
@@ -110,43 +110,54 @@ export default function DicePlate({
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const hasAnnouncedRef = useRef(false);
 
-  // Đếm ngược thời gian phiên
+  // Đếm ngược thời gian phiên và kiểm tra tự động mở bát khi hết giờ nặn
   useEffect(() => {
+    if (!roundEndTime) return;
+
     const updateCountdown = () => {
       const now = Date.now();
       const remaining = Math.max(0, Math.ceil((roundEndTime - now) / 1000));
-      setTimeLeft((prev) => (prev !== remaining ? remaining : prev));
+      setTimeLeft(remaining);
+
+      // Khi ở trạng thái RESULT: người chơi có 10s để nặn bát (còn <= 5s cuối trước khi sang ván mới thì tự động mở)
+      if (state === 'RESULT') {
+        const autoOpenLeft = remaining - 5;
+        if (autoOpenLeft <= 0) {
+          setIsAutoRevealed(true);
+        }
+      }
     };
 
     updateCountdown();
     const interval = setInterval(updateCountdown, 250);
     return () => clearInterval(interval);
-  }, [roundEndTime]);
+  }, [roundEndTime, state]);
 
-  // Reset nặn đĩa khi sang ván mới hoặc bắt đầu lắc
+  // Quản lý trạng thái nặn đĩa khi chuyển đổi state
   useEffect(() => {
     if (state === 'WAITING' || state === 'PLAYING') {
-      const timer = setTimeout(() => {
-        setSqueezeProgress(0);
-        setIsAutoRevealed(false);
-        setDragOffset({ x: 0, y: 0 });
-        hasAnnouncedRef.current = false;
-      }, 0);
-      return () => clearTimeout(timer);
-    }
-  }, [state]);
+      setSqueezeProgress(0);
+      setIsAutoRevealed(false);
+      setDragOffset({ x: 0, y: 0 });
+      hasAnnouncedRef.current = false;
+    } else if (state === 'RESULT') {
+      setSqueezeProgress(0);
+      setDragOffset({ x: 0, y: 0 });
+      hasAnnouncedRef.current = false;
 
-  const isRevealed = squeezeProgress >= 90 || isAutoRevealed;
-  const canDrag = state === 'RESULT' && !isRevealed;
-
-  // HẾT THỜI GIAN MỞ BÁT: TỰ ĐỘNG GIẬT MỞ BÁT (NẾU NGƯỜI CHƠI CHƯA MỞ)
-  useEffect(() => {
-    if (state === 'RESULT' && !isRevealed) {
-      if (timeLeft <= 5) {
+      // Khi vừa bước vào RESULT: kiểm tra ngay xem thời gian nặn còn hay đã hết (<= 5s)
+      const now = Date.now();
+      const remaining = Math.max(0, Math.ceil((roundEndTime - now) / 1000));
+      if (roundEndTime > 0 && remaining <= 5) {
         setIsAutoRevealed(true);
+      } else {
+        setIsAutoRevealed(false);
       }
     }
-  }, [state, isRevealed, timeLeft]);
+  }, [state, roundEndTime]);
+
+  const isRevealed = isAutoRevealed || squeezeProgress >= 100;
+  const canDrag = state === 'RESULT' && !isRevealed;
 
   // THÔNG BÁO THẮNG / THUA & PHÁT NHẠC CHỈ KHI ĐÃ MỞ BÁT XONG
   useEffect(() => {
@@ -158,7 +169,20 @@ export default function DicePlate({
     }
   }, [state, isRevealed, onReveal]);
 
-  const autoOpenRemaining = Math.max(1, timeLeft - 5);
+  const autoOpenRemaining = Math.max(0, timeLeft - 5);
+
+  // Vector trượt rút hết màn hình theo hướng người chơi nặn bát
+  const exitVector = useMemo(() => {
+    const hasMoved = dragOffset.x !== 0 || dragOffset.y !== 0;
+    const dist = Math.hypot(dragOffset.x, dragOffset.y) || 1;
+    const normX = hasMoved ? dragOffset.x / dist : 0;
+    const normY = hasMoved ? dragOffset.y / dist : -1;
+    return {
+      x: Math.round(normX * 850),
+      y: Math.round(normY * 850),
+      rotate: normX !== 0 ? Math.sign(normX) * 16 : -8
+    };
+  }, [dragOffset.x, dragOffset.y]);
 
   return (
     <section
@@ -172,22 +196,21 @@ export default function DicePlate({
       <div className="relative z-10 mb-1 flex items-center justify-between w-full max-w-sm px-1">
         <div className="flex items-center gap-1.5">
           <span
-            className={`size-2 sm:size-2.5 rounded-full ${
-              state === 'WAITING'
-                ? 'bg-emerald-400 animate-ping'
-                : state === 'PLAYING'
+            className={`size-2 sm:size-2.5 rounded-full ${state === 'WAITING'
+              ? 'bg-emerald-400 animate-ping'
+              : state === 'PLAYING'
                 ? 'bg-amber-400 animate-bounce'
                 : 'bg-[#D5B46B]'
-            }`}
+              }`}
           />
           <span className="text-[10px] xs:text-[11px] sm:text-xs font-black uppercase tracking-wider text-[#D5B46B]">
             {state === 'WAITING'
               ? 'ĐANG NHẬN CƯỢC'
               : state === 'PLAYING'
-              ? 'LẮC BÁT ĐÔNG SƠN...'
-              : !isRevealed
-              ? 'NẶN BÁT (KÉO LỘ 3 QUÂN)'
-              : 'ĐÃ MỞ BÁT'}
+                ? 'LẮC BÁT ĐÔNG SƠN...'
+                : !isRevealed
+                  ? 'NẶN BÁT (KÉO LỘ 3 QUÂN)'
+                  : 'ĐÃ MỞ BÁT'}
           </span>
         </div>
 
@@ -228,7 +251,7 @@ export default function DicePlate({
         </div>
 
         {/* CHỈ DẪN KÉO NẶN KHI ĐANG NẶN */}
-        {canDrag && (
+        {canDrag && squeezeProgress === 0 && (
           <div className="absolute inset-0 pointer-events-none z-10 flex items-center justify-center">
             <div className="absolute top-1 text-[#D5B46B] font-black text-[9px] sm:text-[10px] animate-bounce drop-shadow">
               ▲ Kéo lên
@@ -246,12 +269,13 @@ export default function DicePlate({
         )}
 
         {/* BÁT SƠN MÀI THẾP VÀNG ÚP TRÊN ĐĨA (LID) */}
-        {/* CƠ CHẾ NẶN BÁT: Người chơi kéo nặn tự do 360 độ. Khi kéo hé thấy cả 3 xúc xắc (cự ly >= 60px) thì game TỰ GIẬT RA LUÔN! */}
+        {/* CƠ CHẾ NẶN BÁT: Người chơi kéo nặn tự do 360 độ. Khi kéo hé thấy cả 3 xúc xắc (cự ly >= 110px) thì game TỰ GIẬT RA LUÔN! */}
         <motion.div
           key={state === 'RESULT' ? 'bowl-result' : 'bowl-waiting'}
           drag={canDrag}
-          dragConstraints={{ left: -350, right: 350, top: -350, bottom: 350 }}
-          dragElastic={0.2}
+          dragConstraints={{ left: -220, right: 220, top: -220, bottom: 220 }}
+          dragElastic={0.25}
+          dragSnapToOrigin={true}
           dragMomentum={false}
           whileDrag={{ scale: 1.05, cursor: 'grabbing', zIndex: 50 }}
           onDrag={(_, info) => {
@@ -259,18 +283,22 @@ export default function DicePlate({
             const currentY = info.offset.y;
             setDragOffset({ x: currentX, y: currentY });
             const dist = Math.hypot(currentX, currentY);
-            const pct = Math.min(100, Math.round((dist / 60) * 100));
+            const MAX_DIST = 130;
+            const pct = Math.min(100, Math.round((dist / MAX_DIST) * 100));
             setSqueezeProgress(pct);
 
-            // KHI KÉO HÉ ĐỦ NHÌN THẤY CẢ 3 VIÊN XÚC XẮC (CỰ LY >= 60PX) -> TỰ GIẬT RA LUÔN!
-            if (dist >= 60) {
+            // KHI KÉO HÉ ĐỦ NHÌN THẤY CẢ 3 VIÊN XÚC XẮC (CỰ LY >= 110PX) -> TỰ GIẬT RA LUÔN!
+            if (dist >= MAX_DIST) {
               setIsAutoRevealed(true);
             }
           }}
           onDragEnd={(_, info) => {
             const dist = Math.hypot(info.offset.x, info.offset.y);
-            // Đủ cự ly hé cả 3 viên (>= 50px) khi buông tay -> tự giật ra luôn
-            if (dist >= 50) {
+            const speed = Math.hypot(info.velocity.x, info.velocity.y);
+            const isFling = speed > 600 && dist > 30;
+
+            // Đủ cự ly hé cả 3 viên (>= 65px) hoặc vuốt nhanh khi buông tay -> tự giật mở bát luôn
+            if (dist >= 65 || isFling) {
               setIsAutoRevealed(true);
             } else {
               // Chưa hé đủ cả 3 quân -> Bát tự động bật úp lại tâm đĩa để người chơi nặn tiếp
@@ -278,47 +306,45 @@ export default function DicePlate({
               setSqueezeProgress(0);
             }
           }}
+          initial={{ x: 0, y: 0, opacity: 1, scale: 1, rotate: 0 }}
           animate={
             state === 'PLAYING'
               ? shouldReduceMotion
                 ? { scale: [1, 1.04, 1], opacity: 1, transition: { repeat: Infinity, duration: 0.8 } }
                 : {
-                    x: [0, -10, 10, -8, 8, -5, 5, 0],
-                    y: [0, -6, 6, -5, 5, -2, 2, 0],
-                    rotate: [0, -5, 5, -4, 4, -1, 1, 0],
-                    opacity: 1,
-                    scale: 1,
-                    transition: { repeat: Infinity, duration: 0.16, ease: 'easeInOut' }
-                  }
-              : state === 'RESULT' && isRevealed
-              ? {
-                  // HIỆU ỨNG TỰ GIẬT RA: Bát giật vút dứt khoát ra khỏi đĩa theo hướng vừa nặn, hoàn toàn giải phóng 3 viên xúc xắc
-                  x: dragOffset.x !== 0 ? Math.sign(dragOffset.x || 1) * 450 : 0,
-                  y: dragOffset.y !== 0 ? Math.sign(dragOffset.y || -1) * 450 : -450,
-                  opacity: 0,
-                  scale: 0.75,
-                  rotate: dragOffset.x !== 0 ? Math.sign(dragOffset.x) * 12 : -12,
-                  transition: { duration: 0.32, ease: [0.22, 1, 0.36, 1] }
+                  x: [0, -10, 10, -8, 8, -5, 5, 0],
+                  y: [0, -6, 6, -5, 5, -2, 2, 0],
+                  rotate: [0, -5, 5, -4, 4, -1, 1, 0],
+                  opacity: 1,
+                  scale: 1,
+                  transition: { repeat: Infinity, duration: 0.16, ease: 'easeInOut' }
                 }
-              : state === 'WAITING'
-              ? {
+              : state === 'RESULT' && isRevealed
+                ? {
+                  // HIỆU ỨNG TỰ RÚT HẾT MÀN HÌNH THEO HƯỚNG NẶN MƯỢT MÀ
+                  x: exitVector.x,
+                  y: exitVector.y,
+                  opacity: [1, 1, 0],
+                  scale: 1.02,
+                  rotate: exitVector.rotate,
+                  transition: { duration: 0.45, ease: [0.16, 1, 0.3, 1] }
+                }
+                : {
                   x: 0,
                   y: 0,
                   opacity: 1,
                   scale: 1,
                   rotate: 0,
-                  transition: { duration: 0.3 }
+                  transition: { duration: 0.25 }
                 }
-              : undefined
           }
           style={{ touchAction: 'none' }}
-          className={`absolute inset-2 xs:inset-2.5 sm:inset-4 rounded-full border-3 sm:border-4 border-[#A87932] bg-gradient-to-b from-[#35251C] via-[#211712] to-[#140e0b] shadow-[0_14px_32px_rgba(0,0,0,0.9),inset_0_2px_4px_rgba(213,180,107,0.3)] z-20 flex flex-col items-center justify-center transition-shadow ${
-            canDrag
-              ? 'cursor-grab active:cursor-grabbing ring-4 ring-[#D5B46B]/50 shadow-[0_0_24px_rgba(213,180,107,0.45)]'
-              : isRevealed
+          className={`absolute inset-2 xs:inset-2.5 sm:inset-4 rounded-full border-3 sm:border-4 border-[#A87932] bg-gradient-to-b from-[#35251C] via-[#211712] to-[#140e0b] shadow-[0_14px_32px_rgba(0,0,0,0.9),inset_0_2px_4px_rgba(213,180,107,0.3)] z-20 flex flex-col items-center justify-center transition-shadow ${canDrag
+            ? 'cursor-grab active:cursor-grabbing ring-4 ring-[#D5B46B]/50 shadow-[0_0_24px_rgba(213,180,107,0.45)]'
+            : isRevealed
               ? 'pointer-events-none'
               : ''
-          }`}
+            }`}
         >
           {canDrag && (
             <div className="absolute inset-0 rounded-full border-2 border-[#D5B46B]/60 animate-ping opacity-25 pointer-events-none" />
