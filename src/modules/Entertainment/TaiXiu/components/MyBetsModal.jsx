@@ -1,0 +1,190 @@
+// src/modules/Entertainment/TaiXiu/components/MyBetsModal.jsx
+import React, { useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X, Ticket, Trophy, CheckCircle2 } from 'lucide-react';
+import { HeritageCoinIcon } from './HeritageIcons';
+
+export default function MyBetsModal({
+  isOpen,
+  onClose,
+  myBets = [],
+  myPoints = 0,
+  latestWinners = [],
+  activeUserId,
+  outcome,
+  total
+}) {
+  // Đóng bằng phím Escape
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  const totalBetAmount = myBets.reduce((acc, b) => acc + (b.amount || 0), 0);
+  const myRecentWin = (latestWinners || []).find((w) => w.userId === activeUserId);
+
+  return (
+    <AnimatePresence>
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
+        {/* Backdrop */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onClose}
+          className="absolute inset-0 bg-black/80 backdrop-blur-xs"
+          aria-hidden="true"
+        />
+
+        {/* Modal Dialog */}
+        <motion.div
+          role="dialog"
+          aria-modal="true"
+          initial={{ opacity: 0, scale: 0.95, y: 15 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 15 }}
+          transition={{ duration: 0.18, ease: 'easeOut' }}
+          className="relative z-10 w-full max-w-md rounded-3xl border-2 border-[#D5B46B]/70 bg-gradient-to-b from-[#241712] via-[#171411] to-[#100c09] p-4 sm:p-5 text-[#E8DDC8] shadow-[0_20px_50px_rgba(0,0,0,0.9),0_0_25px_rgba(213,180,107,0.25)] select-none max-h-[85vh] flex flex-col"
+        >
+          {/* Nút đóng */}
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute top-3.5 right-3.5 flex size-8 items-center justify-center rounded-full border border-[#D5B46B]/50 bg-[#8E2926]/90 text-[#FAF5EB] hover:bg-[#8E2926] active:scale-95 transition-all"
+            aria-label="Đóng vé cược"
+          >
+            <X size={16} />
+          </button>
+
+          {/* Tiêu đề */}
+          <div className="flex items-center gap-2.5 border-b border-[#A87932]/30 pb-3 mb-3">
+            <div className="flex size-9 items-center justify-center rounded-xl bg-[#2b1c15] border border-[#D5B46B]/50 text-[#D5B46B]">
+              <Ticket size={20} />
+            </div>
+            <div>
+              <h3 className="text-base sm:text-lg font-black text-[#FAF5EB] uppercase tracking-wide">
+                Vé Cược Của Bạn
+              </h3>
+              <p className="text-xs text-[#D5B46B]/80">
+                Chi tiết các cửa cược phiên hiện tại
+              </p>
+            </div>
+          </div>
+
+          {/* Nội dung danh sách cược */}
+          <div className="flex-1 overflow-y-auto space-y-3 pr-0.5">
+            {/* Tóm tắt tổng cược & số dư ví */}
+            <div className="grid grid-cols-2 gap-2 rounded-2xl bg-[#1b130f] border border-[#A87932]/35 p-3">
+              <div>
+                <span className="text-[10px] font-bold text-[#E8DDC8]/70 uppercase block">Tổng cược ván này</span>
+                <span className="text-sm font-mono font-black text-[#D5B46B]">
+                  {totalBetAmount.toLocaleString()} xu
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] font-bold text-[#E8DDC8]/70 uppercase block">Số dư hiện tại</span>
+                <div className="flex items-center gap-1">
+                  <HeritageCoinIcon size={13} className="text-[#D5B46B]" />
+                  <span className="text-sm font-mono font-black text-[#FAF5EB]">
+                    {myPoints.toLocaleString()} xu
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Thông báo thắng ván trước nếu có */}
+            {myRecentWin && (
+              <div className="rounded-2xl border border-amber-500/60 bg-gradient-to-r from-amber-950/60 via-amber-900/40 to-amber-950/60 p-3 flex items-center gap-2.5">
+                <Trophy size={20} className="text-[#D5B46B] shrink-0 animate-bounce" />
+                <div className="text-xs">
+                  <span className="font-bold text-[#FAF5EB] block">
+                    Vừa thắng lớn ván trước: +{myRecentWin.payout.toLocaleString()} xu!
+                  </span>
+                  <span className="text-[11px] text-[#D5B46B]">
+                    Cửa {myRecentWin.betSide === 'TAI' ? 'TÀI' : myRecentWin.betSide === 'XIU' ? 'XỈU' : 'BÃO'} ({total} điểm • {outcome === 'TAI' ? 'Tài' : outcome === 'XIU' ? 'Xỉu' : 'Bão'})
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Chi tiết từng vé cược ván này */}
+            {myBets.length === 0 ? (
+              <div className="py-8 text-center text-xs text-[#E8DDC8]/60 italic flex flex-col items-center gap-2">
+                <Ticket size={28} className="opacity-30 text-[#D5B46B]" />
+                <span>Chưa vào cược ván này. Hãy chọn cửa Tài hoặc Xỉu nhé bà con!</span>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {myBets.map((b, i) => {
+                  const isTai = b.side === 'TAI';
+                  return (
+                    <div
+                      key={i}
+                      className={`flex items-center justify-between rounded-2xl border p-3 ${
+                        isTai
+                          ? 'border-[#8E2926]/60 bg-gradient-to-r from-[#2a1312] to-[#1a0c0b]'
+                          : 'border-[#D5B46B]/40 bg-gradient-to-r from-[#171f28] to-[#0e161c]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2
+                          size={18}
+                          className={isTai ? 'text-[#FAF5EB]' : 'text-[#D5B46B]'}
+                        />
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span
+                              className={`font-black text-xs px-2 py-0.5 rounded-full ${
+                                isTai
+                                  ? 'bg-[#8E2926] text-[#FAF5EB]'
+                                  : 'bg-[#D5B46B] text-[#171411]'
+                              }`}
+                            >
+                              {b.sideName || (isTai ? 'TÀI' : 'XỈU')}
+                            </span>
+                            <span className="text-[10px] text-[#E8DDC8]/70">
+                              (Tỉ lệ 1:1)
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-[#E8DDC8]/60 mt-0.5 block">
+                            {isTai ? 'Tổng điểm 11 - 17' : 'Tổng điểm 4 - 10'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="text-right">
+                        <span className="font-mono text-sm font-black text-[#FAF5EB] block">
+                          {b.amount.toLocaleString()} xu
+                        </span>
+                        <span className="text-[10px] text-emerald-400 font-semibold">
+                          Thắng ăn: +{b.amount.toLocaleString()} xu
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Nút hành động */}
+          <div className="pt-3 border-t border-[#A87932]/25 mt-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full min-h-[40px] rounded-xl bg-gradient-to-r from-[#D5B46B] to-[#A87932] text-xs font-black text-[#171411] active:scale-98 transition shadow-md"
+            >
+              Đã Rõ (Trở Về Bàn Cược)
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    </AnimatePresence>
+  );
+}

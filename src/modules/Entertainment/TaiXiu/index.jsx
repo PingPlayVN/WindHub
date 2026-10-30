@@ -1,14 +1,19 @@
 // src/modules/Entertainment/TaiXiu/index.jsx
-import { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
+import { toast } from 'sonner';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useTaiXiuSocket } from './hooks/useTaiXiuSocket';
 import RoomSwitchHeader from './components/RoomSwitchHeader';
 import DicePlate from './components/DicePlate';
 import BetBoard from './components/BetBoard';
+import SoiCauHistory from './components/SoiCauHistory';
 import SoiCauModal from './components/SoiCauModal';
 import SoundSettingsModal from './components/SoundSettingsModal';
-import { Sparkles } from 'lucide-react';
+import MyBetsModal from './components/MyBetsModal';
+import RoomSelectorModal from './components/RoomSelectorModal';
+import GameInfoModal from './components/GameInfoModal';
+import { Ticket } from 'lucide-react';
 
 class SoundEffects {
   constructor() {
@@ -75,11 +80,52 @@ class SoundEffects {
 
 const sfx = new SoundEffects();
 
+/**
+ * Thẻ hiển thị vé cược cá nhân của người chơi ván này (dùng trên Desktop)
+ */
+function MyBetsCard({ myCurrentBets = [] }) {
+  return (
+    <div className="rounded-2xl sm:rounded-3xl border border-[#A87932]/40 bg-gradient-to-b from-[#221813] via-[#171411] to-[#120f0d] p-3.5 sm:p-4 text-[#E8DDC8] shadow-[0_6px_20px_rgba(0,0,0,0.6)] select-none">
+      <h3 className="text-xs font-black text-[#D5B46B] uppercase tracking-wider mb-2 flex items-center gap-1.5">
+        <Ticket size={14} className="text-[#D5B46B]" />
+        Vé cược của bạn ván này ({myCurrentBets.length})
+      </h3>
+      {myCurrentBets.length === 0 ? (
+        <p className="text-xs text-[#E8DDC8]/60 italic">
+          Chưa vào cược ván này. Hãy chọn cửa Tài hoặc Xỉu nhé!
+        </p>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {myCurrentBets.map((b, i) => {
+            const isTai = b.side === 'TAI';
+            return (
+              <span
+                key={i}
+                className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1 font-mono text-xs sm:text-sm font-bold shadow-xs ${
+                  isTai
+                    ? 'border-[#8E2926] bg-[#8E2926]/30 text-[#FAF5EB]'
+                    : 'border-[#D5B46B]/60 bg-[#D5B46B]/20 text-[#D5B46B]'
+                }`}
+              >
+                <span>Cửa <strong>{b.sideName}</strong>:</span>
+                <strong className="text-[#FAF5EB]">{b.amount.toLocaleString()} xu</strong>
+              </span>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function TaiXiuGame() {
   const { user } = useAuthStore();
   const [roomId, setRoomId] = useState('tai-xiu-30s');
   const [isSoiCauOpen, setIsSoiCauOpen] = useState(false);
   const [isSoundSettingsOpen, setIsSoundSettingsOpen] = useState(false);
+  const [isMyBetsOpen, setIsMyBetsOpen] = useState(false);
+  const [isRoomSelectorOpen, setIsRoomSelectorOpen] = useState(false);
+  const [isGameInfoOpen, setIsGameInfoOpen] = useState(false);
 
   // Cấu hình âm thanh: SFX/VFX và Nhạc nền Lofi
   const [sfxEnabled, setSfxEnabled] = useState(() => localStorage.getItem('windhub_taixiu_sfx_enabled') !== 'false');
@@ -118,7 +164,6 @@ export default function TaiXiuGame() {
       const playPromise = audio.play();
       if (playPromise !== undefined) {
         playPromise.catch(() => {
-          // Trình duyệt chặn autoplay khi chưa có user gesture
           const handleFirstClick = () => {
             if (bgmEnabled && bgmAudioRef.current) {
               bgmAudioRef.current.play().catch(() => {});
@@ -173,6 +218,7 @@ export default function TaiXiuGame() {
     myCurrentBets,
     betSummary,
     history,
+    latestWinners,
     placeBet,
     claimFreePoints
   } = useTaiXiuSocket({
@@ -181,11 +227,30 @@ export default function TaiXiuGame() {
     userName: activeUserName
   });
 
-  useEffect(() => {
-    if (roomState === 'RESULT') {
-      sfx.playWinFanfare();
+  // KHI MỞ BÁT RA MỚI THÔNG BÁO THẮNG HAY THUA & PHÁT NHẠC CHIẾN THẮNG
+  const handleReveal = useCallback(() => {
+    // 1. Kiểm tra người chơi có đặt cược ván này không
+    const userBets = myCurrentBets;
+    if (!userBets || userBets.length === 0) {
+      // Người chơi không cược ván này -> chỉ thông báo kết quả nhẹ nhàng
+      toast.info(`🎲 Kết quả mở bát: ${outcome === 'TAI' ? 'TÀI' : outcome === 'XIU' ? 'XỈU' : 'BÃO'} (${total} điểm) [${dice.join(' - ')}]`);
+      return;
     }
-  }, [roomState]);
+
+    // 2. Người chơi có cược -> kiểm tra thắng hay thua theo kết quả từ server
+    const myWin = (latestWinners || []).find((w) => w.userId === activeUserId);
+    if (myWin) {
+      const sideName = myWin.betSide === 'TAI' ? 'TÀI' : myWin.betSide === 'XIU' ? 'XỈU' : 'BÃO';
+      sfx.playWinFanfare();
+      toast.success(`🎉 Thắng lớn! Cửa ${sideName} (${total} điểm) nổ giòn giã! Nhận +${myWin.payout.toLocaleString()} xu!`, {
+        duration: 5000
+      });
+    } else {
+      toast.error(`Tiếc quá! Kết quả ra ${outcome === 'TAI' ? 'TÀI' : outcome === 'XIU' ? 'XỈU' : 'BÃO'} (${total} điểm). Chúc bạn ván sau thắng lớn!`, {
+        duration: 4000
+      });
+    }
+  }, [myCurrentBets, latestWinners, activeUserId, outcome, total, dice]);
 
   const handleToggleSfx = () => {
     setSfxEnabled(prev => {
@@ -225,11 +290,11 @@ export default function TaiXiuGame() {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="mx-auto flex w-full max-w-6xl flex-col gap-5 pb-10"
+      className="mx-auto flex w-full max-w-6xl flex-col h-full max-h-[calc(100dvh-5.5rem)] lg:max-h-none lg:h-auto justify-between lg:justify-start gap-2 sm:gap-4 lg:gap-5 pb-1 lg:pb-10"
     >
-      {/* HEADER ĐIỀU KHIỂN & CHỌN PHÒNG */}
+      {/* 1. HEADER ĐIỀU KHIỂN & CHỌN PHÒNG (TỰ CO GỌN TRÊN MOBILE, MỞ RỘNG TRÊN DESKTOP) */}
       <RoomSwitchHeader
         currentRoomId={roomId}
         onSelectRoom={(id) => setRoomId(id)}
@@ -237,17 +302,44 @@ export default function TaiXiuGame() {
         onlineCount={onlineCount}
         myPoints={myPoints}
         onClaimFreePoints={claimFreePoints}
-        soundEnabled={sfxEnabled || bgmEnabled}
         sfxEnabled={sfxEnabled}
         bgmEnabled={bgmEnabled}
         onOpenSoundSettings={() => setIsSoundSettingsOpen(true)}
         onToggleSoiCau={() => setIsSoiCauOpen((prev) => !prev)}
         isSoiCauOpen={isSoiCauOpen}
+        onOpenRoomSelector={() => setIsRoomSelectorOpen(true)}
+        onOpenMyBets={() => setIsMyBetsOpen(true)}
+        myBetsCount={myCurrentBets?.length || 0}
+        onOpenGameInfo={() => setIsGameInfoOpen(true)}
       />
 
-      {/* KHU VỰC CHÍNH: ĐĨA NẶN XÚC XẮC & BÀN CƯỢC */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-        {/* CỘT TRÁI: ĐĨA SỨ VÀ NẶN BÁT (5 phần) */}
+      {/* 2. LAYOUT MOBILE: TỐI GIẢN GÓI GỌN TRONG 1 TRANG VỪA KHÍT MÀN HÌNH KHÔNG CẦN CUỘN (< 1024PX) */}
+      <div className="flex flex-col justify-between flex-1 min-h-0 gap-2 lg:hidden overflow-hidden">
+        {/* DICE STAGE: Khay đồng sơn mài & bát nặn là tâm điểm thị giác */}
+        <DicePlate
+          state={roomState}
+          dice={dice}
+          total={total}
+          outcome={outcome}
+          isTriple={isTriple}
+          roundEndTime={roundEndTime}
+          waitingDuration={waitingDuration}
+          onReveal={handleReveal}
+        />
+
+        {/* BÀN CƯỢC TÀI / XỈU & CHIP CONTROLS */}
+        <BetBoard
+          state={roomState}
+          myBets={myCurrentBets}
+          myPoints={myPoints}
+          betSummary={betSummary}
+          onPlaceBet={handlePlaceBet}
+        />
+      </div>
+
+      {/* 3. LAYOUT DESKTOP TẬN DỤNG KHÔNG GIAN CÂN ĐỐI (>= 1024PX) */}
+      <div className="hidden lg:grid lg:grid-cols-12 gap-5 items-start">
+        {/* CỘT TRÁI (5 phần): Khay xúc xắc + Vé cược cá nhân */}
         <div className="lg:col-span-5 flex flex-col gap-4">
           <DicePlate
             state={roomState}
@@ -257,35 +349,14 @@ export default function TaiXiuGame() {
             isTriple={isTriple}
             roundEndTime={roundEndTime}
             waitingDuration={waitingDuration}
+            onReveal={handleReveal}
           />
 
-          {/* VÉ CƯỢC CỦA BẠN LƯỢT NÀY */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-[#0c0d10]">
-            <h3 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <Sparkles size={14} className="text-amber-500" />
-              Cược của bạn ván này ({myCurrentBets.length})
-            </h3>
-            {myCurrentBets.length === 0 ? (
-              <p className="text-xs text-slate-400 italic">
-                Chưa vào cược ván này. Hãy chọn cửa Tài hoặc Xỉu nhé!
-              </p>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {myCurrentBets.map((b, i) => (
-                  <span
-                    key={i}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-1 font-mono text-sm font-bold text-amber-700 dark:text-amber-300"
-                  >
-                    Cửa <strong>{b.sideName}</strong>: {b.amount.toLocaleString()} xu
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
+          <MyBetsCard myCurrentBets={myCurrentBets} />
         </div>
 
-        {/* CỘT PHẢI: BÀN CƯỢC TÀI / XỈU (7 phần) */}
-        <div className="lg:col-span-7">
+        {/* CỘT PHẢI (7 phần): Bàn cược Tài/Xỉu + Lịch sử kết quả trực quan */}
+        <div className="lg:col-span-7 flex flex-col gap-4">
           <BetBoard
             state={roomState}
             myBets={myCurrentBets}
@@ -293,19 +364,21 @@ export default function TaiXiuGame() {
             betSummary={betSummary}
             onPlaceBet={handlePlaceBet}
           />
+
+          <SoiCauHistory
+            history={history}
+            onOpenModal={() => setIsSoiCauOpen(true)}
+          />
         </div>
       </div>
 
-
-
-      {/* POPUP HOÀNG GIA: LỊCH SỬ PHIÊN (KÉO THẢ TỰ DO, 2 MẪU SOI CẦU, TOGGLE 3 XÍ NGẦU) */}
+      {/* 4. CÁC MODAL / POPUP PHỤ TRỢ (TRUY CẬP BẰNG NÚT BẤM TRÊN MOBILE & DESKTOP) */}
       <SoiCauModal
         isOpen={isSoiCauOpen}
         onClose={() => setIsSoiCauOpen(false)}
         history={history}
       />
 
-      {/* MODAL CÀI ĐẶT ÂM THANH (SFX/VFX & NHẠC NỀN LOFI) */}
       <SoundSettingsModal
         isOpen={isSoundSettingsOpen}
         onClose={() => setIsSoundSettingsOpen(false)}
@@ -318,6 +391,29 @@ export default function TaiXiuGame() {
         bgmVolume={bgmVolume}
         onChangeBgmVolume={handleChangeBgmVolume}
         onTestSound={handleTestSound}
+      />
+
+      <MyBetsModal
+        isOpen={isMyBetsOpen}
+        onClose={() => setIsMyBetsOpen(false)}
+        myBets={myCurrentBets}
+        myPoints={myPoints}
+        latestWinners={latestWinners}
+        activeUserId={activeUserId}
+        outcome={outcome}
+        total={total}
+      />
+
+      <RoomSelectorModal
+        isOpen={isRoomSelectorOpen}
+        onClose={() => setIsRoomSelectorOpen(false)}
+        currentRoomId={roomId}
+        onSelectRoom={(id) => setRoomId(id)}
+      />
+
+      <GameInfoModal
+        isOpen={isGameInfoOpen}
+        onClose={() => setIsGameInfoOpen(false)}
       />
     </motion.div>
   );

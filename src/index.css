@@ -40,6 +40,14 @@
   /* Các khối nền nhỏ trong Dark Mode */
   --color-slate-900: #0a0a0a;
   /* Nền tối phụ */
+
+  /* 4. VIETNAMESE HERITAGE MODERN PREMIUM TOKENS */
+  --color-heritage-obsidian: #171411;
+  --color-heritage-wood: #35251C;
+  --color-heritage-bronze: #A87932;
+  --color-heritage-gold: #D5B46B;
+  --color-heritage-vermilion: #8E2926;
+  --color-heritage-ivory: #E8DDC8;
 }
 
 @layer base {

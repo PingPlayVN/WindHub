@@ -1,70 +1,82 @@
 // src/modules/Entertainment/TaiXiu/components/DicePlate.jsx
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { Sparkles, Flame, Hand, Move } from 'lucide-react';
+import { Sparkles, Flame, Hand, Move, Crown } from 'lucide-react';
+import { DongSonSun, ChimLac } from './HeritageIcons';
 
-// Render mặt xúc xắc chấm chuẩn truyền thống Á Đông (Mặt 1 và 4 chấm đỏ, kích thước đồng nhất 100%)
-function DiceFace({ value }) {
-  const dotClass = (isRed) =>
-    `rounded-full shadow-inner ${isRed ? 'bg-red-600' : 'bg-slate-900 dark:bg-black'}`;
+/**
+ * Quân xúc xắc 3D men ngà chạm chìm (Engraved Ivory Die)
+ * - Mặt 1: Đại hồng tâm đỏ son lớn viền kép có nhụy vàng thếp kim
+ * - Mặt 4: 4 chấm đỏ son chìm tinh xảo (#8E2926)
+ * - Mặt 2, 3, 5, 6: Chấm đen mun sơn mài (#171411)
+ * - Hiệu ứng 3D bevel bóng mờ, vát góc mượt mà, phản chiếu ánh sáng chân thực
+ */
+function HeritageDiceFace({ value }) {
+  const vermilionDot =
+    'bg-gradient-to-br from-[#B52B27] via-[#8E2926] to-[#601614] shadow-[inset_0_1.5px_2px_rgba(0,0,0,0.65),0_0.5px_1px_rgba(255,255,255,0.4)]';
+  const obsidianDot =
+    'bg-gradient-to-br from-[#2D2520] via-[#171411] to-[#0A0807] shadow-[inset_0_1.5px_2px_rgba(0,0,0,0.7),0_0.5px_1px_rgba(255,255,255,0.3)]';
 
-  const dim = 'size-12 sm:size-14';
+  const dotBase = (isRed) => `rounded-full ${isRed ? vermilionDot : obsidianDot}`;
 
   const renderDots = () => {
     switch (value) {
       case 1:
         return (
           <div className="flex items-center justify-center h-full w-full">
-            <span className={`size-5 sm:size-6 ${dotClass(true)}`} />
+            {/* Đại hồng tâm: Vòng tròn son đỏ lớn với nhụy vàng thếp kim */}
+            <span className={`size-4.5 xs:size-5 sm:size-6.5 md:size-7.5 ${dotBase(true)} relative flex items-center justify-center`}>
+              <span className="size-1.5 xs:size-1.5 sm:size-2 rounded-full bg-gradient-to-br from-[#D5B46B] to-[#966E26] shadow-xs" />
+            </span>
           </div>
         );
       case 2:
         return (
-          <div className="flex justify-between h-full w-full p-2">
-            <span className={`size-2.5 sm:size-3 self-start ${dotClass(false)}`} />
-            <span className={`size-2.5 sm:size-3 self-end ${dotClass(false)}`} />
+          <div className="flex justify-between h-full w-full p-1 xs:p-1.5 sm:p-2.5">
+            <span className={`size-1.5 xs:size-2 sm:size-2.5 md:size-3 self-start ${dotBase(false)}`} />
+            <span className={`size-1.5 xs:size-2 sm:size-2.5 md:size-3 self-end ${dotBase(false)}`} />
           </div>
         );
       case 3:
         return (
-          <div className="flex justify-between h-full w-full p-2">
-            <span className={`size-2.5 sm:size-3 self-start ${dotClass(false)}`} />
-            <span className={`size-2.5 sm:size-3 self-center ${dotClass(false)}`} />
-            <span className={`size-2.5 sm:size-3 self-end ${dotClass(false)}`} />
+          <div className="flex justify-between h-full w-full p-1 xs:p-1.5 sm:p-2.5">
+            <span className={`size-1.5 xs:size-2 sm:size-2.5 md:size-3 self-start ${dotBase(false)}`} />
+            <span className={`size-1.5 xs:size-2 sm:size-2.5 md:size-3 self-center ${dotBase(false)}`} />
+            <span className={`size-1.5 xs:size-2 sm:size-2.5 md:size-3 self-end ${dotBase(false)}`} />
           </div>
         );
       case 4:
         return (
-          <div className="grid grid-cols-2 place-content-between h-full w-full p-2">
-            <span className={`size-2.5 sm:size-3 ${dotClass(true)}`} />
-            <span className={`size-2.5 sm:size-3 justify-self-end ${dotClass(true)}`} />
-            <span className={`size-2.5 sm:size-3 ${dotClass(true)}`} />
-            <span className={`size-2.5 sm:size-3 justify-self-end ${dotClass(true)}`} />
+          <div className="grid grid-cols-2 place-content-between h-full w-full p-1 xs:p-1.5 sm:p-2.5">
+            <span className={`size-1.5 xs:size-2 sm:size-2.5 md:size-3 ${dotBase(true)}`} />
+            <span className={`size-1.5 xs:size-2 sm:size-2.5 md:size-3 justify-self-end ${dotBase(true)}`} />
+            <span className={`size-1.5 xs:size-2 sm:size-2.5 md:size-3 ${dotBase(true)}`} />
+            <span className={`size-1.5 xs:size-2 sm:size-2.5 md:size-3 justify-self-end ${dotBase(true)}`} />
           </div>
         );
       case 5:
         return (
-          <div className="relative h-full w-full p-2 flex flex-col justify-between">
+          <div className="relative h-full w-full p-1 xs:p-1.5 sm:p-2.5 flex flex-col justify-between">
             <div className="flex justify-between">
-              <span className={`size-2.5 sm:size-3 ${dotClass(false)}`} />
-              <span className={`size-2.5 sm:size-3 ${dotClass(false)}`} />
+              <span className={`size-1.5 xs:size-2 sm:size-2.5 md:size-3 ${dotBase(false)}`} />
+              <span className={`size-1.5 xs:size-2 sm:size-2.5 md:size-3 ${dotBase(false)}`} />
             </div>
-            <span className={`size-2.5 sm:size-3 self-center ${dotClass(false)}`} />
+            <span className={`size-1.5 xs:size-2 sm:size-2.5 md:size-3 self-center ${dotBase(false)}`} />
             <div className="flex justify-between">
-              <span className={`size-2.5 sm:size-3 ${dotClass(false)}`} />
-              <span className={`size-2.5 sm:size-3 ${dotClass(false)}`} />
+              <span className={`size-1.5 xs:size-2 sm:size-2.5 md:size-3 ${dotBase(false)}`} />
+              <span className={`size-1.5 xs:size-2 sm:size-2.5 md:size-3 ${dotBase(false)}`} />
             </div>
           </div>
         );
       case 6:
         return (
-          <div className="grid grid-cols-2 place-content-between h-full w-full p-2">
-            <span className={`size-2.5 sm:size-3 ${dotClass(false)}`} />
-            <span className={`size-2.5 sm:size-3 justify-self-end ${dotClass(false)}`} />
-            <span className={`size-2.5 sm:size-3 ${dotClass(false)}`} />
-            <span className={`size-2.5 sm:size-3 justify-self-end ${dotClass(false)}`} />
-            <span className={`size-2.5 sm:size-3 ${dotClass(false)}`} />
-            <span className={`size-2.5 sm:size-3 justify-self-end ${dotClass(false)}`} />
+          <div className="grid grid-cols-2 place-content-between h-full w-full p-1 xs:p-1.5 sm:p-2.5">
+            <span className={`size-1.5 xs:size-2 sm:size-2.5 md:size-3 ${dotBase(false)}`} />
+            <span className={`size-1.5 xs:size-2 sm:size-2.5 md:size-3 justify-self-end ${dotBase(false)}`} />
+            <span className={`size-1.5 xs:size-2 sm:size-2.5 md:size-3 ${dotBase(false)}`} />
+            <span className={`size-1.5 xs:size-2 sm:size-2.5 md:size-3 justify-self-end ${dotBase(false)}`} />
+            <span className={`size-1.5 xs:size-2 sm:size-2.5 md:size-3 ${dotBase(false)}`} />
+            <span className={`size-1.5 xs:size-2 sm:size-2.5 md:size-3 justify-self-end ${dotBase(false)}`} />
           </div>
         );
       default:
@@ -74,8 +86,9 @@ function DiceFace({ value }) {
 
   return (
     <div
-      className={`${dim} rounded-2xl border-2 border-amber-200/80 bg-gradient-to-b from-white via-slate-50 to-amber-50 shadow-[0_4px_12px_rgba(0,0,0,0.35)] relative overflow-hidden flex items-center justify-center select-none transform transition-transform hover:scale-105`}
+      className="size-8 xs:size-9 sm:size-12 md:size-14 rounded-lg xs:rounded-xl sm:rounded-2xl border border-[#D5B46B]/40 bg-gradient-to-br from-[#FFFFFF] via-[#F8F2E4] to-[#E3D4BA] shadow-[0_6px_14px_rgba(0,0,0,0.5),inset_0_2px_3px_rgba(255,255,255,0.95),inset_-1.5px_-1.5px_3px_rgba(180,150,110,0.35)] relative overflow-hidden flex items-center justify-center select-none transform transition-transform"
     >
+      <div className="pointer-events-none absolute inset-x-1 top-0.5 h-0.5 sm:h-1 bg-white/60 rounded-t-lg blur-[0.5px]" />
       {renderDots()}
     </div>
   );
@@ -87,15 +100,17 @@ export default function DicePlate({
   total = 6,
   outcome = 'XIU',
   isTriple = false,
-  roundEndTime
+  roundEndTime,
+  onReveal
 }) {
   const shouldReduceMotion = useReducedMotion();
   const [timeLeft, setTimeLeft] = useState(0);
-  const [squeezeProgress, setSqueezeProgress] = useState(0); // 0 (kín) đến 100 (mở hoàn toàn)
+  const [squeezeProgress, setSqueezeProgress] = useState(0);
   const [isAutoRevealed, setIsAutoRevealed] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const hasAnnouncedRef = useRef(false);
 
-  // Đếm ngược thời gian (chỉ update state khi giây thay đổi thực tế)
+  // Đếm ngược thời gian phiên
   useEffect(() => {
     const updateCountdown = () => {
       const now = Date.now();
@@ -115,96 +130,152 @@ export default function DicePlate({
         setSqueezeProgress(0);
         setIsAutoRevealed(false);
         setDragOffset({ x: 0, y: 0 });
+        hasAnnouncedRef.current = false;
       }, 0);
       return () => clearTimeout(timer);
     }
   }, [state]);
 
-  const isRevealed = squeezeProgress >= 98 || isAutoRevealed;
+  const isRevealed = squeezeProgress >= 90 || isAutoRevealed;
   const canDrag = state === 'RESULT' && !isRevealed;
 
-  return (
-    <div className="relative flex flex-col items-center justify-center overflow-hidden rounded-3xl border border-amber-900/40 bg-gradient-to-b from-[#24130d] via-[#180d09] to-[#0d0705] p-6 text-amber-50 shadow-2xl">
-      {/* Nền hoa văn truyền thống */}
-      <div className="pointer-events-none absolute inset-0 opacity-15 [background-image:radial-gradient(#f59e0b_1px,transparent_1px)] [background-size:18px_18px]" />
+  // HẾT THỜI GIAN MỞ BÁT: TỰ ĐỘNG GIẬT MỞ BÁT (NẾU NGƯỜI CHƠI CHƯA MỞ)
+  useEffect(() => {
+    if (state === 'RESULT' && !isRevealed) {
+      if (timeLeft <= 5) {
+        setIsAutoRevealed(true);
+      }
+    }
+  }, [state, isRevealed, timeLeft]);
 
-      {/* Đồng hồ đếm ngược và trạng thái */}
-      <div className="relative z-10 mb-3 flex items-center justify-between w-full max-w-sm px-2">
-        <div className="flex items-center gap-2">
-          <span className={`size-2.5 rounded-full ${state === 'WAITING' ? 'bg-emerald-400 animate-ping' : state === 'PLAYING' ? 'bg-orange-400 animate-bounce' : 'bg-amber-400'
-            }`} />
-          <span className="text-xs font-bold uppercase tracking-wider text-amber-300">
-            {state === 'WAITING' ? 'ĐANG NHẬN CƯỢC' : state === 'PLAYING' ? 'ĐANG LẮC BÁT (2S)...' : 'KẾT QUẢ - KÉO BÁT MỌI HƯỚNG!'}
+  // THÔNG BÁO THẮNG / THUA & PHÁT NHẠC CHỈ KHI ĐÃ MỞ BÁT XONG
+  useEffect(() => {
+    if (state === 'RESULT' && isRevealed && !hasAnnouncedRef.current) {
+      hasAnnouncedRef.current = true;
+      if (onReveal) {
+        onReveal();
+      }
+    }
+  }, [state, isRevealed, onReveal]);
+
+  const autoOpenRemaining = Math.max(1, timeLeft - 5);
+
+  return (
+    <section
+      aria-label="Khu vực khay xúc xắc và bát nặn Tài Xỉu"
+      className="relative flex flex-col items-center justify-center overflow-hidden rounded-2xl sm:rounded-3xl border border-[#A87932]/45 bg-gradient-to-b from-[#251812] via-[#171411] to-[#100c09] p-2 xs:p-2.5 sm:p-5 text-[#E8DDC8] shadow-[0_8px_24px_rgba(0,0,0,0.65)] w-full"
+    >
+      {/* Background hoa văn Đông Sơn tinh tế */}
+      <div className="pointer-events-none absolute inset-0 opacity-10 [background-image:radial-gradient(#D5B46B_1px,transparent_1px)] [background-size:16px_16px]" />
+
+      {/* THANH TRẠNG THÁI & ĐỒNG HỒ ĐẾM NGƯỢC */}
+      <div className="relative z-10 mb-1 flex items-center justify-between w-full max-w-sm px-1">
+        <div className="flex items-center gap-1.5">
+          <span
+            className={`size-2 sm:size-2.5 rounded-full ${
+              state === 'WAITING'
+                ? 'bg-emerald-400 animate-ping'
+                : state === 'PLAYING'
+                ? 'bg-amber-400 animate-bounce'
+                : 'bg-[#D5B46B]'
+            }`}
+          />
+          <span className="text-[10px] xs:text-[11px] sm:text-xs font-black uppercase tracking-wider text-[#D5B46B]">
+            {state === 'WAITING'
+              ? 'ĐANG NHẬN CƯỢC'
+              : state === 'PLAYING'
+              ? 'LẮC BÁT ĐÔNG SƠN...'
+              : !isRevealed
+              ? 'NẶN BÁT (KÉO LỘ 3 QUÂN)'
+              : 'ĐÃ MỞ BÁT'}
           </span>
         </div>
 
-        <div className="flex items-center gap-1.5 rounded-xl bg-black/50 border border-amber-600/30 px-3 py-1 font-mono text-sm font-black text-amber-300">
-          <Flame size={14} className="text-amber-500 animate-pulse" />
+        <div className="flex items-center gap-1 rounded-lg sm:rounded-xl bg-[#171411]/90 border border-[#D5B46B]/40 px-2 sm:px-2.5 py-0.5 font-mono text-[11px] xs:text-xs sm:text-sm font-black text-[#D5B46B] shadow-inner">
+          <Flame size={12} className="text-[#A87932] animate-pulse" />
           <span>{timeLeft}s</span>
         </div>
       </div>
 
-      {/* KHU VỰC ĐĨA SỨ VÀ BÁT ÚP NẶN XÚC XẮC */}
-      <div className="relative z-10 my-4 flex size-64 sm:size-72 items-center justify-center select-none">
-        {/* ĐĨA SỨ DÂN GIAN MEN LAM */}
-        <div className="absolute inset-0 rounded-full border-8 border-amber-700/60 bg-gradient-to-br from-[#f8fafc] via-[#e2e8f0] to-[#cbd5e1] shadow-[0_15px_35px_rgba(0,0,0,0.6)] flex items-center justify-center pointer-events-none">
-          {/* Viền hoa văn đĩa */}
-          <div className="absolute inset-2 rounded-full border-2 border-dashed border-amber-800/40 pointer-events-none" />
-          <div className="absolute inset-6 rounded-full border border-sky-900/30 pointer-events-none" />
+      {/* KHU VỰC KHAY ĐỒNG SƠN MÀI & BÁT ÚP NẶN (DICE STAGE) */}
+      <div className="relative z-10 my-0.5 sm:my-2 flex size-38 xs:size-42 sm:size-60 md:size-68 items-center justify-center select-none">
+        {/* KHAY ĐỒNG / ĐĨA SƠN MÀI */}
+        <div className="absolute inset-0 rounded-full border-5 sm:border-8 border-[#78531F] bg-gradient-to-br from-[#35251C] via-[#241812] to-[#171411] shadow-[0_10px_24px_rgba(0,0,0,0.8),inset_0_2px_5px_rgba(213,180,107,0.35)] flex items-center justify-center pointer-events-none">
+          <div className="absolute inset-1 sm:inset-1.5 rounded-full border border-dashed border-[#D5B46B]/40 pointer-events-none" />
+          <div className="absolute inset-3 sm:inset-5 rounded-full border border-[#A87932]/30 pointer-events-none" />
 
-          {/* 3 VIÊN XÚC XẮC NẰM TRÊN ĐĨA - KÍCH THƯỚC ĐỒNG NHẤT 100% */}
-          <div className="relative z-10 flex flex-col items-center justify-center gap-2">
-            <div className="flex items-center justify-center">
-              <DiceFace value={dice[0]} />
+          {/* Lòng đĩa sơn mài mun trầm */}
+          <div className="absolute inset-5 sm:inset-8 rounded-full bg-gradient-to-b from-[#2a1d17] via-[#1a110c] to-[#120b08] border border-[#A87932]/35 shadow-inner flex items-center justify-center">
+            <div className="absolute opacity-15 text-[#D5B46B] pointer-events-none">
+              <DongSonSun size={85} />
             </div>
-            <div className="flex items-center justify-center gap-3">
-              <DiceFace value={dice[1]} />
-              <DiceFace value={dice[2]} />
+
+            {/* 3 VIÊN XÚC XẮC 3D NẰM TRÊN KHAY VỚI GÓC NGHIÊNG TỰ NHIÊN */}
+            <div className="relative z-10 flex flex-col items-center justify-center gap-1 sm:gap-2">
+              <div className="flex items-center justify-center transform -rotate-3 transition-transform">
+                <HeritageDiceFace value={dice[0]} />
+              </div>
+              <div className="flex items-center justify-center gap-1.5 sm:gap-3">
+                <div className="transform rotate-3 transition-transform">
+                  <HeritageDiceFace value={dice[1]} />
+                </div>
+                <div className="transform -rotate-2 transition-transform">
+                  <HeritageDiceFace value={dice[2]} />
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* CÁC MŨI TÊN CHỈ DẪN KÉO 4 HƯỚNG KHI ĐANG NẶN */}
+        {/* CHỈ DẪN KÉO NẶN KHI ĐANG NẶN */}
         {canDrag && (
           <div className="absolute inset-0 pointer-events-none z-10 flex items-center justify-center">
-            <div className="absolute top-1 text-amber-300/80 font-black text-[11px] animate-bounce">
+            <div className="absolute top-1 text-[#D5B46B] font-black text-[9px] sm:text-[10px] animate-bounce drop-shadow">
               ▲ Kéo lên
             </div>
-            <div className="absolute bottom-1 text-amber-300/80 font-black text-[11px] animate-bounce">
+            <div className="absolute bottom-1 text-[#D5B46B] font-black text-[9px] sm:text-[10px] animate-bounce drop-shadow">
               ▼ Kéo xuống
             </div>
-            <div className="absolute left-1 text-amber-300/80 font-black text-[11px] animate-pulse">
+            <div className="absolute left-1 text-[#D5B46B] font-black text-[9px] sm:text-[10px] animate-pulse drop-shadow">
               ◀ Trái
             </div>
-            <div className="absolute right-1 text-amber-300/80 font-black text-[11px] animate-pulse">
+            <div className="absolute right-1 text-[#D5B46B] font-black text-[9px] sm:text-[10px] animate-pulse drop-shadow">
               Phải ▶
             </div>
           </div>
         )}
 
-        {/* BÁT ÚP (LID) - HỖ TRỢ KÉO BẰNG TAY CẢM ỨNG & CHUỘT MỌI HƯỚNG 360 ĐỘ */}
+        {/* BÁT SƠN MÀI THẾP VÀNG ÚP TRÊN ĐĨA (LID) */}
+        {/* CƠ CHẾ NẶN BÁT: Người chơi kéo nặn tự do 360 độ. Khi kéo hé thấy cả 3 xúc xắc (cự ly >= 60px) thì game TỰ GIẬT RA LUÔN! */}
         <motion.div
           key={state === 'RESULT' ? 'bowl-result' : 'bowl-waiting'}
           drag={canDrag}
-          dragConstraints={{ left: -600, right: 600, top: -600, bottom: 600 }}
-          dragElastic={0.15}
+          dragConstraints={{ left: -350, right: 350, top: -350, bottom: 350 }}
+          dragElastic={0.2}
           dragMomentum={false}
-          whileDrag={{ scale: 1.08, cursor: 'grabbing', zIndex: 50 }}
+          whileDrag={{ scale: 1.05, cursor: 'grabbing', zIndex: 50 }}
           onDrag={(_, info) => {
             const currentX = info.offset.x;
             const currentY = info.offset.y;
             setDragOffset({ x: currentX, y: currentY });
             const dist = Math.hypot(currentX, currentY);
-            const pct = Math.min(100, Math.round((dist / 320) * 100));
+            const pct = Math.min(100, Math.round((dist / 60) * 100));
             setSqueezeProgress(pct);
-            if (dist >= 350) {
+
+            // KHI KÉO HÉ ĐỦ NHÌN THẤY CẢ 3 VIÊN XÚC XẮC (CỰ LY >= 60PX) -> TỰ GIẬT RA LUÔN!
+            if (dist >= 60) {
               setIsAutoRevealed(true);
             }
           }}
           onDragEnd={(_, info) => {
             const dist = Math.hypot(info.offset.x, info.offset.y);
-            if (dist >= 240) {
+            // Đủ cự ly hé cả 3 viên (>= 50px) khi buông tay -> tự giật ra luôn
+            if (dist >= 50) {
               setIsAutoRevealed(true);
+            } else {
+              // Chưa hé đủ cả 3 quân -> Bát tự động bật úp lại tâm đĩa để người chơi nặn tiếp
+              setDragOffset({ x: 0, y: 0 });
+              setSqueezeProgress(0);
             }
           }}
           animate={
@@ -212,116 +283,125 @@ export default function DicePlate({
               ? shouldReduceMotion
                 ? { scale: [1, 1.04, 1], opacity: 1, transition: { repeat: Infinity, duration: 0.8 } }
                 : {
-                  x: [0, -12, 12, -10, 10, -6, 6, 0],
-                  y: [0, -8, 8, -6, 6, -3, 3, 0],
-                  rotate: [0, -6, 6, -5, 5, -2, 2, 0],
-                  opacity: 1,
-                  scale: 1,
-                  transition: { repeat: Infinity, duration: 0.15, ease: 'easeInOut' }
-                }
-              : state === 'RESULT' && isRevealed
-                ? {
-                  x: dragOffset.x !== 0 ? Math.sign(dragOffset.x || 1) * 550 : 0,
-                  y: dragOffset.y !== 0 ? Math.sign(dragOffset.y || -1) * 550 : -550,
-                  opacity: 0,
-                  scale: 0.7,
-                  transition: { duration: 0.35, ease: 'easeOut' }
-                }
-                : state === 'WAITING'
-                  ? {
-                    x: 0,
-                    y: 0,
+                    x: [0, -10, 10, -8, 8, -5, 5, 0],
+                    y: [0, -6, 6, -5, 5, -2, 2, 0],
+                    rotate: [0, -5, 5, -4, 4, -1, 1, 0],
                     opacity: 1,
                     scale: 1,
-                    rotate: 0,
-                    transition: { duration: 0.3 }
+                    transition: { repeat: Infinity, duration: 0.16, ease: 'easeInOut' }
                   }
-                  : undefined
+              : state === 'RESULT' && isRevealed
+              ? {
+                  // HIỆU ỨNG TỰ GIẬT RA: Bát giật vút dứt khoát ra khỏi đĩa theo hướng vừa nặn, hoàn toàn giải phóng 3 viên xúc xắc
+                  x: dragOffset.x !== 0 ? Math.sign(dragOffset.x || 1) * 450 : 0,
+                  y: dragOffset.y !== 0 ? Math.sign(dragOffset.y || -1) * 450 : -450,
+                  opacity: 0,
+                  scale: 0.75,
+                  rotate: dragOffset.x !== 0 ? Math.sign(dragOffset.x) * 12 : -12,
+                  transition: { duration: 0.32, ease: [0.22, 1, 0.36, 1] }
+                }
+              : state === 'WAITING'
+              ? {
+                  x: 0,
+                  y: 0,
+                  opacity: 1,
+                  scale: 1,
+                  rotate: 0,
+                  transition: { duration: 0.3 }
+                }
+              : undefined
           }
           style={{ touchAction: 'none' }}
-          className={`absolute inset-4 rounded-full border-4 border-amber-500/70 bg-gradient-to-b from-[#854d0e] via-[#451a03] to-[#1c0c05] shadow-[0_22px_40px_rgba(0,0,0,0.85)] z-20 flex flex-col items-center justify-center transition-shadow ${canDrag
-            ? 'cursor-grab active:cursor-grabbing ring-4 ring-amber-400/50 shadow-[0_0_30px_rgba(245,158,11,0.5)]'
-            : isRevealed
+          className={`absolute inset-2 xs:inset-2.5 sm:inset-4 rounded-full border-3 sm:border-4 border-[#A87932] bg-gradient-to-b from-[#35251C] via-[#211712] to-[#140e0b] shadow-[0_14px_32px_rgba(0,0,0,0.9),inset_0_2px_4px_rgba(213,180,107,0.3)] z-20 flex flex-col items-center justify-center transition-shadow ${
+            canDrag
+              ? 'cursor-grab active:cursor-grabbing ring-4 ring-[#D5B46B]/50 shadow-[0_0_24px_rgba(213,180,107,0.45)]'
+              : isRevealed
               ? 'pointer-events-none'
               : ''
-            }`}
+          }`}
         >
-          {/* Hiệu ứng hào quang khi đang ở trạng thái nặn */}
           {canDrag && (
-            <div className="absolute inset-0 rounded-full border-2 border-amber-400/60 animate-ping opacity-30 pointer-events-none" />
+            <div className="absolute inset-0 rounded-full border-2 border-[#D5B46B]/60 animate-ping opacity-25 pointer-events-none" />
           )}
 
-          {/* Núm cầm bát */}
-          <div className="size-12 rounded-full bg-gradient-to-b from-amber-400 to-amber-700 border-2 border-amber-300/80 shadow-md flex items-center justify-center mb-1 pointer-events-none">
-            <span className="font-mono text-[10px] font-bold text-amber-950 uppercase">ĐÌNH</span>
+          {/* NÚM CẦM MẶT TRỜI ĐÔNG SƠN */}
+          <div className="size-8 xs:size-9 sm:size-14 rounded-full bg-gradient-to-b from-[#D5B46B] via-[#A87932] to-[#78531F] border-2 border-[#FAF5EB]/60 shadow-[0_3px_8px_rgba(0,0,0,0.5)] flex items-center justify-center mb-0.5 sm:mb-1 pointer-events-none p-0.5">
+            <DongSonSun size={20} className="text-[#171411]" />
           </div>
 
-          {/* Nhãn hướng dẫn trực quan trên bát */}
           {state === 'PLAYING' ? (
-            <span className="text-[11px] font-black text-amber-300 tracking-wider animate-pulse pointer-events-none">
+            <span className="text-[9px] xs:text-[10px] sm:text-[11px] font-black text-[#D5B46B] tracking-widest animate-pulse pointer-events-none">
               LẮC... LẮC...
             </span>
           ) : canDrag ? (
             <div className="flex flex-col items-center pointer-events-none">
-              <div className="flex items-center gap-1 text-[11px] font-black text-amber-100 uppercase bg-amber-950/90 px-2.5 py-0.5 rounded-full border border-amber-400/70 shadow-sm">
-                <Hand size={12} className="text-amber-400 animate-bounce" />
-                <span>KÉO BÁT MỌI HƯỚNG</span>
+              <div className="flex items-center gap-1 text-[8px] xs:text-[9px] sm:text-[11px] font-black text-[#FAF5EB] uppercase bg-[#171411]/90 px-1.5 xs:px-2 sm:px-3 py-0.5 rounded-full border border-[#D5B46B]/60 shadow-xs">
+                <Hand size={10} className="text-[#D5B46B] animate-bounce" />
+                <span>NẶN 3 XÚC XẮC</span>
               </div>
-              <span className="text-[10px] text-amber-300 font-bold mt-0.5">
-                {squeezeProgress > 0 ? `Đã hé: ${squeezeProgress}%` : 'Chạm/rê chuột kéo bát'}
+              <span className="text-[8px] xs:text-[9px] text-[#D5B46B] font-bold mt-0.5">
+                {squeezeProgress > 0 ? `Lộ: ${squeezeProgress}% (thấy 3 quân tự giật)` : 'Kéo để nặn'}
               </span>
             </div>
           ) : (
-            <span className="text-[11px] font-bold text-amber-200 tracking-wider pointer-events-none">
-              TÀI XỈU LÀNG
-            </span>
+            <div className="flex items-center gap-1 text-[8px] xs:text-[9px] sm:text-[11px] font-bold tracking-widest text-[#E8DDC8]/80 pointer-events-none">
+              <ChimLac size={11} className="text-[#D5B46B]" />
+              <span>TÀI XỈU ĐÔNG SƠN</span>
+            </div>
           )}
         </motion.div>
       </div>
 
-      {/* THANH ĐIỀU KHIỂN NẶN ĐĨA VÀ NÚT MỞ NHANH */}
+      {/* THANH ĐIỀU KHIỂN NẶN ĐĨA & NÚT MỞ NHANH */}
       <AnimatePresence>
         {state === 'RESULT' && !isRevealed && (
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="relative z-10 w-full max-w-sm rounded-2xl bg-amber-950/90 border border-amber-600/50 p-3 mt-2 flex items-center justify-between shadow-xl"
+            exit={{ opacity: 0, y: -6 }}
+            className="relative z-10 w-full max-w-sm rounded-xl bg-[#1d140f]/95 border border-[#A87932]/50 p-1.5 xs:p-2 sm:p-2.5 mt-0.5 flex items-center justify-between shadow-lg"
           >
-            <div className="flex items-center gap-2 text-xs text-amber-200 font-semibold">
-              <Move size={16} className="text-amber-400 animate-spin" style={{ animationDuration: '6s' }} />
-              <span>Dùng tay/chuột kéo bát: <strong>{squeezeProgress}%</strong></span>
+            <div className="flex items-center gap-1.5 text-[10px] xs:text-[11px] sm:text-xs text-[#E8DDC8] font-semibold">
+              <Move size={13} className="text-[#D5B46B] animate-spin" style={{ animationDuration: '6s' }} />
+              <span>
+                Nặn ({squeezeProgress}%) • Tự giật: <strong className="text-[#D5B46B] font-mono">{autoOpenRemaining}s</strong>
+              </span>
             </div>
             <button
               type="button"
               onClick={() => setIsAutoRevealed(true)}
-              className="rounded-lg bg-gradient-to-r from-amber-400 to-amber-500 px-3.5 py-1.5 text-xs font-black text-slate-950 hover:brightness-110 active:scale-95 transition shadow-sm"
+              className="min-h-[28px] xs:min-h-[30px] sm:min-h-[36px] rounded-lg bg-gradient-to-r from-[#D5B46B] to-[#A87932] px-2.5 xs:px-3 py-0.5 text-[10px] xs:text-[11px] sm:text-xs font-black text-[#171411] hover:brightness-110 active:scale-95 transition-all shadow-md"
             >
-              Mở Bát Ngay
+              Mở Ngay
             </button>
           </motion.div>
         )}
 
-        {/* KẾT QUẢ ĐÃ MỞ BÁT */}
+        {/* KẾT QUẢ PHIÊN SAU KHI MỞ BÁT */}
         {state === 'RESULT' && isRevealed && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="relative z-10 mt-2 flex items-center gap-3 rounded-2xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 p-3 text-slate-950 font-black shadow-lg shadow-amber-500/30"
+            initial={{ opacity: 0, scale: 0.92, y: 4 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="relative z-10 mt-0.5 sm:mt-1 flex items-center gap-2 rounded-xl border border-[#D5B46B]/60 bg-gradient-to-r from-[#2c1c14] via-[#3a251b] to-[#2c1c14] px-2.5 xs:px-3 py-1 sm:py-2 text-[#FAF5EB] shadow-[0_4px_16px_rgba(213,180,107,0.3)] w-full max-w-sm justify-center"
           >
-            <Sparkles size={22} className="text-slate-950" />
+            {isTriple ? (
+              <Crown size={16} className="text-[#D5B46B] shrink-0 animate-pulse" />
+            ) : (
+              <Sparkles size={16} className="text-[#D5B46B] shrink-0" />
+            )}
             <div className="text-center">
-              <span className="text-base sm:text-lg uppercase">
-                {isTriple ? `TAM BẢO BÃO ${dice[0]}-${dice[1]}-${dice[2]}!` : `${outcome === 'TAI' ? 'TÀI' : 'XỈU'} (${total} ĐIỂM)`}
+              <span className="text-xs xs:text-sm sm:text-base font-black tracking-wide text-[#FAF5EB] uppercase">
+                {isTriple
+                  ? `TAM BẢO BÃO ${dice[0]}-${dice[1]}-${dice[2]}!`
+                  : `${outcome === 'TAI' ? 'TÀI' : 'XỈU'} (${total} ĐIỂM)`}
               </span>
-              <p className="text-[11px] font-medium text-amber-950">
-                Xúc xắc: {dice[0]} - {dice[1]} - {dice[2]}
+              <p className="text-[9px] xs:text-[10px] sm:text-[11px] font-semibold text-[#D5B46B]">
+                3 Xúc xắc: {dice[0]} - {dice[1]} - {dice[2]}
               </p>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </section>
   );
 }
-

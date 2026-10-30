@@ -130,15 +130,7 @@ export function useTaiXiuSocket({ roomId = 'tai-xiu-30s', userId, userName, cust
             setHistory((prev) => [data.historyItem, ...prev.slice(0, 49)]);
           }
 
-          if (data.winners && data.winners.length > 0) {
-            const myWin = data.winners.find((w) => w.userId === paramsRef.current.userId);
-            if (myWin) {
-              const sideName = myWin.betSide === 'TAI' ? 'TÀI' : myWin.betSide === 'XIU' ? 'XỈU' : 'BÃO';
-              toast.success(`🎉 Thắng lớn! Cửa ${sideName} nổ giòn giã! Nhận +${myWin.payout.toLocaleString()} xu!`, {
-                duration: 5000
-              });
-            }
-          }
+          // Thông báo thắng/thua sẽ được phát ra khi người dùng hoặc hệ thống mở bát xong
           break;
 
         case 'BET_ACCEPTED':
