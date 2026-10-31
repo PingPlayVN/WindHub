@@ -70,7 +70,8 @@ export class LotteryRoom {
           bet_side TEXT,
           amount INTEGER,
           payout INTEGER DEFAULT 0,
-          created_at INTEGER
+          created_at INTEGER,
+          google_sub TEXT
         );
 
         CREATE UNIQUE INDEX IF NOT EXISTS idx_bets_round_user_side 
@@ -82,6 +83,10 @@ export class LotteryRoom {
           updated_at INTEGER
         );
       `);
+
+      try {
+        this.sql.exec('ALTER TABLE bets ADD COLUMN google_sub TEXT');
+      } catch {}
     } catch (err) {
       console.error('[LotteryRoom] initDatabase error:', err);
     }
@@ -330,10 +335,18 @@ export class LotteryRoom {
 
     if (this.sql) {
       try {
-        const betsCursor = this.sql.exec(
-          'SELECT id, user_id, user_name, bet_side, amount FROM bets WHERE round_id = ?',
-          roundId
-        );
+        let betsCursor;
+        try {
+          betsCursor = this.sql.exec(
+            'SELECT id, user_id, user_name, bet_side, amount, google_sub FROM bets WHERE round_id = ?',
+            roundId
+          );
+        } catch {
+          betsCursor = this.sql.exec(
+            'SELECT id, user_id, user_name, bet_side, amount FROM bets WHERE round_id = ?',
+            roundId
+          );
+        }
         const bets = [];
         for (const row of betsCursor) {
           bets.push(row);
@@ -362,13 +375,39 @@ export class LotteryRoom {
             });
 
             this.sql.exec('UPDATE bets SET payout = ? WHERE id = ?', winPoints, bet.id);
-            this.sql.exec(
-              'UPDATE player_points SET points = points + ?, updated_at = ? WHERE user_id = ?',
-              winPoints,
-              Date.now(),
-              bet.user_id
-            );
-            this.syncSharedWalletDelta(bet.user_id, winPoints);
+
+            // Authoritative credit to PlayerAccountDO if connected to Google account
+            if (this.env?.PLAYER_ACCOUNT && bet.google_sub) {
+              const creditTxId = `tx_payout_${roundId}_${bet.id}`;
+              const creditTask = async () => {
+                try {
+                  const doId = this.env.PLAYER_ACCOUNT.idFromName(bet.google_sub);
+                  const playerStub = this.env.PLAYER_ACCOUNT.get(doId);
+                  await playerStub.fetch(`http://internal/credit?userId=${encodeURIComponent(bet.user_id)}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      amount: winPoints,
+                      txId: creditTxId,
+                      referenceId: roundId,
+                      type: 'PAYOUT',
+                      description: `Thắng cược ${bet.bet_side === 'TAI' ? 'Tài' : bet.bet_side === 'XIU' ? 'Xỉu' : 'Bão'} ván ${roundId}`
+                    })
+                  });
+                } catch (err) {
+                  console.error('[LotteryRoom] PlayerAccount payout error:', err);
+                }
+              };
+              await creditTask();
+            } else {
+              this.sql.exec(
+                'UPDATE player_points SET points = points + ?, updated_at = ? WHERE user_id = ?',
+                winPoints,
+                Date.now(),
+                bet.user_id
+              );
+              this.syncSharedWalletDelta(bet.user_id, winPoints);
+            }
           }
         }
 
@@ -453,7 +492,24 @@ export class LotteryRoom {
     return null;
   }
 
-  async fetchSharedWalletPoints(userId) {
+  async fetchSharedWalletPoints(userId, googleSub) {
+    if (this.env && this.env.PLAYER_ACCOUNT && googleSub) {
+      try {
+        const doId = this.env.PLAYER_ACCOUNT.idFromName(googleSub);
+        const playerStub = this.env.PLAYER_ACCOUNT.get(doId);
+        const res = await playerStub.fetch(`http://internal/balance?userId=${encodeURIComponent(userId)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (typeof data.balance === 'number') {
+            this.setLocalPlayerPoints(userId, data.balance);
+            return data.balance;
+          }
+        }
+      } catch (err) {
+        console.error('[LotteryRoom] fetchSharedWalletPoints from PlayerAccountDO error:', err);
+      }
+    }
+
     const stub = this.getWalletStub();
     if (!stub) return this.getPlayerPoints(userId);
     try {
@@ -561,7 +617,154 @@ export class LotteryRoom {
   }
 
   // Xử lý cược Tài / Xỉu / Bão
-  handlePlaceBet(userId, userName, roundId, betSide, amount) {
+  handlePlaceBet(userId, userName, roundId, betSide, amount, googleSub) {
+    if (this.env?.PLAYER_ACCOUNT && googleSub) {
+      return this.handlePlaceBetAsync(userId, userName, roundId, betSide, amount, googleSub);
+    }
+    return this.handlePlaceBetSync(userId, userName, roundId, betSide, amount);
+  }
+
+  async handlePlaceBetAsync(userId, userName, roundId, betSide, amount, googleSub) {
+    if (this.state !== 'WAITING') {
+      return { success: false, code: 'NOT_ACCEPTING_BETS', message: 'Bát đã úp, đã khóa cược! Chờ ván sau nhé.' };
+    }
+
+    if (roundId && roundId.trim() !== this.currentRoundId.trim()) {
+      return { success: false, code: 'INVALID_ROUND', message: 'Mã lượt chơi đã thay đổi.' };
+    }
+
+    const side = String(betSide || '').toUpperCase().trim();
+    if (!['TAI', 'XIU', 'BAO'].includes(side)) {
+      return { success: false, code: 'INVALID_SIDE', message: 'Cửa cược không hợp lệ (Chọn Tài, Xỉu hoặc Bão).' };
+    }
+
+    const betAmount = parseInt(amount, 10);
+    if (isNaN(betAmount) || betAmount <= 0 || betAmount > 50000000) {
+      return { success: false, code: 'INVALID_AMOUNT', message: 'Số điểm cược không hợp lệ.' };
+    }
+
+    const betId = `bet_${this.currentRoundId}_${userId}_${side}`;
+    let finalAmount = betAmount;
+
+    // Kiểm tra giới hạn cược tối đa
+    if (this.sql) {
+      try {
+        const checkCursor = this.sql.exec(
+          'SELECT id, amount FROM bets WHERE round_id = ? AND user_id = ? AND bet_side = ?',
+          this.currentRoundId,
+          userId,
+          side
+        );
+        let existingBet = null;
+        for (const row of checkCursor) {
+          existingBet = row;
+          break;
+        }
+
+        if (existingBet) {
+          finalAmount = (Number(existingBet.amount) || 0) + betAmount;
+          if (finalAmount > 200000000) {
+            return {
+              success: false,
+              code: 'MAX_BET_EXCEEDED',
+              message: 'Tổng cược cửa này đã đạt giới hạn tối đa 200,000,000 xu!'
+            };
+          }
+        }
+      } catch (err) {
+        console.error('[LotteryRoom] checkCursor error:', err);
+      }
+    }
+
+    // 1. Trừ tiền Authoritative trực tiếp từ PlayerAccountDO (Chống gian lận & Idempotent)
+    let newBalance = 0;
+    try {
+      const doId = this.env.PLAYER_ACCOUNT.idFromName(googleSub);
+      const playerStub = this.env.PLAYER_ACCOUNT.get(doId);
+      const debitRes = await playerStub.fetch(`http://internal/debit?userId=${encodeURIComponent(userId)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: betAmount,
+          txId: `tx_bet_${this.currentRoundId}_${userId}_${side}_${Date.now()}`,
+          referenceId: `${this.currentRoundId}:${side}`,
+          description: `Đặt cược ${side === 'TAI' ? 'Tài' : side === 'XIU' ? 'Xỉu' : 'Bão'} ván ${this.currentRoundId}`
+        })
+      });
+
+      const debitData = await debitRes.json();
+      if (!debitData.success) {
+        return {
+          success: false,
+          code: debitData.code || 'INSUFFICIENT_POINTS',
+          message: debitData.message || 'Bạn không đủ xu BET! Hãy điểm danh nhận thưởng mỗi ngày.'
+        };
+      }
+      newBalance = debitData.balance;
+    } catch (err) {
+      console.error('[LotteryRoom] debit error from PlayerAccountDO:', err);
+      return { success: false, code: 'WALLET_ERROR', message: 'Lỗi kết nối ví tài khoản người chơi.' };
+    }
+
+    // 2. Ghi nhận cược vào SQLite của phòng
+    if (this.sql) {
+      try {
+        const checkCursor = this.sql.exec(
+          'SELECT id, amount FROM bets WHERE round_id = ? AND user_id = ? AND bet_side = ?',
+          this.currentRoundId,
+          userId,
+          side
+        );
+        let existingBet = null;
+        for (const row of checkCursor) {
+          existingBet = row;
+          break;
+        }
+
+        if (existingBet) {
+          this.sql.exec(
+            'UPDATE bets SET amount = ? WHERE round_id = ? AND user_id = ? AND bet_side = ?',
+            finalAmount,
+            this.currentRoundId,
+            userId,
+            side
+          );
+        } else {
+          this.sql.exec(
+            'INSERT INTO bets (id, round_id, user_id, user_name, bet_side, amount, payout, created_at, google_sub) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)',
+            betId,
+            this.currentRoundId,
+            userId,
+            userName || 'Người chơi',
+            side,
+            betAmount,
+            Date.now(),
+            googleSub
+          );
+
+          this.sql.exec('UPDATE rounds SET total_bets = total_bets + 1 WHERE id = ?', this.currentRoundId);
+        }
+      } catch (err) {
+        console.error('[LotteryRoom] SQLite write error on bet:', err);
+        return { success: false, code: 'DB_ERROR', message: 'Lỗi ghi nhận cược.' };
+      }
+    }
+
+    return {
+      success: true,
+      bet: {
+        id: betId,
+        roundId: this.currentRoundId,
+        side,
+        amount: finalAmount,
+        addedAmount: betAmount,
+        sideName: side === 'TAI' ? 'Tài' : side === 'XIU' ? 'Xỉu' : 'Bão'
+      },
+      newBalance
+    };
+  }
+
+  handlePlaceBetSync(userId, userName, roundId, betSide, amount) {
     if (this.state !== 'WAITING') {
       return { success: false, code: 'NOT_ACCEPTING_BETS', message: 'Bát đã úp, đã khóa cược! Chờ ván sau nhé.' };
     }
@@ -723,7 +926,7 @@ export class LotteryRoom {
       try {
         const meta = ws.deserializeAttachment ? ws.deserializeAttachment() : null;
         if (meta && meta.userId) {
-          const points = await this.fetchSharedWalletPoints(meta.userId);
+          const points = await this.fetchSharedWalletPoints(meta.userId, meta.googleSub);
           ws.send(JSON.stringify({
             type: 'POINTS_UPDATED',
             seq: ++this.lastSeq,
@@ -797,6 +1000,7 @@ export class LotteryRoom {
 
       const userId = url.searchParams.get('userId') || `guest_${Math.random().toString(36).substring(2, 8)}`;
       const userName = url.searchParams.get('userName') || 'Dân làng';
+      const googleSub = url.searchParams.get('googleSub') || '';
       const socketId = `ws_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
 
       if (this.ctx && typeof this.ctx.acceptWebSocket === 'function') {
@@ -805,7 +1009,7 @@ export class LotteryRoom {
         server.accept();
       }
 
-      const attachment = { socketId, userId, userName, joinedAt: Date.now() };
+      const attachment = { socketId, userId, userName, googleSub, joinedAt: Date.now() };
       if (typeof server.serializeAttachment === 'function') {
         server.serializeAttachment(attachment);
       }
@@ -817,7 +1021,7 @@ export class LotteryRoom {
       }
 
       // Gửi snapshot tức thì
-      const snapshot = await this.getSnapshot(userId);
+      const snapshot = await this.getSnapshot(userId, googleSub);
       server.send(JSON.stringify({
         type: 'SNAPSHOT',
         seq: ++this.lastSeq,
@@ -851,8 +1055,8 @@ export class LotteryRoom {
     return new Response('TaiXiuRoom OK', { status: 200 });
   }
 
-  async getSnapshot(userId) {
-    const userPoints = await this.fetchSharedWalletPoints(userId);
+  async getSnapshot(userId, googleSub) {
+    const userPoints = await this.fetchSharedWalletPoints(userId, googleSub);
     const history = this.getHistory(50);
     const myBets = this.getUserCurrentBets(userId);
     const betSummary = this.getRoomBetSummary();
@@ -928,18 +1132,19 @@ export class LotteryRoom {
         break;
 
       case 'GET_SNAPSHOT': {
-        const snap = await this.getSnapshot(userId);
+        const snap = await this.getSnapshot(userId, meta?.googleSub);
         ws.send(JSON.stringify({ type: 'SNAPSHOT', seq: ++this.lastSeq, ...snap }));
         break;
       }
 
       case 'PREDICT': {
-        const result = this.handlePlaceBet(
+        const result = await this.handlePlaceBet(
           userId,
           userName,
           payload.roundId,
           payload.side,
-          payload.amount
+          payload.amount,
+          meta?.googleSub
         );
 
         if (!result.success) {

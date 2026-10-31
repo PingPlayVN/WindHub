@@ -1,6 +1,16 @@
+// cloudflare-worker/src/index.js
 import { LotteryRoom } from './LotteryRoom.js';
+import { PlayerAccountDO } from './PlayerAccountDO.js';
+import {
+  verifyGoogleIdToken,
+  createSessionToken,
+  verifySessionToken,
+  parseCookies,
+  buildSessionCookie,
+  buildClearSessionCookie
+} from './auth.js';
 
-export { LotteryRoom };
+export { LotteryRoom, PlayerAccountDO };
 
 const FACEBOOK_HOSTS = ['facebook.com', 'fb.com'];
 
@@ -101,16 +111,52 @@ function mergePublicData(results) {
 function corsHeaders(request, env) {
   const origin = request.headers.get('Origin') || '';
   const allowed = env?.ALLOWED_ORIGIN || '*';
-  return {
-    'Access-Control-Allow-Origin': allowed === '*' || allowed === origin ? origin || '*' : allowed,
+  const effectiveOrigin = (allowed === '*' || allowed === origin) ? (origin || '*') : allowed;
+  const headers = {
+    'Access-Control-Allow-Origin': effectiveOrigin,
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Upgrade',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, Upgrade',
     'Cache-Control': 'no-store',
     Vary: 'Origin',
   };
+  if (effectiveOrigin !== '*') {
+    headers['Access-Control-Allow-Credentials'] = 'true';
+  }
+  return headers;
 }
 
-// Danh sách 2 phòng Tài Xỉu chính thức
+// Lấy thông tin phiên từ Cookie hoặc Bearer Token hoặc Query param
+async function getAuthenticatedSession(request, env) {
+  const url = new URL(request.url);
+  const secret = env.SESSION_SECRET || 'windhub_default_session_secret_2026';
+
+  // 1. Thử từ Cookie
+  const cookieHeader = request.headers.get('Cookie');
+  const cookies = parseCookies(cookieHeader);
+  if (cookies.windhub_session) {
+    const session = await verifySessionToken(cookies.windhub_session, secret);
+    if (session) return session;
+  }
+
+  // 2. Thử từ Authorization: Bearer <token>
+  const authHeader = request.headers.get('Authorization');
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.slice(7).trim();
+    const session = await verifySessionToken(token, secret);
+    if (session) return session;
+  }
+
+  // 3. Thử từ URL parameter ?token=... (cho WebSocket upgrade)
+  const tokenParam = url.searchParams.get('token');
+  if (tokenParam) {
+    const session = await verifySessionToken(tokenParam, secret);
+    if (session) return session;
+  }
+
+  return null;
+}
+
+// Danh sách phòng Tài Xỉu chính thức
 const PUBLIC_VILLAGE_ROOMS = [
   { id: 'tai-xiu-30s', name: 'Xóm Đình Truyền Thống', duration: 50, resultDuration: 15, desc: '50 giây chờ cược - Thong thả đàm đạo, ngắm nghía soi cầu' },
   { id: 'tai-xiu-15s', name: 'Chợ Phiên Nhanh', duration: 25, resultDuration: 15, desc: '25 giây chờ cược - Lắc nhanh thắng nhanh, kịch tính nghẹt thở' }
@@ -123,11 +169,167 @@ export default {
 
     const requestUrl = new URL(request.url);
 
-    // 1. ROUTE XỔ SỐ VUI XÓM LÀNG: /api/lottery/*
+    // ==========================================
+    // 1. AUTH ROUTES (/api/auth/*)
+    // ==========================================
+    if (requestUrl.pathname.startsWith('/api/auth/')) {
+      const authPath = requestUrl.pathname.replace('/api/auth', '');
+
+      // POST /api/auth/google - Đăng nhập tài khoản Google duy nhất
+      if (authPath === '/google' && request.method === 'POST') {
+        try {
+          const body = await request.json().catch(() => ({}));
+          const idToken = body.credential || body.idToken || body.token;
+          if (!idToken) {
+            return Response.json({ ok: false, error: 'Thiếu Google ID token.' }, { status: 400, headers });
+          }
+
+          // 1. Xác thực ID token trực tiếp với Google JWKS
+          const googleClaims = await verifyGoogleIdToken(idToken, env);
+          const googleSub = googleClaims.sub;
+
+          if (!env.PLAYER_ACCOUNT) {
+            return Response.json({ ok: false, error: 'Durable Object binding PLAYER_ACCOUNT chưa được cấu hình.' }, { status: 503, headers });
+          }
+
+          // 2. Định tuyến đến PlayerAccountDO của người chơi
+          const doId = env.PLAYER_ACCOUNT.idFromName(googleSub);
+          const playerStub = env.PLAYER_ACCOUNT.get(doId);
+
+          const loginResponse = await playerStub.fetch('http://internal/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              googleSub,
+              email: googleClaims.email,
+              displayName: googleClaims.name,
+              avatarUrl: googleClaims.picture
+            })
+          });
+
+          if (!loginResponse.ok) {
+            return Response.json({ ok: false, error: 'Lỗi khởi tạo tài khoản người chơi.' }, { status: 500, headers });
+          }
+
+          const loginData = await loginResponse.json();
+
+          // 3. Cấp phát phiên bảo mật WindHub (Session Token)
+          const sessionSecret = env.SESSION_SECRET || 'windhub_default_session_secret_2026';
+          const sessionToken = await createSessionToken({
+            userId: loginData.user.userId,
+            googleSub: loginData.user.googleSub,
+            email: loginData.user.email,
+            displayName: loginData.user.displayName,
+            avatarUrl: loginData.user.avatarUrl
+          }, sessionSecret);
+
+          const resHeaders = new Headers(headers);
+          const isSecure = requestUrl.protocol === 'https:';
+          resHeaders.set('Set-Cookie', buildSessionCookie(sessionToken, 7 * 86400, isSecure));
+
+          return Response.json({
+            ok: true,
+            sessionToken,
+            user: loginData.user,
+            balance: loginData.balance,
+            dailyReward: loginData.dailyReward
+          }, { status: 200, headers: resHeaders });
+
+        } catch (err) {
+          console.error('[Auth] Google login error:', err);
+          return Response.json({ ok: false, error: err.message || 'Xác thực Google không thành công.' }, { status: 401, headers });
+        }
+      }
+
+      // POST /api/auth/logout - Đăng xuất tài khoản
+      if (authPath === '/logout' && request.method === 'POST') {
+        const resHeaders = new Headers(headers);
+        resHeaders.set('Set-Cookie', buildClearSessionCookie());
+        return Response.json({ ok: true, message: 'Đã đăng xuất thành công.' }, { headers: resHeaders });
+      }
+
+      // GET /api/auth/me - Lấy thông tin phiên hiện tại
+      if (authPath === '/me' && request.method === 'GET') {
+        const session = await getAuthenticatedSession(request, env);
+        if (!session) {
+          return Response.json({ ok: false, authenticated: false, error: 'Chưa đăng nhập' }, { status: 401, headers });
+        }
+
+        if (!env.PLAYER_ACCOUNT) {
+          return Response.json({ ok: true, authenticated: true, user: session, balance: 0 }, { headers });
+        }
+
+        try {
+          const doId = env.PLAYER_ACCOUNT.idFromName(session.googleSub);
+          const playerStub = env.PLAYER_ACCOUNT.get(doId);
+          const profRes = await playerStub.fetch(`http://internal/profile?userId=${encodeURIComponent(session.userId)}`);
+          if (profRes.ok) {
+            const data = await profRes.json();
+            return Response.json({ ok: true, authenticated: true, ...data.profile }, { headers });
+          }
+        } catch (err) {
+          console.error('[Auth] /api/auth/me error:', err);
+        }
+
+        return Response.json({ ok: true, authenticated: true, user: session, balance: 0 }, { headers });
+      }
+    }
+
+    // ==========================================
+    // 2. WALLET & REWARD ROUTES (/api/wallet/*, /api/reward/*)
+    // ==========================================
+    if (requestUrl.pathname.startsWith('/api/wallet/') || requestUrl.pathname.startsWith('/api/reward/')) {
+      const session = await getAuthenticatedSession(request, env);
+      if (!session) {
+        return Response.json({ ok: false, error: 'Yêu cầu đăng nhập tài khoản Google.' }, { status: 401, headers });
+      }
+
+      if (!env.PLAYER_ACCOUNT) {
+        return Response.json({ ok: false, error: 'PLAYER_ACCOUNT binding chưa được cấu hình.' }, { status: 503, headers });
+      }
+
+      const doId = env.PLAYER_ACCOUNT.idFromName(session.googleSub);
+      const playerStub = env.PLAYER_ACCOUNT.get(doId);
+
+      // GET /api/wallet/transactions
+      if (requestUrl.pathname === '/api/wallet/transactions' && request.method === 'GET') {
+        const limit = requestUrl.searchParams.get('limit') || '50';
+        const doRes = await playerStub.fetch(`http://internal/transactions?userId=${encodeURIComponent(session.userId)}&limit=${limit}`);
+        const data = await doRes.json();
+        return Response.json(data, { headers });
+      }
+
+      // GET /api/wallet/balance
+      if (requestUrl.pathname === '/api/wallet/balance' && request.method === 'GET') {
+        const doRes = await playerStub.fetch(`http://internal/balance?userId=${encodeURIComponent(session.userId)}`);
+        const data = await doRes.json();
+        return Response.json(data, { headers });
+      }
+
+      // GET /api/reward/status
+      if (requestUrl.pathname === '/api/reward/status' && request.method === 'GET') {
+        const doRes = await playerStub.fetch(`http://internal/reward/status?userId=${encodeURIComponent(session.userId)}`);
+        const data = await doRes.json();
+        return Response.json(data, { headers });
+      }
+
+      // POST /api/reward/claim
+      if (requestUrl.pathname === '/api/reward/claim' && request.method === 'POST') {
+        const doRes = await playerStub.fetch(`http://internal/reward/claim?userId=${encodeURIComponent(session.userId)}`, {
+          method: 'POST'
+        });
+        const data = await doRes.json();
+        return Response.json(data, { status: doRes.status, headers });
+      }
+    }
+
+    // ==========================================
+    // 3. ROUTE XỔ SỐ VUI XÓM LÀNG: /api/lottery/*
+    // ==========================================
     if (requestUrl.pathname.startsWith('/api/lottery/')) {
       const subPath = requestUrl.pathname.replace('/api/lottery', '');
 
-      // Danh sách phòng công cộng
+      // Danh sách phòng công cộng (không cần auth)
       if (subPath === '/rooms' && request.method === 'GET') {
         return Response.json({ ok: true, rooms: PUBLIC_VILLAGE_ROOMS }, { headers });
       }
@@ -137,6 +339,21 @@ export default {
         return Response.json({
           error: 'Durable Object binding LOTTERY_ROOM chưa được cấu hình trên môi trường này.'
         }, { status: 503, headers });
+      }
+
+      // WebSocket Upgrade & Snapshot Authentication
+      // Reject unauthenticated access: No guest mode!
+      let authSession = null;
+      if (request.headers.get('Upgrade')?.toLowerCase() === 'websocket' || subPath === '/ws' || subPath === '/snapshot') {
+        authSession = await getAuthenticatedSession(request, env);
+        if (!authSession) {
+          // Bắt buộc Google Login: Không cho phép guest
+          return Response.json({
+            ok: false,
+            code: 'UNAUTHORIZED',
+            error: 'Bạn cần đăng nhập tài khoản Google để tham gia chơi Tài Xỉu.'
+          }, { status: 401, headers });
+        }
       }
 
       // Xác thực mã phòng: chỉ cho phép ký tự chữ thường, số, dấu gạch nối (tối đa 32 ký tự)
@@ -149,8 +366,18 @@ export default {
         const doId = env.LOTTERY_ROOM.idFromName(cleanRoomId);
         const roomStub = env.LOTTERY_ROOM.get(doId);
 
+        // Chuẩn bị URL chuyển tiếp vào LotteryRoom với thông tin danh tính xác thực từ server
+        const forwardUrl = new URL(request.url);
+        if (authSession) {
+          forwardUrl.searchParams.set('userId', authSession.userId);
+          forwardUrl.searchParams.set('userName', authSession.displayName || 'Người Chơi');
+          forwardUrl.searchParams.set('googleSub', authSession.googleSub);
+        }
+
+        const forwardRequest = new Request(forwardUrl.toString(), request);
+
         // Chuyển tiếp request vào Durable Object
-        const doResponse = await roomStub.fetch(request);
+        const doResponse = await roomStub.fetch(forwardRequest);
 
         // Nối thêm CORS header cho phản hồi HTTP thông thường (nếu không phải WebSocket 101)
         if (doResponse.status !== 101) {
@@ -172,7 +399,9 @@ export default {
       }
     }
 
-    // 2. ROUTE FACEBOOK PROFILE CŨ (Giữ nguyên 100% chức năng)
+    // ==========================================
+    // 4. ROUTE FACEBOOK PROFILE CŨ (Giữ nguyên 100% chức năng)
+    // ==========================================
     if (requestUrl.pathname === '/profile') {
       if (request.method !== 'GET') {
         return Response.json({ error: 'Method not allowed' }, { status: 405, headers });
@@ -208,12 +437,19 @@ export default {
 
     return Response.json({
       service: 'WindHub Multi-Service Worker',
-      version: '2.0.0',
+      version: '3.0.0',
       routes: [
+        'POST /api/auth/google',
+        'POST /api/auth/logout',
+        'GET /api/auth/me',
+        'GET /api/wallet/balance',
+        'GET /api/wallet/transactions',
+        'GET /api/reward/status',
+        'POST /api/reward/claim',
         'GET /profile?url=...',
         'GET /api/lottery/rooms',
-        'GET /api/lottery/ws?room=...&userId=...&userName=...',
-        'GET /api/lottery/snapshot?room=...&userId=...',
+        'GET /api/lottery/ws?room=...',
+        'GET /api/lottery/snapshot?room=...',
         'GET /api/lottery/history?room=...'
       ]
     }, { status: 200, headers });

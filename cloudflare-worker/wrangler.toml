@@ -6,12 +6,19 @@ workers_dev = true
 [vars]
 # Set this to your deployed WindHub origin in production. Keep * for local development.
 ALLOWED_ORIGIN = "*"
+# GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
+# SESSION_SECRET = "14W!ndH#07uB@20Se$09ss!0nKey#32"
 
 [durable_objects]
 bindings = [
-  { name = "LOTTERY_ROOM", class_name = "LotteryRoom" }
+  { name = "LOTTERY_ROOM", class_name = "LotteryRoom" },
+  { name = "PLAYER_ACCOUNT", class_name = "PlayerAccountDO" }
 ]
 
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["LotteryRoom"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["PlayerAccountDO"]
