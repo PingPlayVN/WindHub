@@ -49,9 +49,21 @@ const casio580Entry = {
     : null,
 };
 
-// Sắp xếp thứ tự hiển thị: Từ vựng -> Casio 580 -> Image Art -> Các công cụ khác
+// Card Tài Xỉu Dân Gian (Điều hướng trực tiếp toàn màn hình)
+export const taiXiuToolEntry = {
+  id: 'TaiXiuGame',
+  title: 'Tài Xỉu Dân Gian',
+  subtitle: 'Lắc 3 xúc xắc truyền thống, nặn đĩa kịch tính và nhận quà điểm danh xu miễn phí',
+  badge: 'Trò chơi dân gian',
+  isLocked: false,
+  isDirectLink: true,
+  link: '/entertainment/tai-xiu'
+};
+
+// Sắp xếp thứ tự hiển thị: Từ vựng -> Casio 580 -> Tài Xỉu -> Image Art -> Các công cụ khác
 export const toolEntries = [
   ...otherEntries.filter((t) => t.id === 'VocabularyPractice'),
   casio580Entry,
+  taiXiuToolEntry,
   ...otherEntries.filter((t) => t.id !== 'VocabularyPractice'),
 ].filter(Boolean);

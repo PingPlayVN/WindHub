@@ -1,6 +1,7 @@
 // src/modules/Entertainment/TaiXiu/index.jsx
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useTaiXiuSocket } from './hooks/useTaiXiuSocket';
@@ -13,6 +14,9 @@ import SoundSettingsModal from './components/SoundSettingsModal';
 import MyBetsModal from './components/MyBetsModal';
 import RoomSelectorModal from './components/RoomSelectorModal';
 import GameInfoModal from './components/GameInfoModal';
+import GoogleLoginGate from './components/GoogleLoginGate';
+import DailyRewardModal from './components/DailyRewardModal';
+import ProfileWalletModal from './components/ProfileWalletModal';
 import { Ticket, ChevronDown } from 'lucide-react';
 
 class SoundEffects {
@@ -119,13 +123,28 @@ function MyBetsCard({ myCurrentBets = [] }) {
 }
 
 export default function TaiXiuGame() {
-  const { user } = useAuthStore();
+  const navigate = useNavigate();
+  const {
+    player,
+    isPlayerAuthenticated,
+    isPlayerLoading,
+    initPlayerAuth,
+    betBalance,
+    dailyReward
+  } = useAuthStore();
+
   const [roomId, setRoomId] = useState('tai-xiu-30s');
   const [isSoiCauOpen, setIsSoiCauOpen] = useState(false);
   const [isSoundSettingsOpen, setIsSoundSettingsOpen] = useState(false);
   const [isMyBetsOpen, setIsMyBetsOpen] = useState(false);
   const [isRoomSelectorOpen, setIsRoomSelectorOpen] = useState(false);
   const [isGameInfoOpen, setIsGameInfoOpen] = useState(false);
+  const [isDailyRewardOpen, setIsDailyRewardOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+  useEffect(() => {
+    initPlayerAuth();
+  }, [initPlayerAuth]);
 
   // Cấu hình âm thanh: SFX/VFX và Nhạc nền Lofi
   const [sfxEnabled, setSfxEnabled] = useState(() => localStorage.getItem('windhub_taixiu_sfx_enabled') !== 'false');
@@ -186,23 +205,8 @@ export default function TaiXiuGame() {
     };
   }, [bgmEnabled, bgmVolume]);
 
-  const [{ localUserId, localUserName }] = useState(() => {
-    let id = localStorage.getItem('windhub_lottery_user_id');
-    let name = localStorage.getItem('windhub_lottery_user_name');
-    if (!id) {
-      id = `dan_${Math.random().toString(36).substring(2, 9)}`;
-      localStorage.setItem('windhub_lottery_user_id', id);
-    }
-    if (!name) {
-      const titles = ['Bác Ba', 'Chú Tư', 'Cô Năm', 'Anh Sáu', 'Chị Bảy', 'Ông Giáo', 'Bác Trưởng Thôn', 'Bà Bảy Quán Nước'];
-      name = titles[Math.floor(Math.random() * titles.length)];
-      localStorage.setItem('windhub_lottery_user_name', name);
-    }
-    return { localUserId: id, localUserName: name };
-  });
-
-  const activeUserId = user?.uid || localUserId;
-  const activeUserName = user?.displayName || user?.email?.split('@')[0] || localUserName;
+  const activeUserId = player?.userId || 'auth_player';
+  const activeUserName = player?.displayName || 'Người Chơi';
 
   const {
     connectionStatus,
@@ -224,7 +228,8 @@ export default function TaiXiuGame() {
   } = useTaiXiuSocket({
     roomId,
     userId: activeUserId,
-    userName: activeUserName
+    userName: activeUserName,
+    enabled: isPlayerAuthenticated && !!player?.userId
   });
 
   // KHI MỞ BÁT RA MỚI THÔNG BÁO THẮNG HAY THUA & PHÁT NHẠC CHIẾN THẮNG
@@ -288,6 +293,13 @@ export default function TaiXiuGame() {
     placeBet(betSide, amount);
   }, [placeBet]);
 
+  // Bắt buộc xác thực tài khoản Google: Không cho phép chơi khách (No Guest Mode)
+  if (!isPlayerLoading && !isPlayerAuthenticated) {
+    return <GoogleLoginGate />;
+  }
+
+  const effectivePoints = betBalance || myPoints;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -300,7 +312,7 @@ export default function TaiXiuGame() {
         onSelectRoom={(id) => setRoomId(id)}
         connectionStatus={connectionStatus}
         onlineCount={onlineCount}
-        myPoints={myPoints}
+        myPoints={effectivePoints}
         onClaimFreePoints={claimFreePoints}
         sfxEnabled={sfxEnabled}
         bgmEnabled={bgmEnabled}
@@ -311,6 +323,10 @@ export default function TaiXiuGame() {
         onOpenMyBets={() => setIsMyBetsOpen(true)}
         myBetsCount={myCurrentBets?.length || 0}
         onOpenGameInfo={() => setIsGameInfoOpen(true)}
+        onOpenDailyReward={() => setIsDailyRewardOpen(true)}
+        onOpenProfile={() => setIsProfileOpen(true)}
+        onExitGame={() => navigate('/entertainment')}
+        canClaimReward={dailyReward?.canClaimToday ?? true}
       />
 
       {/* 2. LAYOUT CHÍNH: BÀN CHƠI TÀI XỈU (TỰ ĐỘNG THÍCH ỨNG MOBILE / DESKTOP) */}
@@ -363,7 +379,7 @@ export default function TaiXiuGame() {
           <BetBoard
             state={roomState}
             myBets={myCurrentBets}
-            myPoints={myPoints}
+            myPoints={effectivePoints}
             betSummary={betSummary}
             onPlaceBet={handlePlaceBet}
           />
@@ -378,6 +394,17 @@ export default function TaiXiuGame() {
       </div>
 
       {/* 4. CÁC MODAL / POPUP PHỤ TRỢ (TRUY CẬP BẰNG NÚT BẤM TRÊN MOBILE & DESKTOP) */}
+      <DailyRewardModal
+        open={isDailyRewardOpen}
+        onClose={() => setIsDailyRewardOpen(false)}
+        onRewardClaimed={() => sfx.playWinFanfare()}
+      />
+
+      <ProfileWalletModal
+        open={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
+      />
+
       <SoiCauModal
         isOpen={isSoiCauOpen}
         onClose={() => setIsSoiCauOpen(false)}
@@ -402,7 +429,7 @@ export default function TaiXiuGame() {
         isOpen={isMyBetsOpen}
         onClose={() => setIsMyBetsOpen(false)}
         myBets={myCurrentBets}
-        myPoints={myPoints}
+        myPoints={effectivePoints}
         latestWinners={latestWinners}
         activeUserId={activeUserId}
         outcome={outcome}

@@ -88,6 +88,8 @@ export function parseJwtParts(token) {
 
 /**
  * Verify Google ID Token
+ * Strictly validates signature, issuer, audience, expiration, iat, and sub.
+ * Mock authentication is disallowed unless env.ALLOW_MOCK_AUTH === 'true' (test/dev only).
  */
 export async function verifyGoogleIdToken(idToken, env = {}, fetchFn = fetch) {
   if (!idToken) throw new Error('Missing ID token');
@@ -102,8 +104,9 @@ export async function verifyGoogleIdToken(idToken, env = {}, fetchFn = fetch) {
     throw new Error(`Unsupported alg: ${header.alg}`);
   }
 
-  // Allow mock token in dev/test environment if explicitly flagged
+  // Allow mock token ONLY when explicitly enabled via env.ALLOW_MOCK_AUTH === 'true' (for tests/local dev)
   if (env.ALLOW_MOCK_AUTH === 'true' && payload.iss === 'mock_google_auth') {
+    if (!payload.sub) throw new Error('Missing sub in mock token');
     return {
       sub: payload.sub,
       email: payload.email || 'mock@example.com',
@@ -113,26 +116,36 @@ export async function verifyGoogleIdToken(idToken, env = {}, fetchFn = fetch) {
     };
   }
 
-  // 2. Verify Claims
+  // 2. Strict audience validation: GOOGLE_CLIENT_ID must be configured
+  if (!env.GOOGLE_CLIENT_ID) {
+    throw new Error('GOOGLE_CLIENT_ID is not configured on server');
+  }
+
+  if (payload.aud !== env.GOOGLE_CLIENT_ID) {
+    throw new Error(`Audience mismatch: expected ${env.GOOGLE_CLIENT_ID}, got ${payload.aud}`);
+  }
+
+  // 3. Verify Issuer
   const validIssuers = ['https://accounts.google.com', 'accounts.google.com'];
   if (!validIssuers.includes(payload.iss)) {
     throw new Error(`Invalid issuer: ${payload.iss}`);
   }
 
-  if (env.GOOGLE_CLIENT_ID && payload.aud !== env.GOOGLE_CLIENT_ID) {
-    throw new Error(`Audience mismatch: expected ${env.GOOGLE_CLIENT_ID}, got ${payload.aud}`);
+  // 4. Verify Claims (sub, exp, iat)
+  if (!payload.sub || typeof payload.sub !== 'string' || !payload.sub.trim()) {
+    throw new Error('Missing or invalid sub in token claims');
   }
 
   const nowSec = Math.floor(Date.now() / 1000);
-  if (payload.exp && payload.exp < nowSec - 60) {
-    throw new Error('Token has expired');
+  if (!payload.exp || typeof payload.exp !== 'number' || payload.exp < nowSec - 60) {
+    throw new Error('Token has expired or missing expiration');
   }
 
-  if (!payload.sub) {
-    throw new Error('Missing sub in token claims');
+  if (!payload.iat || typeof payload.iat !== 'number' || payload.iat > nowSec + 300) {
+    throw new Error('Invalid token issue time');
   }
 
-  // 3. Verify Signature with Google JWKS
+  // 5. Verify Signature with Google JWKS
   const keys = await fetchGoogleJWKS(fetchFn);
   const matchingKey = keys.find((k) => k.kid === header.kid);
   if (!matchingKey) {
@@ -172,12 +185,16 @@ export async function verifyGoogleIdToken(idToken, env = {}, fetchFn = fetch) {
 
 /**
  * Session Token Management (HMAC-SHA256)
+ * Requires explicit secretStr; never defaults to an insecure hardcoded key.
  */
 async function getHmacKey(secretStr) {
+  if (!secretStr || typeof secretStr !== 'string') {
+    throw new Error('SESSION_SECRET is not configured');
+  }
   const enc = new TextEncoder();
   return crypto.subtle.importKey(
     'raw',
-    enc.encode(secretStr || 'windhub_default_secret_key_change_in_production'),
+    enc.encode(secretStr),
     { name: 'HMAC', hash: 'SHA-256' },
     false,
     ['sign', 'verify']
@@ -185,6 +202,10 @@ async function getHmacKey(secretStr) {
 }
 
 export async function createSessionToken(payload, secret, expiresInSeconds = 7 * 86400) {
+  if (!secret) {
+    throw new Error('SESSION_SECRET is not configured');
+  }
+
   const nowSec = Math.floor(Date.now() / 1000);
   const sessionPayload = {
     ...payload,
@@ -205,6 +226,9 @@ export async function createSessionToken(payload, secret, expiresInSeconds = 7 *
 }
 
 export async function verifySessionToken(token, secret) {
+  if (!secret) {
+    throw new Error('SESSION_SECRET is not configured');
+  }
   if (!token || typeof token !== 'string') return null;
 
   const parsed = parseJwtParts(token);
@@ -227,6 +251,35 @@ export async function verifySessionToken(token, secret) {
   } catch {
     return null;
   }
+}
+
+/**
+ * Short-lived One-Time WebSocket Ticket
+ * Used to securely upgrade WebSocket connections without exposing long-term session tokens in URLs.
+ */
+export async function createWsTicket(payload, secret, expiresInSeconds = 60) {
+  if (!secret) throw new Error('SESSION_SECRET is not configured');
+  const nowSec = Math.floor(Date.now() / 1000);
+  const jti = `wst_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+  const ticketPayload = {
+    type: 'WS_TICKET',
+    userId: payload.userId,
+    googleSub: payload.googleSub,
+    displayName: payload.displayName || '',
+    jti,
+    iat: nowSec,
+    exp: nowSec + expiresInSeconds
+  };
+  return createSessionToken(ticketPayload, secret, expiresInSeconds);
+}
+
+export async function verifyWsTicket(ticket, secret) {
+  if (!ticket || typeof ticket !== 'string') return null;
+  const payload = await verifySessionToken(ticket, secret);
+  if (!payload || payload.type !== 'WS_TICKET' || !payload.jti) {
+    return null;
+  }
+  return payload;
 }
 
 /**
@@ -258,4 +311,3 @@ export function buildSessionCookie(token, maxAge = 7 * 86400, isSecure = true) {
 export function buildClearSessionCookie() {
   return 'windhub_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax; Secure';
 }
-

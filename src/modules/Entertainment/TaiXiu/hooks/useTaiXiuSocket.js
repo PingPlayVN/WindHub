@@ -1,11 +1,13 @@
 // src/modules/Entertainment/TaiXiu/hooks/useTaiXiuSocket.js
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
+import { fetchWsTicket, getStoredSessionToken } from '@/services/playerApi';
+import { useAuthStore } from '@/store/useAuthStore';
 
 const HEARTBEAT_INTERVAL = 2500;
 const CLOUDFLARE_WORKER_FALLBACK = 'https://windhub-worker.trinhgiaphong2k9.workers.dev';
 
-export function useTaiXiuSocket({ roomId = 'tai-xiu-30s', userId, userName, customWorkerUrl }) {
+export function useTaiXiuSocket({ roomId = 'tai-xiu-30s', userId, userName, customWorkerUrl, enabled = true }) {
   const [connectionStatus, setConnectionStatus] = useState('DISCONNECTED'); // 'CONNECTING' | 'CONNECTED' | 'RECONNECTING' | 'DISCONNECTED'
   const [roomState, setRoomState] = useState('WAITING'); // 'WAITING' | 'PLAYING' | 'RESULT' | 'CLOSED'
   const [currentRoundId, setCurrentRoundId] = useState('');
@@ -27,15 +29,15 @@ export function useTaiXiuSocket({ roomId = 'tai-xiu-30s', userId, userName, cust
   const reconnectTimeoutRef = useRef(null);
   const isManuallyClosedRef = useRef(false);
   const lastProcessedSeqRef = useRef(0);
-  const paramsRef = useRef({ roomId, userId, userName, customWorkerUrl });
+  const paramsRef = useRef({ roomId, userId, userName, customWorkerUrl, enabled });
   const backupStateRef = useRef({ bets: [], points: 10000 });
 
   useEffect(() => {
-    paramsRef.current = { roomId, userId, userName, customWorkerUrl };
-  }, [roomId, userId, userName, customWorkerUrl]);
+    paramsRef.current = { roomId, userId, userName, customWorkerUrl, enabled };
+  }, [roomId, userId, userName, customWorkerUrl, enabled]);
 
-  // Tính toán WebSocket URL chuẩn
-  const getWebSocketUrl = useCallback(() => {
+  // Tính toán WebSocket URL an toàn (kết hợp One-time Ticket và Session Token dự phòng)
+  const getWebSocketUrl = useCallback((ticket) => {
     const { roomId: rId, userId: uId, userName: uName, customWorkerUrl: cUrl } = paramsRef.current;
     let base = cUrl || import.meta.env.VITE_LOTTERY_WORKER_URL;
     if (base && (base.includes(':5173') || (typeof window !== 'undefined' && base === window.location.origin))) {
@@ -54,11 +56,21 @@ export function useTaiXiuSocket({ roomId = 'tai-xiu-30s', userId, userName, cust
     } else if (base.startsWith('https://')) {
       wsProto = 'wss:';
       host = base.replace('https://', '');
-    } else if (base.startsWith('ws://') || base.startsWith('wss://')) {
-      return `${base}/api/lottery/ws?room=${encodeURIComponent(rId)}&userId=${encodeURIComponent(uId)}&userName=${encodeURIComponent(uName)}`;
     }
 
-    return `${wsProto}//${host}/api/lottery/ws?room=${encodeURIComponent(rId)}&userId=${encodeURIComponent(uId)}&userName=${encodeURIComponent(uName)}`;
+    const queryParts = [`room=${encodeURIComponent(rId)}`];
+    if (ticket) queryParts.push(`ticket=${encodeURIComponent(ticket)}`);
+    const token = getStoredSessionToken();
+    if (token) queryParts.push(`token=${encodeURIComponent(token)}`);
+    if (uId) queryParts.push(`userId=${encodeURIComponent(uId)}`);
+    if (uName) queryParts.push(`userName=${encodeURIComponent(uName)}`);
+
+    const qs = queryParts.join('&');
+    if (base.startsWith('ws://') || base.startsWith('wss://')) {
+      return `${base}/api/lottery/ws?${qs}`;
+    }
+
+    return `${wsProto}//${host}/api/lottery/ws?${qs}`;
   }, []);
 
   // Gửi tin nhắn an toàn
@@ -93,7 +105,10 @@ export function useTaiXiuSocket({ roomId = 'tai-xiu-30s', userId, userName, cust
           if (data.outcome) setOutcome(data.outcome);
           setIsTriple(!!data.isTriple);
           setOnlineCount(data.onlineCount || 1);
-          if (data.myPoints !== undefined) setMyPoints(data.myPoints);
+          if (data.myPoints !== undefined) {
+            setMyPoints(data.myPoints);
+            useAuthStore.getState().updateBetBalance(data.myPoints);
+          }
           if (data.myCurrentBets) setMyCurrentBets(data.myCurrentBets);
           if (data.betSummary) setBetSummary(data.betSummary);
           if (data.history) {
@@ -163,7 +178,10 @@ export function useTaiXiuSocket({ roomId = 'tai-xiu-30s', userId, userName, cust
             }
             return [...prev, data.bet];
           });
-          if (data.newBalance !== undefined) setMyPoints(data.newBalance);
+          if (data.newBalance !== undefined) {
+            setMyPoints(data.newBalance);
+            useAuthStore.getState().updateBetBalance(data.newBalance);
+          }
           break;
 
         case 'BET_SUMMARY_UPDATE':
@@ -180,6 +198,7 @@ export function useTaiXiuSocket({ roomId = 'tai-xiu-30s', userId, userName, cust
 
         case 'POINTS_UPDATED':
           setMyPoints(data.points);
+          useAuthStore.getState().updateBetBalance(data.points);
           if (data.message) toast.info(data.message);
           break;
 
@@ -205,15 +224,39 @@ export function useTaiXiuSocket({ roomId = 'tai-xiu-30s', userId, userName, cust
 
   // Kết nối WebSocket (chống reload bão socket)
   useEffect(() => {
+    if (!enabled) {
+      if (socketRef.current) {
+        isManuallyClosedRef.current = true;
+        socketRef.current.close();
+        socketRef.current = null;
+      }
+      clearInterval(heartbeatTimerRef.current);
+      clearTimeout(reconnectTimeoutRef.current);
+      setConnectionStatus('DISCONNECTED');
+      return;
+    }
+
     isManuallyClosedRef.current = false;
     lastProcessedSeqRef.current = 0;
     let ws = null;
 
-    const connectSocket = () => {
+    const connectSocket = async () => {
       if (isManuallyClosedRef.current) return;
       setConnectionStatus((prev) => (prev === 'CONNECTED' ? 'CONNECTED' : prev === 'DISCONNECTED' ? 'RECONNECTING' : 'CONNECTING'));
 
-      const url = getWebSocketUrl();
+      let ticket = '';
+      try {
+        const ticketRes = await fetchWsTicket();
+        if (ticketRes?.ticket) {
+          ticket = ticketRes.ticket;
+        }
+      } catch {
+        // Fallback to cookie if ticket fetch fails
+      }
+
+      if (isManuallyClosedRef.current) return;
+
+      const url = getWebSocketUrl(ticket);
       try {
         ws = new WebSocket(url);
         socketRef.current = ws;
@@ -293,7 +336,7 @@ export function useTaiXiuSocket({ roomId = 'tai-xiu-30s', userId, userName, cust
         socketRef.current = null;
       }
     };
-  }, [roomId, getWebSocketUrl, handleMessage]);
+  }, [roomId, enabled, getWebSocketUrl, handleMessage]);
 
   const placeBet = useCallback((betSide, amount) => {
     if (roomState !== 'WAITING') {

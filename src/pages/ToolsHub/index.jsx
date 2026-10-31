@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Wrench } from 'lucide-react';
 import { toast } from 'sonner';
@@ -9,6 +9,7 @@ import ToolShareDialog from './components/ToolShareDialog';
 import { toolEntries } from './toolRegistry';
 
 export default function ToolsHub() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedTool, setSelectedTool] = useState(null);
   const [sharingTool, setSharingTool] = useState(null);
@@ -39,6 +40,10 @@ export default function ToolsHub() {
   }, [searchParams]);
 
   const handleOpenTool = (tool) => {
+    if (tool?.isDirectLink && tool?.link) {
+      navigate(tool.link);
+      return;
+    }
     if (tool.isLocked) {
       toast.warning(tool.lockReason || 'Công cụ này hiện đang khóa.');
       return;

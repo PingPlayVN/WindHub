@@ -1,6 +1,6 @@
 // src/modules/Entertainment/TaiXiu/components/RoomSwitchHeader.jsx
 import React from 'react';
-import { Wifi, WifiOff, Users, PlusCircle, Volume2, VolumeX, ShieldAlert, ArrowLeft, TrendingUp, Ticket } from 'lucide-react';
+import { Wifi, WifiOff, Users, Volume2, VolumeX, ShieldAlert, ArrowLeft, TrendingUp, Ticket, Gift, User } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { DongSonSun, HeritageCoinIcon } from './HeritageIcons';
 
@@ -10,7 +10,6 @@ export default function RoomSwitchHeader({
   connectionStatus = 'CONNECTED',
   onlineCount = 1,
   myPoints = 10000,
-  onClaimFreePoints,
   sfxEnabled = true,
   bgmEnabled = true,
   onOpenSoundSettings,
@@ -20,9 +19,19 @@ export default function RoomSwitchHeader({
   onOpenMyBets,
   myBetsCount = 0,
   onOpenGameInfo,
+  onOpenDailyReward,
+  onOpenProfile,
+  onExitGame,
+  canClaimReward = true,
 }) {
   const isConnected = connectionStatus === 'CONNECTED';
-  const isEligibleForFree = myPoints <= 500;
+
+  const handleExit = (e) => {
+    if (typeof onExitGame === 'function') {
+      e.preventDefault();
+      onExitGame();
+    }
+  };
 
   return (
     <header className="w-full select-none">
@@ -30,38 +39,49 @@ export default function RoomSwitchHeader({
           1. HEADER TỐI GIẢN GÓI GỌN 1 HÀNG DÀNH RIÊNG CHO MOBILE (< 1024PX)
           ========================================================================= */}
       <div className="flex lg:hidden items-center justify-between gap-1.5 rounded-2xl border border-[#A87932]/45 bg-gradient-to-r from-[#241712] via-[#1a120e] to-[#241712] p-1.5 text-[#E8DDC8] shadow-md">
-        {/* Nhóm bên trái: Quay lại sảnh */}
+        {/* Nhóm bên trái: Thoát bàn về sảnh */}
         <div className="flex items-center gap-1 min-w-0">
           <Link
             to="/entertainment"
-            title="Quay lại sảnh"
-            aria-label="Quay lại sảnh"
+            onClick={handleExit}
+            title="Rời bàn về sảnh giải trí"
+            aria-label="Rời bàn về sảnh giải trí"
             className="flex size-8 shrink-0 items-center justify-center rounded-xl border border-[#A87932]/50 bg-[#2b1c15] text-[#D5B46B] active:scale-95 transition-all shadow-inner"
           >
             <ArrowLeft size={16} />
           </Link>
         </div>
 
-        {/* Nhóm trung tâm: VÍ XU & NÚT NHẬN THÊM */}
-        <div className="flex items-center gap-1 rounded-xl border border-[#D5B46B]/40 bg-gradient-to-r from-[#2a1c15] to-[#171411] px-2 py-1 text-xs shadow-inner">
-          <HeritageCoinIcon size={14} className="text-[#D5B46B] shrink-0" />
-          <span className="font-mono text-xs xs:text-sm font-black text-[#D5B46B]">
-            {myPoints.toLocaleString()}
-          </span>
-          <span className="text-[9px] text-[#E8DDC8]/80 font-medium">xu</span>
-
+        {/* Nhóm trung tâm: VÍ XU & NÚT ĐIỂM DANH */}
+        <div className="flex items-center gap-1.5">
           <button
             type="button"
-            onClick={onClaimFreePoints}
-            title={isEligibleForFree ? 'Nhận thêm 10,000 xu giải trí miễn phí' : 'Chỉ nhận được khi số dư dưới 500 xu'}
-            aria-label="Nhận thêm 10,000 xu giải trí miễn phí"
-            className={`p-0.5 rounded-lg transition-all ${
-              isEligibleForFree
-                ? 'text-amber-400 hover:text-amber-200 animate-pulse'
-                : 'text-[#E8DDC8]/40'
+            onClick={onOpenProfile}
+            title="Nhấn để xem Ví & Sổ cái giao dịch"
+            className="flex items-center gap-1 rounded-xl border border-[#D5B46B]/40 bg-gradient-to-r from-[#2a1c15] to-[#171411] px-2 py-1 text-xs shadow-inner active:scale-95 transition-all"
+          >
+            <HeritageCoinIcon size={14} className="text-[#D5B46B] shrink-0" />
+            <span className="font-mono text-xs xs:text-sm font-black text-[#D5B46B]">
+              {myPoints.toLocaleString()}
+            </span>
+            <span className="text-[9px] text-[#E8DDC8]/80 font-medium">xu</span>
+          </button>
+
+          {/* Nút Hộp Quà Điểm Danh 7 Ngày */}
+          <button
+            type="button"
+            onClick={onOpenDailyReward}
+            title={canClaimReward ? '🎁 Có quà điểm danh hôm nay!' : 'Đã điểm danh hôm nay'}
+            className={`flex size-7 items-center justify-center rounded-xl border transition-all active:scale-95 relative ${
+              canClaimReward
+                ? 'border-[#D5B46B] bg-gradient-to-br from-[#8E2926] to-[#A87932] text-[#FAF5EB] shadow-[0_0_8px_rgba(213,180,107,0.5)] animate-pulse'
+                : 'border-[#A87932]/40 bg-[#2b1c15] text-[#D5B46B]/60'
             }`}
           >
-            <PlusCircle size={14} />
+            <Gift size={14} />
+            {canClaimReward && (
+              <span className="absolute -top-1 -right-1 size-2 rounded-full bg-amber-400 shadow-[0_0_4px_#f59e0b]" />
+            )}
           </button>
         </div>
 
@@ -97,6 +117,17 @@ export default function RoomSwitchHeader({
                 {myBetsCount}
               </span>
             )}
+          </button>
+
+          {/* Nút Hồ Sơ & Ví Xu */}
+          <button
+            type="button"
+            onClick={onOpenProfile}
+            title="Hồ sơ tài khoản & Ví Xu"
+            aria-label="Hồ sơ tài khoản & Ví Xu"
+            className="flex size-8 items-center justify-center rounded-xl border border-[#A87932]/50 bg-[#2b1c15] text-[#D5B46B] hover:text-[#FAF5EB] active:scale-95 transition-all"
+          >
+            <User size={15} />
           </button>
 
           {/* Nút Âm Thanh (Popup) */}
@@ -149,8 +180,9 @@ export default function RoomSwitchHeader({
             <div className="flex items-center gap-2.5 min-w-0">
               <Link
                 to="/entertainment"
-                title="Quay lại sảnh trò chơi"
-                aria-label="Quay lại sảnh trò chơi"
+                onClick={handleExit}
+                title="Rời bàn về sảnh giải trí"
+                aria-label="Rời bàn về sảnh giải trí"
                 className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-[#A87932]/50 bg-[#2b1c15] text-[#D5B46B] hover:bg-[#3d271c] hover:border-[#D5B46B] hover:text-[#FAF5EB] active:scale-95 transition-all shadow-inner"
               >
                 <ArrowLeft size={18} />
@@ -195,27 +227,48 @@ export default function RoomSwitchHeader({
                 </span>
               </div>
 
-              <div className="flex items-center gap-1.5 rounded-xl border border-[#D5B46B]/40 bg-gradient-to-r from-[#2a1c15] to-[#1c130e] px-2.5 py-1.5 text-xs shadow-inner">
+              {/* Nút Điểm danh 7 ngày */}
+              <button
+                type="button"
+                onClick={onOpenDailyReward}
+                title="Điểm danh nhận 5.000 - 100.000 xu mỗi ngày"
+                className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition-all active:scale-95 shadow-sm ${
+                  canClaimReward
+                    ? 'border-[#D5B46B] bg-gradient-to-r from-[#8E2926] via-[#A87932] to-[#8E2926] text-[#FAF5EB] animate-pulse shadow-[0_0_12px_rgba(213,180,107,0.4)]'
+                    : 'border-[#A87932]/40 bg-[#2b1c15] text-[#D5B46B]/70 hover:text-[#FAF5EB]'
+                }`}
+              >
+                <Gift size={15} className={canClaimReward ? 'text-amber-300' : ''} />
+                <span>Điểm danh</span>
+                {canClaimReward && (
+                  <span className="size-2 rounded-full bg-amber-400 shadow-[0_0_4px_#f59e0b]" />
+                )}
+              </button>
+
+              {/* Nút Xem Ví Xu & Sổ cái */}
+              <button
+                type="button"
+                onClick={onOpenProfile}
+                title="Nhấn để xem Ví & Sổ cái giao dịch"
+                className="flex items-center gap-1.5 rounded-xl border border-[#D5B46B]/40 bg-gradient-to-r from-[#2a1c15] to-[#1c130e] px-3 py-1.5 text-xs shadow-inner hover:border-[#D5B46B] active:scale-95 transition-all"
+              >
                 <HeritageCoinIcon size={15} className="text-[#D5B46B]" />
                 <span className="font-mono text-sm font-black text-[#D5B46B]">
                   {myPoints.toLocaleString()}
                 </span>
                 <span className="text-[10px] text-[#E8DDC8]/80 font-medium">xu</span>
+              </button>
 
-                <button
-                  type="button"
-                  onClick={onClaimFreePoints}
-                  title={isEligibleForFree ? 'Nhận thêm 10,000 xu giải trí miễn phí' : 'Chỉ nhận được khi số dư dưới 500 xu'}
-                  aria-label="Nhận thêm 10,000 xu giải trí miễn phí"
-                  className={`ml-0.5 p-1 rounded-lg transition-all ${
-                    isEligibleForFree
-                      ? 'text-amber-400 hover:text-amber-200 animate-pulse'
-                      : 'text-[#E8DDC8]/40 hover:text-[#E8DDC8]/60'
-                  }`}
-                >
-                  <PlusCircle size={15} />
-                </button>
-              </div>
+              {/* Hồ sơ người chơi */}
+              <button
+                type="button"
+                onClick={onOpenProfile}
+                title="Hồ sơ người chơi"
+                aria-label="Hồ sơ người chơi"
+                className="flex size-9 items-center justify-center rounded-xl border border-[#A87932]/50 bg-[#2b1c15] text-[#D5B46B] hover:bg-[#3d271c] hover:border-[#D5B46B] hover:text-[#FAF5EB] active:scale-95 transition-all shadow-inner"
+              >
+                <User size={16} />
+              </button>
 
               {/* Cài đặt âm thanh */}
               <button

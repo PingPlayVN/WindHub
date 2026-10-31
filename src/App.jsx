@@ -1,8 +1,8 @@
 // src/App.jsx
 import { lazy, Suspense, useEffect, useRef } from 'react';
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { applyTheme, useThemeStore } from '@/store/useThemeStore';
-import { Toaster, toast } from 'sonner'; // <-- Thêm import toast
+import { Toaster, toast } from 'sonner';
 import { MotionConfig } from 'framer-motion';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useUIStore } from '@/store/useUIStore';
@@ -21,11 +21,17 @@ const TaiXiu = lazy(() => import('@/modules/Entertainment/TaiXiu'));
 
 function App() {
   const navigate = useNavigate();
+  const location = useLocation();
   const checkedPwaLaunch = useRef(false);
   const { theme } = useThemeStore();
   const setAuth = useAuthStore((state) => state.setAuth);
-  const isAdmin = useAuthStore((state) => state.isAdmin); // <-- Lấy thêm isAdmin từ store
+  const isAdmin = useAuthStore((state) => state.isAdmin);
   const { isLoginOpen, closeLogin } = useUIStore();
+
+  const isFullScreenGame =
+    location.pathname.startsWith('/entertainment/tai-xiu') ||
+    location.pathname === '/tai-xiu' ||
+    location.pathname === '/lottery';
 
   useEffect(() => {
     if (checkedPwaLaunch.current) return;
@@ -77,7 +83,6 @@ function App() {
     
     // Ngăn chặn chuột phải ở cấp độ toàn cục (ngoại trừ Context Menu custom của bạn)
     const blockRightClick = (e) => {
-       // Nếu bạn muốn cấm luôn chuột phải mặc định trên toàn trang, uncomment dòng dưới:
        e.preventDefault(); 
     };
     window.addEventListener('contextmenu', blockRightClick);
@@ -87,6 +92,22 @@ function App() {
       window.removeEventListener('contextmenu', blockRightClick);
     };
   }, [isAdmin]);
+
+  // CHẾ ĐỘ CHƠI GAME TOÀN MÀN HÌNH CHUYÊN BIỆT CHO TÀI XỈU (100vw x 100dvh, KHÔNG CÓ SIDEBAR/HEADER CHUNG)
+  if (isFullScreenGame) {
+    return (
+      <MotionConfig reducedMotion="never" transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}>
+        <Toaster position="top-right" richColors theme={theme} />
+        <div className="fixed inset-0 w-screen h-[100dvh] overflow-hidden bg-gradient-to-b from-[#1a0f07] via-[#24140b] to-[#0d0704] select-none text-amber-100 flex flex-col p-2 sm:p-4 z-50">
+          <Suspense fallback={<Loader fullScreen text="Đang tải sòng quay số..." />}>
+            <OfflineGate pageTitle="Tài Xỉu Dân Gian">
+              <TaiXiu />
+            </OfflineGate>
+          </Suspense>
+        </div>
+      </MotionConfig>
+    );
+  }
 
   return (
     <MotionConfig reducedMotion="never" transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}>

@@ -5,6 +5,8 @@ import {
   verifyGoogleIdToken,
   createSessionToken,
   verifySessionToken,
+  createWsTicket,
+  verifyWsTicket,
   parseCookies,
   buildSessionCookie,
   buildClearSessionCookie
@@ -108,52 +110,99 @@ function mergePublicData(results) {
   return merged;
 }
 
+const DEFAULT_ALLOWED_ORIGINS = [
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'https://windhub1407.web.app',
+  'https://windhub1407.firebaseapp.com'
+];
+
 function corsHeaders(request, env) {
   const origin = request.headers.get('Origin') || '';
-  const allowed = env?.ALLOWED_ORIGIN || '*';
-  const effectiveOrigin = (allowed === '*' || allowed === origin) ? (origin || '*') : allowed;
+  const configured = (env?.ALLOWED_ORIGINS || env?.ALLOWED_ORIGIN || '').split(',').map((s) => s.trim()).filter(Boolean);
+  const allowList = configured.length > 0 ? configured : DEFAULT_ALLOWED_ORIGINS;
+
   const headers = {
-    'Access-Control-Allow-Origin': effectiveOrigin,
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization, Upgrade',
     'Cache-Control': 'no-store',
     Vary: 'Origin',
   };
-  if (effectiveOrigin !== '*') {
+
+  if (allowList.includes('*')) {
+    headers['Access-Control-Allow-Origin'] = '*';
+  } else if (origin && allowList.includes(origin)) {
+    headers['Access-Control-Allow-Origin'] = origin;
     headers['Access-Control-Allow-Credentials'] = 'true';
   }
+
   return headers;
 }
 
-// Lấy thông tin phiên từ Cookie hoặc Bearer Token hoặc Query param
+// In-memory cache for consumed WebSocket one-time tickets (TTL = 60s)
+const consumedTickets = new Map();
+
+function isTicketConsumed(jti) {
+  const now = Date.now();
+  for (const [id, exp] of consumedTickets.entries()) {
+    if (exp < now) consumedTickets.delete(id);
+  }
+  return consumedTickets.has(jti);
+}
+
+function markTicketConsumed(jti, expSec) {
+  consumedTickets.set(jti, (expSec || (Math.floor(Date.now() / 1000) + 60)) * 1000);
+}
+
+// Lấy thông tin phiên từ Cookie hoặc Bearer Token (Không đọc từ URL query param)
 async function getAuthenticatedSession(request, env) {
-  const url = new URL(request.url);
-  const secret = env.SESSION_SECRET || 'windhub_default_session_secret_2026';
+  const secret = env?.SESSION_SECRET;
+  if (!secret) {
+    throw new Error('SESSION_SECRET is not configured on Cloudflare Worker');
+  }
+
+  let session = null;
 
   // 1. Thử từ Cookie
   const cookieHeader = request.headers.get('Cookie');
   const cookies = parseCookies(cookieHeader);
   if (cookies.windhub_session) {
-    const session = await verifySessionToken(cookies.windhub_session, secret);
-    if (session) return session;
+    session = await verifySessionToken(cookies.windhub_session, secret);
   }
 
   // 2. Thử từ Authorization: Bearer <token>
-  const authHeader = request.headers.get('Authorization');
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    const token = authHeader.slice(7).trim();
-    const session = await verifySessionToken(token, secret);
-    if (session) return session;
+  if (!session) {
+    const authHeader = request.headers.get('Authorization');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.slice(7).trim();
+      session = await verifySessionToken(token, secret);
+    }
   }
 
-  // 3. Thử từ URL parameter ?token=... (cho WebSocket upgrade)
-  const tokenParam = url.searchParams.get('token');
-  if (tokenParam) {
-    const session = await verifySessionToken(tokenParam, secret);
-    if (session) return session;
+  if (!session) return null;
+
+  // 3. Kiểm tra xem phiên đã bị thu hồi do đăng xuất (Session Revocation) hay chưa
+  if (env?.PLAYER_ACCOUNT && session.googleSub && session.iat) {
+    try {
+      const doId = env.PLAYER_ACCOUNT.idFromName(session.googleSub);
+      const playerStub = env.PLAYER_ACCOUNT.get(doId);
+      const profRes = await playerStub.fetch(`http://internal/profile?userId=${encodeURIComponent(session.userId)}`);
+      if (profRes.ok) {
+        const data = await profRes.json();
+        const lastLogoutAt = data.profile?.user?.lastLogoutAt || 0;
+        if (lastLogoutAt && session.iat * 1000 < lastLogoutAt) {
+          // Token được phát hành TRƯỚC thời điểm đăng xuất cuối cùng -> Phiên đã bị vô hiệu hóa!
+          return null;
+        }
+      }
+    } catch {
+      // Bỏ qua lỗi kết nối nội bộ DO
+    }
   }
 
-  return null;
+  return session;
 }
 
 // Danh sách phòng Tài Xỉu chính thức
@@ -214,7 +263,11 @@ export default {
           const loginData = await loginResponse.json();
 
           // 3. Cấp phát phiên bảo mật WindHub (Session Token)
-          const sessionSecret = env.SESSION_SECRET || 'windhub_default_session_secret_2026';
+          const sessionSecret = env.SESSION_SECRET;
+          if (!sessionSecret) {
+            return Response.json({ ok: false, error: 'SESSION_SECRET chưa được cấu hình trên Worker.' }, { status: 500, headers });
+          }
+
           const sessionToken = await createSessionToken({
             userId: loginData.user.userId,
             googleSub: loginData.user.googleSub,
@@ -241,8 +294,19 @@ export default {
         }
       }
 
-      // POST /api/auth/logout - Đăng xuất tài khoản
+      // POST /api/auth/logout - Đăng xuất tài khoản & Vô hiệu hóa phiên (Session Revocation)
       if (authPath === '/logout' && request.method === 'POST') {
+        try {
+          const session = await getAuthenticatedSession(request, env);
+          if (session && env.PLAYER_ACCOUNT) {
+            const doId = env.PLAYER_ACCOUNT.idFromName(session.googleSub);
+            const playerStub = env.PLAYER_ACCOUNT.get(doId);
+            await playerStub.fetch(`http://internal/logout?userId=${encodeURIComponent(session.userId)}`, { method: 'POST' });
+          }
+        } catch (err) {
+          console.error('[Auth] Logout DO error:', err);
+        }
+
         const resHeaders = new Headers(headers);
         resHeaders.set('Set-Cookie', buildClearSessionCookie());
         return Response.json({ ok: true, message: 'Đã đăng xuất thành công.' }, { headers: resHeaders });
@@ -250,16 +314,16 @@ export default {
 
       // GET /api/auth/me - Lấy thông tin phiên hiện tại
       if (authPath === '/me' && request.method === 'GET') {
-        const session = await getAuthenticatedSession(request, env);
-        if (!session) {
-          return Response.json({ ok: false, authenticated: false, error: 'Chưa đăng nhập' }, { status: 401, headers });
-        }
-
-        if (!env.PLAYER_ACCOUNT) {
-          return Response.json({ ok: true, authenticated: true, user: session, balance: 0 }, { headers });
-        }
-
         try {
+          const session = await getAuthenticatedSession(request, env);
+          if (!session) {
+            return Response.json({ ok: false, authenticated: false, error: 'Chưa đăng nhập hoặc phiên đã hết hạn' }, { status: 401, headers });
+          }
+
+          if (!env.PLAYER_ACCOUNT) {
+            return Response.json({ ok: true, authenticated: true, user: session, balance: 0 }, { headers });
+          }
+
           const doId = env.PLAYER_ACCOUNT.idFromName(session.googleSub);
           const playerStub = env.PLAYER_ACCOUNT.get(doId);
           const profRes = await playerStub.fetch(`http://internal/profile?userId=${encodeURIComponent(session.userId)}`);
@@ -267,11 +331,12 @@ export default {
             const data = await profRes.json();
             return Response.json({ ok: true, authenticated: true, ...data.profile }, { headers });
           }
+
+          return Response.json({ ok: true, authenticated: true, user: session, balance: 0 }, { headers });
         } catch (err) {
           console.error('[Auth] /api/auth/me error:', err);
+          return Response.json({ ok: false, authenticated: false, error: err.message || 'Lỗi xác thực phiên' }, { status: 401, headers });
         }
-
-        return Response.json({ ok: true, authenticated: true, user: session, balance: 0 }, { headers });
       }
     }
 
@@ -279,7 +344,13 @@ export default {
     // 2. WALLET & REWARD ROUTES (/api/wallet/*, /api/reward/*)
     // ==========================================
     if (requestUrl.pathname.startsWith('/api/wallet/') || requestUrl.pathname.startsWith('/api/reward/')) {
-      const session = await getAuthenticatedSession(request, env);
+      let session = null;
+      try {
+        session = await getAuthenticatedSession(request, env);
+      } catch (err) {
+        return Response.json({ ok: false, error: err.message || 'Yêu cầu đăng nhập tài khoản Google.' }, { status: 401, headers });
+      }
+
       if (!session) {
         return Response.json({ ok: false, error: 'Yêu cầu đăng nhập tài khoản Google.' }, { status: 401, headers });
       }
@@ -334,6 +405,26 @@ export default {
         return Response.json({ ok: true, rooms: PUBLIC_VILLAGE_ROOMS }, { headers });
       }
 
+      // POST /api/lottery/ws-ticket - Cấp vé kết nối WebSocket dùng một lần (Short-lived 60s Ticket)
+      if (subPath === '/ws-ticket' && request.method === 'POST') {
+        try {
+          const session = await getAuthenticatedSession(request, env);
+          if (!session) {
+            return Response.json({ ok: false, error: 'Yêu cầu đăng nhập tài khoản Google để nhận vé kết nối.' }, { status: 401, headers });
+          }
+
+          const ticket = await createWsTicket({
+            userId: session.userId,
+            googleSub: session.googleSub,
+            displayName: session.displayName
+          }, env.SESSION_SECRET, 60);
+
+          return Response.json({ ok: true, ticket }, { status: 200, headers });
+        } catch (err) {
+          return Response.json({ ok: false, error: err.message || 'Lỗi cấp phát vé kết nối.' }, { status: 500, headers });
+        }
+      }
+
       // Kiểm tra Durable Object binding
       if (!env.LOTTERY_ROOM) {
         return Response.json({
@@ -345,9 +436,34 @@ export default {
       // Reject unauthenticated access: No guest mode!
       let authSession = null;
       if (request.headers.get('Upgrade')?.toLowerCase() === 'websocket' || subPath === '/ws' || subPath === '/snapshot') {
-        authSession = await getAuthenticatedSession(request, env);
+        const ticketParam = requestUrl.searchParams.get('ticket');
+        if (ticketParam) {
+          if (!env.SESSION_SECRET) {
+            return Response.json({ ok: false, error: 'SESSION_SECRET is not configured on Cloudflare Worker' }, { status: 500, headers });
+          }
+          const ticketPayload = await verifyWsTicket(ticketParam, env.SESSION_SECRET);
+          if (!ticketPayload) {
+            return Response.json({ ok: false, code: 'INVALID_TICKET', error: 'Vé kết nối không hợp lệ hoặc đã hết hạn.' }, { status: 401, headers });
+          }
+          if (isTicketConsumed(ticketPayload.jti)) {
+            return Response.json({ ok: false, code: 'TICKET_ALREADY_USED', error: 'Vé kết nối đã được sử dụng.' }, { status: 401, headers });
+          }
+          markTicketConsumed(ticketPayload.jti, ticketPayload.exp);
+          authSession = {
+            userId: ticketPayload.userId,
+            googleSub: ticketPayload.googleSub,
+            displayName: ticketPayload.displayName
+          };
+        } else {
+          // Fallback xác thực qua Cookie hoặc Authorization header
+          try {
+            authSession = await getAuthenticatedSession(request, env);
+          } catch {
+            authSession = null;
+          }
+        }
+
         if (!authSession) {
-          // Bắt buộc Google Login: Không cho phép guest
           return Response.json({
             ok: false,
             code: 'UNAUTHORIZED',
@@ -366,7 +482,7 @@ export default {
         const doId = env.LOTTERY_ROOM.idFromName(cleanRoomId);
         const roomStub = env.LOTTERY_ROOM.get(doId);
 
-        // Chuẩn bị URL chuyển tiếp vào LotteryRoom với thông tin danh tính xác thực từ server
+        // Chuẩn bị URL chuyển tiếp vào LotteryRoom với thông tin danh tính xác thực authoritative từ server
         const forwardUrl = new URL(request.url);
         if (authSession) {
           forwardUrl.searchParams.set('userId', authSession.userId);
@@ -437,7 +553,7 @@ export default {
 
     return Response.json({
       service: 'WindHub Multi-Service Worker',
-      version: '3.0.0',
+      version: '3.1.0',
       routes: [
         'POST /api/auth/google',
         'POST /api/auth/logout',
@@ -448,7 +564,8 @@ export default {
         'POST /api/reward/claim',
         'GET /profile?url=...',
         'GET /api/lottery/rooms',
-        'GET /api/lottery/ws?room=...',
+        'POST /api/lottery/ws-ticket',
+        'GET /api/lottery/ws?room=...&ticket=...',
         'GET /api/lottery/snapshot?room=...',
         'GET /api/lottery/history?room=...'
       ]

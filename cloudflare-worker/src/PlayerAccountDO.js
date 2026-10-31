@@ -1,6 +1,6 @@
 // cloudflare-worker/src/PlayerAccountDO.js
 
-export const DAILY_REWARD_AMOUNTS = [500, 700, 800, 1000, 1200, 1500, 2500];
+export const DAILY_REWARD_AMOUNTS = [5000, 10000, 15000, 25000, 40000, 60000, 100000];
 
 export function getVietnamDateString(date = new Date()) {
   const formatter = new Intl.DateTimeFormat('en-CA', {
@@ -41,7 +41,8 @@ export class PlayerAccountDO {
           display_name TEXT,
           avatar_url TEXT,
           created_at INTEGER NOT NULL,
-          last_login_at INTEGER NOT NULL
+          last_login_at INTEGER NOT NULL,
+          last_logout_at INTEGER NOT NULL DEFAULT 0
         );
 
         CREATE TABLE IF NOT EXISTS wallet (
@@ -77,6 +78,13 @@ export class PlayerAccountDO {
           updated_at INTEGER NOT NULL
         );
       `);
+
+      try {
+        this.sql.exec('ALTER TABLE account ADD COLUMN last_logout_at INTEGER NOT NULL DEFAULT 0');
+      } catch {
+        // Column may already exist
+      }
+
       this.initialized = true;
     } catch (err) {
       console.error('[PlayerAccountDO] initSchema error:', err);
@@ -101,7 +109,7 @@ export class PlayerAccountDO {
     return null;
   }
 
-  loginOrRegister({ googleSub, email, displayName, avatarUrl, initialPoints = 0 }) {
+  loginOrRegister({ googleSub, email, displayName, avatarUrl, initialPoints = 10000 }) {
     this.initSchema();
     if (!googleSub) throw new Error('Missing googleSub');
 
@@ -123,14 +131,15 @@ export class PlayerAccountDO {
       // Create new account
       const userId = `usr_${googleSub.slice(-10)}_${Math.random().toString(36).substring(2, 6)}`;
       this.sql.exec(
-        'INSERT INTO account (user_id, google_sub, email, display_name, avatar_url, created_at, last_login_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO account (user_id, google_sub, email, display_name, avatar_url, created_at, last_login_at, last_logout_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
         userId,
         googleSub,
         email || '',
         displayName || 'Người Chơi',
         avatarUrl || '',
         now,
-        now
+        now,
+        0
       );
 
       const grant = Math.max(0, parseInt(initialPoints, 10) || 0);
@@ -150,7 +159,7 @@ export class PlayerAccountDO {
           grant,
           grant,
           'initial_grant',
-          'Khởi tạo số dư ban đầu',
+          'Tặng vốn khởi nghiệp tân thủ',
           now
         );
       }
@@ -177,7 +186,8 @@ export class PlayerAccountDO {
         displayName: acc.display_name,
         avatarUrl: acc.avatar_url,
         createdAt: acc.created_at,
-        lastLoginAt: acc.last_login_at
+        lastLoginAt: acc.last_login_at,
+        lastLogoutAt: acc.last_logout_at || 0
       },
       balance,
       dailyReward: rewardStatus
@@ -498,6 +508,14 @@ export class PlayerAccountDO {
     }
   }
 
+  recordLogout(userId) {
+    this.initSchema();
+    if (!this.sql || !userId) return { ok: false };
+    const now = Date.now();
+    this.sql.exec('UPDATE account SET last_logout_at = ? WHERE user_id = ?', now, userId);
+    return { ok: true, logoutAt: now };
+  }
+
   getProfile(userId) {
     const acc = this.getAccountByUserId(userId);
     if (!acc) return null;
@@ -513,7 +531,8 @@ export class PlayerAccountDO {
         displayName: acc.display_name,
         avatarUrl: acc.avatar_url,
         createdAt: acc.created_at,
-        lastLoginAt: acc.last_login_at
+        lastLoginAt: acc.last_login_at,
+        lastLogoutAt: acc.last_logout_at || 0
       },
       balance,
       dailyReward,
@@ -547,6 +566,11 @@ export class PlayerAccountDO {
       if (path === '/balance' && request.method === 'GET') {
         const balance = this.getBalance(userId);
         return Response.json({ ok: true, balance });
+      }
+
+      if (path === '/logout' && request.method === 'POST') {
+        const result = this.recordLogout(userId);
+        return Response.json(result);
       }
 
       if (path === '/debit' && request.method === 'POST') {
