@@ -8,6 +8,7 @@ import {
   addDoc,
   getDocs,
   query,
+  where,
   orderBy,
   limit,
   onSnapshot,
@@ -586,4 +587,290 @@ export async function fetchPlayerTransactionsFromFirestore(uid, limitCount = 50)
     return [];
   }
 }
+
+/**
+ * Chuẩn hóa mã Gift code (viết hoa, cắt khoảng trắng đầu/cuối)
+ */
+export function normalizeGiftCode(code) {
+  if (!code || typeof code !== 'string') return '';
+  return code.trim().toUpperCase();
+}
+
+/**
+ * Kiểm tra tính hợp lệ và điều kiện nhận thưởng của Gift code
+ */
+export function validateGiftCodeEligibility(giftData, uid, code, playerRedeemedCodes = []) {
+  if (!giftData) {
+    return {
+      valid: false,
+      code: 'NOT_FOUND',
+      message: `Mã gift code "${code}" không tồn tại hoặc đã hết hạn.`
+    };
+  }
+
+  // 1. Kiểm tra trạng thái hoạt động (mặc định là true nếu không khai báo)
+  if (giftData.isActive === false || giftData.status === 'inactive' || giftData.enabled === false) {
+    return {
+      valid: false,
+      code: 'INACTIVE',
+      message: 'Mã gift code này hiện đang tạm dừng áp dụng.'
+    };
+  }
+
+  // 2. Kiểm tra thời hạn hết hạn (expiresAt: timestamp hoặc number)
+  if (giftData.expiresAt) {
+    let expTime = 0;
+    if (typeof giftData.expiresAt === 'number') {
+      expTime = giftData.expiresAt;
+    } else if (typeof giftData.expiresAt.toMillis === 'function') {
+      expTime = giftData.expiresAt.toMillis();
+    } else if (typeof giftData.expiresAt.toDate === 'function') {
+      expTime = giftData.expiresAt.toDate().getTime();
+    } else {
+      expTime = new Date(giftData.expiresAt).getTime();
+    }
+
+    if (expTime > 0 && Date.now() > expTime) {
+      return {
+        valid: false,
+        code: 'EXPIRED',
+        message: 'Mã gift code này đã hết hạn sử dụng.'
+      };
+    }
+  }
+
+  // 3. Mỗi user chỉ được nhập duy nhất 1 lần
+  const usedBy = Array.isArray(giftData.usedBy)
+    ? giftData.usedBy
+    : (Array.isArray(giftData.usedUsers) ? giftData.usedUsers : []);
+
+  if (uid && usedBy.includes(uid)) {
+    return {
+      valid: false,
+      code: 'ALREADY_REDEEMED',
+      message: 'Bạn đã sử dụng mã gift code này rồi! Mỗi tài khoản chỉ được nhập 1 lần.'
+    };
+  }
+
+  const redeemedList = Array.isArray(playerRedeemedCodes) ? playerRedeemedCodes : [];
+  if (redeemedList.includes(code)) {
+    return {
+      valid: false,
+      code: 'ALREADY_REDEEMED',
+      message: 'Bạn đã sử dụng mã gift code này rồi! Mỗi tài khoản chỉ được nhập 1 lần.'
+    };
+  }
+
+  // 4. Kiểm tra giới hạn số lượt sử dụng toàn hệ thống (nếu có maxUses)
+  if (typeof giftData.maxUses === 'number' && giftData.maxUses > 0 && usedBy.length >= giftData.maxUses) {
+    return {
+      valid: false,
+      code: 'MAX_USES_REACHED',
+      message: 'Mã gift code này đã hết lượt nhận (đã đạt số lượng giới hạn).'
+    };
+  }
+
+  // 5. Kiểm tra mức thưởng cấu hình trong Firestore (hỗ trợ reward, amount, points, coins, value)
+  const rewardAmount = Math.max(0, parseInt(giftData.reward ?? giftData.amount ?? giftData.points ?? giftData.coins ?? giftData.value ?? 0, 10));
+  if (rewardAmount <= 0) {
+    return {
+      valid: false,
+      code: 'INVALID_REWARD',
+      message: 'Mã gift code này chưa được cấu hình mức thưởng xu trong hệ thống.'
+    };
+  }
+
+  return {
+    valid: true,
+    rewardAmount,
+    giftData
+  };
+}
+
+/**
+ * Xử lý nhập Gift code và cộng xu vào tài khoản người chơi (Atomic Firestore Transaction)
+ * Đảm bảo mỗi user chỉ được nhận duy nhất 1 lần trên mỗi mã.
+ */
+export async function redeemFirebaseGiftCode(uid, rawCode) {
+  if (!uid) {
+    return {
+      success: false,
+      code: 'AUTH_REQUIRED',
+      message: 'Vui lòng đăng nhập tài khoản Google để nhập gift code.'
+    };
+  }
+
+  const normalizedCode = normalizeGiftCode(rawCode);
+  if (!normalizedCode) {
+    return {
+      success: false,
+      code: 'EMPTY_CODE',
+      message: 'Vui lòng nhập mã gift code.'
+    };
+  }
+
+  try {
+    // 1. Tìm kiếm Gift code trong Firestore:
+    // Thử collection 'giftcodes' với Document ID là mã viết hoa
+    let giftRef = doc(db, 'giftcodes', normalizedCode);
+    let giftSnap = await getDoc(giftRef);
+
+    // Nếu không thấy, thử tìm với mã gốc (trường hợp admin đặt mã chữ thường)
+    if (!giftSnap.exists() && rawCode.trim() !== normalizedCode) {
+      giftRef = doc(db, 'giftcodes', rawCode.trim());
+      giftSnap = await getDoc(giftRef);
+    }
+
+    // Nếu không thấy, thử collection 'gift_codes'
+    if (!giftSnap.exists()) {
+      giftRef = doc(db, 'gift_codes', normalizedCode);
+      giftSnap = await getDoc(giftRef);
+    }
+
+    // Nếu vẫn không thấy, thử query trường 'code' trong collection 'giftcodes'
+    if (!giftSnap.exists()) {
+      try {
+        const q = query(collection(db, 'giftcodes'), where('code', '==', normalizedCode), limit(1));
+        const querySnap = await getDocs(q);
+        if (!querySnap.empty) {
+          giftSnap = querySnap.docs[0];
+          giftRef = giftSnap.ref;
+        }
+      } catch {}
+    }
+
+    if (!giftSnap.exists()) {
+      return {
+        success: false,
+        code: 'NOT_FOUND',
+        message: `Mã gift code "${normalizedCode}" không tồn tại hoặc đã hết hạn.`
+      };
+    }
+
+    const giftData = giftSnap.data();
+
+    // 2. Đọc thông tin ví của người chơi từ Firestore
+    const playerRef = doc(db, 'players', uid);
+    const playerSnap = await getDoc(playerRef);
+    const playerData = playerSnap.exists() ? playerSnap.data() : {};
+    const playerRedeemedCodes = playerData.redeemedGiftcodes || [];
+
+    // 3. Kiểm tra tính hợp lệ trước khi bắt đầu transaction
+    const check = validateGiftCodeEligibility(giftData, uid, normalizedCode, playerRedeemedCodes);
+    if (!check.valid) {
+      return {
+        success: false,
+        code: check.code,
+        message: check.message
+      };
+    }
+
+    const rewardAmount = check.rewardAmount;
+
+    // 4. Thực thi Transaction đảm bảo nguyên tử (Atomic Update)
+    return await runTransaction(db, async (transaction) => {
+      const freshGiftDoc = await transaction.get(giftRef);
+      const freshPlayerDoc = await transaction.get(playerRef);
+
+      if (!freshGiftDoc.exists()) {
+        return {
+          success: false,
+          code: 'NOT_FOUND',
+          message: 'Mã gift code không tồn tại.'
+        };
+      }
+
+      const freshGiftData = freshGiftDoc.data();
+      const freshPlayerData = freshPlayerDoc.exists() ? freshPlayerDoc.data() : {};
+
+      // Kiểm tra lại lần 2 bên trong Transaction chống Race Condition
+      const freshCheck = validateGiftCodeEligibility(
+        freshGiftData,
+        uid,
+        normalizedCode,
+        freshPlayerData.redeemedGiftcodes || []
+      );
+
+      if (!freshCheck.valid) {
+        return {
+          success: false,
+          code: freshCheck.code,
+          message: freshCheck.message
+        };
+      }
+
+      const currentBalance = Number(freshPlayerData.balance) || 0;
+      const newBalance = currentBalance + rewardAmount;
+      const now = Date.now();
+
+      const existingUsedBy = Array.isArray(freshGiftData.usedBy) ? freshGiftData.usedBy : [];
+      const updatedUsedBy = [...existingUsedBy, uid];
+
+      const existingPlayerRedeemed = Array.isArray(freshPlayerData.redeemedGiftcodes) ? freshPlayerData.redeemedGiftcodes : [];
+      const updatedPlayerRedeemed = [...existingPlayerRedeemed, normalizedCode];
+
+      // Ghi nhận mã đã được sử dụng bởi user này
+      transaction.update(giftRef, {
+        usedBy: updatedUsedBy,
+        usedCount: (Number(freshGiftData.usedCount) || 0) + 1,
+        lastUsedAt: now
+      });
+
+      // Cộng xu vào ví và lưu lịch sử mã đã nhập của user
+      transaction.set(playerRef, {
+        balance: newBalance,
+        redeemedGiftcodes: updatedPlayerRedeemed,
+        updatedAt: now
+      }, { merge: true });
+
+      // Ghi lịch sử giao dịch vào sổ cái
+      const txId = `tx_gift_${uid}_${normalizedCode}_${now}`;
+      const txRef = doc(db, 'players', uid, 'transactions', txId);
+      transaction.set(txRef, {
+        id: txId,
+        type: 'GIFT_CODE',
+        code: normalizedCode,
+        amount: rewardAmount,
+        balanceAfter: newBalance,
+        description: `Nhập Giftcode: ${normalizedCode} (+${rewardAmount.toLocaleString()} xu)`,
+        createdAt: now
+      });
+
+      try {
+        localStorage.setItem(`windhub_wallet_balance_${uid}`, String(newBalance));
+        localStorage.setItem('windhub_dev_balance', String(newBalance));
+      } catch {}
+
+      return {
+        success: true,
+        code: normalizedCode,
+        rewardAmount,
+        newBalance,
+        message: `🎉 Chúc mừng bạn! Nhập mã ${normalizedCode} thành công, nhận ngay +${rewardAmount.toLocaleString()} xu!`
+      };
+    });
+  } catch (err) {
+    if (err?.code === 'permission-denied') {
+      console.warn(
+        '%c[FirebaseWallet] Firestore permission-denied khi nhập giftcode.\n' +
+        '👉 Để hoàn tất, mở: https://console.firebase.google.com/project/windhub1407/firestore/rules\n' +
+        '   Và thêm rule:\n' +
+        '   match /giftcodes/{code} { allow read, write: if true; }',
+        'color: #f59e0b; font-weight: bold;'
+      );
+      return {
+        success: false,
+        code: 'PERMISSION_DENIED',
+        message: 'Lỗi phân quyền Firestore. Vui lòng cấp quyền cho collection "giftcodes" trong Firestore Rules.'
+      };
+    }
+    console.error('[FirebaseWallet] redeemGiftCode error:', err);
+    return {
+      success: false,
+      code: 'ERROR',
+      message: err.message || 'Lỗi hệ thống khi nhập gift code. Vui lòng thử lại sau.'
+    };
+  }
+}
+
 

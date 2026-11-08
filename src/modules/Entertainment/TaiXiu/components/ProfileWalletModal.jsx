@@ -1,7 +1,7 @@
 // src/modules/Entertainment/TaiXiu/components/ProfileWalletModal.jsx
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, History, LogOut, RefreshCw, ShieldCheck, Coffee, ArrowRight } from 'lucide-react';
+import { X, History, LogOut, RefreshCw, ShieldCheck, Coffee, ArrowRight, Ticket, Check, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/store/useAuthStore';
 import { fetchPlayerTransactions, fetchPlayerBalance } from '@/services/playerApi';
@@ -9,12 +9,19 @@ import { fetchPlayerTransactionsFromFirestore } from '@/services/firebaseWallet'
 import { HeritageCoinIcon, DongSonSun } from './HeritageIcons';
 import UserAvatar from '@/components/ui/UserAvatar';
 
-export default function ProfileWalletModal({ open, onClose, onOpenDonate }) {
-  const { player, betBalance, playerStats, updateBetBalance, logoutPlayer } = useAuthStore();
-  const [activeTab, setActiveTab] = useState('PROFILE'); // 'PROFILE' | 'TRANSACTIONS'
+export default function ProfileWalletModal({ open, onClose, onOpenDonate, onOpenGiftCode }) {
+  const { player, betBalance, playerStats, updateBetBalance, logoutPlayer, redeemGiftCode } = useAuthStore();
+  const [activeTab, setActiveTab] = useState('PROFILE'); // 'PROFILE' | 'GIFTCODE' | 'TRANSACTIONS'
   const [transactions, setTransactions] = useState([]);
   const [loadingTx, setLoadingTx] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Giftcode state inside Profile
+  const [giftCodeInput, setGiftCodeInput] = useState('');
+  const [isSubmittingCode, setIsSubmittingCode] = useState(false);
+  const [lastRedeemed, setLastRedeemed] = useState(null);
+
+  const redeemedCodes = Array.isArray(player?.redeemedGiftcodes) ? player.redeemedGiftcodes : [];
 
   useEffect(() => {
     if (open && activeTab === 'TRANSACTIONS') {
@@ -75,6 +82,41 @@ export default function ProfileWalletModal({ open, onClose, onOpenDonate }) {
     await logoutPlayer();
     onClose();
     toast.info('Đã đăng xuất tài khoản khỏi hệ thống và game.');
+  };
+
+  const handleRedeemCode = async (e) => {
+    if (e) e.preventDefault();
+    const cleanCode = giftCodeInput.trim().toUpperCase();
+    if (!cleanCode) {
+      toast.warning('Vui lòng nhập mã Giftcode.');
+      return;
+    }
+
+    if (redeemedCodes.includes(cleanCode)) {
+      toast.error(`Bạn đã nhập mã ${cleanCode} rồi! Mỗi tài khoản chỉ được nhập 1 lần.`);
+      return;
+    }
+
+    setIsSubmittingCode(true);
+    try {
+      const res = await redeemGiftCode(cleanCode);
+      if (res && res.success) {
+        setLastRedeemed({
+          code: cleanCode,
+          amount: res.rewardAmount
+        });
+        setGiftCodeInput('');
+        toast.success(res.message || `🎉 Nhận thành công +${res.rewardAmount.toLocaleString()} xu!`, {
+          duration: 5000
+        });
+      } else {
+        toast.error(res?.message || 'Mã giftcode không hợp lệ hoặc đã hết hạn.');
+      }
+    } catch (err) {
+      toast.error(err.message || 'Lỗi hệ thống khi nhập giftcode.');
+    } finally {
+      setIsSubmittingCode(false);
+    }
   };
 
   if (!open) return null;
@@ -205,24 +247,36 @@ export default function ProfileWalletModal({ open, onClose, onOpenDonate }) {
             <button
               type="button"
               onClick={() => setActiveTab('PROFILE')}
-              className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all ${
+              className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all text-center ${
                 activeTab === 'PROFILE'
                   ? 'bg-gradient-to-r from-[#A87932] to-[#8E2926] text-[#FAF5EB] shadow-sm'
                   : 'text-[#E8DDC8]/60 hover:text-[#FAF5EB]'
               }`}
             >
-              Thống Kê Chiến Tích
+              Thống Kê
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('GIFTCODE')}
+              className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all text-center flex items-center justify-center gap-1 ${
+                activeTab === 'GIFTCODE'
+                  ? 'bg-gradient-to-r from-[#A87932] to-[#8E2926] text-[#FAF5EB] shadow-sm'
+                  : 'text-[#E8DDC8]/60 hover:text-[#FAF5EB]'
+              }`}
+            >
+              <Ticket size={12} className="text-[#D5B46B]" />
+              <span>Giftcode</span>
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('TRANSACTIONS')}
-              className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all ${
+              className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all text-center ${
                 activeTab === 'TRANSACTIONS'
                   ? 'bg-gradient-to-r from-[#A87932] to-[#8E2926] text-[#FAF5EB] shadow-sm'
                   : 'text-[#E8DDC8]/60 hover:text-[#FAF5EB]'
               }`}
             >
-              Lịch Sử Giao Dịch
+              Lịch Sử Ví
             </button>
           </div>
 
@@ -259,11 +313,119 @@ export default function ProfileWalletModal({ open, onClose, onOpenDonate }) {
                 </div>
               </div>
 
+              {/* Nút chuyển nhanh sang tab Giftcode */}
+              <button
+                type="button"
+                onClick={() => setActiveTab('GIFTCODE')}
+                className="w-full flex items-center justify-between rounded-xl border border-[#D5B46B]/40 bg-[#1f140e] px-3 py-2 text-xs font-bold text-[#D5B46B] hover:text-[#FAF5EB] hover:bg-[#2b1c15] active:scale-98 transition-all"
+              >
+                <div className="flex items-center gap-2">
+                  <Ticket size={14} className="text-[#D5B46B]" />
+                  <span>Bạn có mã Giftcode quà tặng?</span>
+                </div>
+                <span className="text-[11px] underline">Nhập ngay ➔</span>
+              </button>
+
               <div className="rounded-xl border border-[#A87932]/30 bg-[#170e0a]/60 p-3 text-[11px] text-[#E8DDC8]/70 space-y-1">
                 <p>• Mã ID tài khoản: <code className="text-[#D5B46B]">{player?.userId}</code></p>
                 <p>• Google Sub: <code className="text-[#D5B46B]">{player?.googleSub?.slice(0, 12)}...</code></p>
                 <p>• Trạng thái: <span className="text-emerald-400 font-bold">Xác thực chính thức</span></p>
               </div>
+            </div>
+          )}
+
+          {/* TAB CONTENT: GIFTCODE REDEMPTION */}
+          {activeTab === 'GIFTCODE' && (
+            <div className="my-3 space-y-3 overflow-y-auto relative z-10 flex-1 pr-1">
+              {lastRedeemed && (
+                <div className="rounded-xl border border-emerald-500/50 bg-emerald-950/40 p-2.5 text-emerald-200 text-xs font-bold flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Check size={14} className="text-emerald-400 shrink-0" />
+                    <span>Đã nhận thành công: <strong>{lastRedeemed.code}</strong></span>
+                  </div>
+                  <span className="text-amber-300 font-mono font-black">+{lastRedeemed.amount.toLocaleString()} xu</span>
+                </div>
+              )}
+
+              <form onSubmit={handleRedeemCode} className="space-y-2.5">
+                <div>
+                  <label
+                    htmlFor="profile-giftcode-input"
+                    className="block text-[11px] font-bold text-[#E8DDC8]/80 uppercase tracking-wider mb-1"
+                  >
+                    Ô Nhập Mã Giftcode
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="profile-giftcode-input"
+                      type="text"
+                      value={giftCodeInput}
+                      onChange={(e) => setGiftCodeInput(e.target.value.toUpperCase())}
+                      placeholder="VD: TANTHU, TRIAN100K..."
+                      autoComplete="off"
+                      disabled={isSubmittingCode}
+                      className="w-full rounded-xl border border-[#D5B46B]/50 bg-[#160e0a] px-3 py-2 pr-9 text-xs sm:text-sm font-mono font-bold tracking-wider text-[#FAF5EB] placeholder:text-[#E8DDC8]/30 focus:border-[#D5B46B] focus:outline-hidden focus:ring-1 focus:ring-[#D5B46B] shadow-inner"
+                    />
+                    {giftCodeInput && (
+                      <button
+                        type="button"
+                        onClick={() => setGiftCodeInput('')}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-[#E8DDC8]/50 hover:text-[#FAF5EB] p-1"
+                        title="Xóa mã"
+                      >
+                        <X size={13} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isSubmittingCode || !giftCodeInput.trim()}
+                  className={`w-full min-h-[38px] rounded-xl flex items-center justify-center gap-1.5 font-black text-xs tracking-wide transition-all shadow-md active:scale-98 ${
+                    giftCodeInput.trim() && !isSubmittingCode
+                      ? 'bg-gradient-to-r from-[#D5B46B] to-[#A87932] text-[#171411] hover:brightness-110 shadow-sm cursor-pointer'
+                      : 'bg-[#2b1c15] text-[#E8DDC8]/40 border border-[#A87932]/30 cursor-not-allowed'
+                  }`}
+                >
+                  {isSubmittingCode ? (
+                    <span>Đang kiểm tra & cộng xu...</span>
+                  ) : (
+                    <>
+                      <Sparkles size={14} className={giftCodeInput.trim() ? 'animate-spin' : ''} style={{ animationDuration: '4s' }} />
+                      <span>Nhận Xu Thưởng</span>
+                    </>
+                  )}
+                </button>
+              </form>
+
+              <div className="rounded-xl border border-[#A87932]/30 bg-[#170e0a]/80 p-2.5 text-[11px] text-[#E8DDC8]/70 leading-relaxed space-y-1">
+                <div className="flex items-center gap-1.5 text-[#D5B46B] font-bold">
+                  <ShieldCheck size={12} className="shrink-0" />
+                  <span>Lưu ý:</span>
+                </div>
+                <p>• Mỗi mã chỉ sử dụng <strong>duy nhất 1 lần</strong> cho mỗi tài khoản.</p>
+                <p>• Xu thưởng được cộng trực tiếp vào ví sau khi nhập thành công.</p>
+              </div>
+
+              {redeemedCodes.length > 0 && (
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-[#D5B46B]/80 tracking-wider block mb-1">
+                    Mã bạn đã sử dụng ({redeemedCodes.length}):
+                  </span>
+                  <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto">
+                    {redeemedCodes.map((c) => (
+                      <span
+                        key={c}
+                        className="inline-flex items-center gap-1 rounded bg-[#251710] border border-[#A87932]/40 px-1.5 py-0.5 text-[10px] font-mono font-bold text-[#E8DDC8]"
+                      >
+                        <Check size={9} className="text-emerald-400" />
+                        <span>{c}</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -301,12 +463,20 @@ export default function ProfileWalletModal({ open, onClose, onOpenDonate }) {
                               className={`rounded px-1.5 py-0.2 text-[9px] font-bold ${
                                 tx.type === 'DAILY_REWARD'
                                   ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                  : tx.type === 'GIFT_CODE'
+                                  ? 'bg-gradient-to-r from-amber-500/30 to-yellow-500/20 text-yellow-300 border border-yellow-500/40'
                                   : tx.type === 'PAYOUT'
                                   ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                                   : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
                               }`}
                             >
-                              {tx.type === 'DAILY_REWARD' ? 'Điểm danh' : tx.type === 'PAYOUT' ? 'Thắng cược' : 'Đặt cược'}
+                              {tx.type === 'DAILY_REWARD'
+                                ? 'Điểm danh'
+                                : tx.type === 'GIFT_CODE'
+                                ? 'Giftcode'
+                                : tx.type === 'PAYOUT'
+                                ? 'Thắng cược'
+                                : 'Đặt cược'}
                             </span>
                             <span className="font-mono text-[10px] text-[#E8DDC8]/50">{dateStr}</span>
                           </div>

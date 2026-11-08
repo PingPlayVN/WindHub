@@ -23,6 +23,7 @@ export default function RoomSwitchHeader({
   onOpenProfile,
   onOpenShare,
   onOpenDonate,
+  onOpenGiftCode,
   onExitGame,
   canClaimReward = true,
 }) {
@@ -94,6 +95,16 @@ export default function RoomSwitchHeader({
             {canClaimReward && (
               <span className="absolute -top-0.5 -right-0.5 size-1.5 rounded-full bg-amber-400 shadow-[0_0_4px_#f59e0b]" />
             )}
+          </button>
+
+          {/* Nút Nhập Giftcode Quà Tặng */}
+          <button
+            type="button"
+            onClick={onOpenGiftCode}
+            title="Nhập Giftcode nhận xu"
+            className="flex size-6 xs:size-7 items-center justify-center rounded-lg border border-[#A87932]/50 bg-[#2b1c15] text-[#D5B46B] hover:text-[#FAF5EB] active:scale-95 transition-all"
+          >
+            <Ticket size={12} />
           </button>
 
           {/* Nút Ủng hộ Server (Donate) */}
@@ -276,6 +287,17 @@ export default function RoomSwitchHeader({
                 {canClaimReward && (
                   <span className="size-2 rounded-full bg-amber-400 shadow-[0_0_4px_#f59e0b]" />
                 )}
+              </button>
+
+              {/* Nút Nhập Giftcode */}
+              <button
+                type="button"
+                onClick={onOpenGiftCode}
+                title="Nhập mã Giftcode nhận xu quà tặng"
+                className="flex items-center gap-1.5 rounded-xl border border-amber-500/50 bg-[#2b1c15] hover:bg-[#3d271c] hover:border-[#D5B46B] px-3 py-1.5 text-xs font-bold text-[#D5B46B] hover:text-[#FAF5EB] active:scale-95 transition-all shadow-inner"
+              >
+                <Ticket size={15} className="text-[#D5B46B]" />
+                <span>Giftcode</span>
               </button>
 
               {/* Nút Ủng hộ server (Donate) */}

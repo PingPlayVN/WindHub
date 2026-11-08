@@ -17,6 +17,7 @@ import GameInfoModal from './components/GameInfoModal';
 import GoogleLoginGate from './components/GoogleLoginGate';
 import DailyRewardModal from './components/DailyRewardModal';
 import ProfileWalletModal from './components/ProfileWalletModal';
+import GiftCodeModal from './components/GiftCodeModal';
 import GameShareModal from '../components/GameShareModal';
 import DonateModal from './components/DonateModal';
 import { Ticket, ChevronDown, TrendingUp } from 'lucide-react';
@@ -259,6 +260,7 @@ export default function TaiXiuGame() {
   const [isGameInfoOpen, setIsGameInfoOpen] = useState(false);
   const [isDailyRewardOpen, setIsDailyRewardOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isGiftCodeOpen, setIsGiftCodeOpen] = useState(false);
 
   // Cập nhật roomId khi URL thay đổi (ví dụ người dùng dán link mới)
   useEffect(() => {
@@ -493,6 +495,7 @@ export default function TaiXiuGame() {
         onOpenProfile={() => setIsProfileOpen(true)}
         onOpenShare={() => setIsShareOpen(true)}
         onOpenDonate={() => setIsDonateOpen(true)}
+        onOpenGiftCode={() => setIsGiftCodeOpen(true)}
         onExitGame={() => navigate('/entertainment')}
         canClaimReward={dailyReward?.canClaimToday ?? true}
       />
@@ -589,12 +592,23 @@ export default function TaiXiuGame() {
           sfx.playCoinJingle();
           sfx.playWinFanfare();
         }}
+        onOpenGiftCode={() => setIsGiftCodeOpen(true)}
       />
 
       <ProfileWalletModal
         open={isProfileOpen}
         onClose={() => setIsProfileOpen(false)}
         onOpenDonate={() => setIsDonateOpen(true)}
+        onOpenGiftCode={() => setIsGiftCodeOpen(true)}
+      />
+
+      <GiftCodeModal
+        open={isGiftCodeOpen}
+        onClose={() => setIsGiftCodeOpen(false)}
+        onSuccess={() => {
+          sfx.playCoinJingle();
+          sfx.playWinFanfare();
+        }}
       />
 
       <DonateModal

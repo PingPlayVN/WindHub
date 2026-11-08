@@ -13,7 +13,8 @@ import {
   subscribeToPlayerWallet,
   claimFirebaseDailyReward,
   setPlayerBalanceInFirestore,
-  formatDailyRewardState
+  formatDailyRewardState,
+  redeemFirebaseGiftCode
 } from '@/services/firebaseWallet';
 
 let walletUnsubscribe = null;
@@ -386,5 +387,26 @@ export const useAuthStore = create((set, get) => ({
 
   claimReward: async () => {
     return get().claimDailyReward();
+  },
+
+  redeemGiftCode: async (code) => {
+    const uid = get().user?.uid || get().player?.userId || get().player?.uid;
+    if (!uid) {
+      return { success: false, code: 'AUTH_REQUIRED', message: 'Vui lòng đăng nhập tài khoản trước khi nhập mã quà tặng.' };
+    }
+    const res = await redeemFirebaseGiftCode(uid, code);
+    if (res && res.success && typeof res.newBalance === 'number') {
+      get().updateBetBalance(res.newBalance);
+      const currentPlayer = get().player || {};
+      const currentRedeemed = Array.isArray(currentPlayer.redeemedGiftcodes) ? currentPlayer.redeemedGiftcodes : [];
+      set({
+        player: {
+          ...currentPlayer,
+          balance: res.newBalance,
+          redeemedGiftcodes: [...currentRedeemed, res.code]
+        }
+      });
+    }
+    return res;
   }
 }));

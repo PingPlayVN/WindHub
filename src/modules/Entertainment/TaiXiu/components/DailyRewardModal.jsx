@@ -1,14 +1,14 @@
 // src/modules/Entertainment/TaiXiu/components/DailyRewardModal.jsx
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Check, Lock, Gift, Sparkles } from 'lucide-react';
+import { X, Check, Lock, Gift, Sparkles, Ticket } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/store/useAuthStore';
 import { HeritageCoinIcon, DongSonSun } from './HeritageIcons';
 
 const REWARD_AMOUNTS = [5000, 10000, 15000, 25000, 40000, 60000, 100000];
 
-export default function DailyRewardModal({ open, onClose, onRewardClaimed }) {
+export default function DailyRewardModal({ open, onClose, onRewardClaimed, onOpenGiftCode }) {
   const { dailyReward, claimReward, claimDailyReward, betBalance } = useAuthStore();
   const [isClaiming, setIsClaiming] = useState(false);
 
@@ -192,6 +192,25 @@ export default function DailyRewardModal({ open, onClose, onRewardClaimed }) {
               <HeritageCoinIcon size={14} className="text-[#D5B46B]" />
               <strong className="font-mono text-sm text-[#D5B46B]">{betBalance.toLocaleString()} xu</strong>
             </div>
+
+            {typeof onOpenGiftCode === 'function' && (
+              <div className="w-full mt-2 pt-2 border-t border-[#A87932]/25 flex items-center justify-between text-xs text-[#E8DDC8]/80">
+                <span className="flex items-center gap-1.5 text-[11px]">
+                  <Ticket size={13} className="text-[#D5B46B]" />
+                  <span>Bạn có mã quà tặng?</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenGiftCode();
+                  }}
+                  className="text-[11px] font-black text-[#D5B46B] hover:text-[#FAF5EB] underline active:scale-95 transition-all cursor-pointer"
+                >
+                  Nhập Giftcode ngay ➔
+                </button>
+              </div>
+            )}
           </div>
         </motion.div>
       </div>
