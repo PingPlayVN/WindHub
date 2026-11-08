@@ -233,7 +233,7 @@ export default function DicePlate({
       </div>
 
       {/* KHU VỰC KHAY ĐỒNG SƠN MÀI & BÁT ÚP NẶN (DICE STAGE) */}
-      <div className="relative z-10 flex-1 flex size-46 xs:size-50 sm:size-60 md:size-68 items-center justify-center select-none shrink-0 my-1">
+      <div className="relative z-10 my-auto flex size-48 xs:size-52 sm:size-60 md:size-68 aspect-square items-center justify-center select-none shrink-0">
         {/* KHAY ĐỒNG / ĐĨA SƠN MÀI */}
         <div className="absolute inset-0 rounded-full border-5 sm:border-8 border-[#78531F] bg-gradient-to-br from-[#35251C] via-[#241812] to-[#171411] shadow-[0_10px_24px_rgba(0,0,0,0.8),inset_0_2px_5px_rgba(213,180,107,0.35)] flex items-center justify-center pointer-events-none">
           <div className="absolute inset-1 sm:inset-1.5 rounded-full border border-dashed border-[#D5B46B]/40 pointer-events-none" />
@@ -369,9 +369,6 @@ export default function DicePlate({
           {/* NÚM CẦM MẶT TRỜI ĐÔNG SƠN */}
           <div className="size-9 xs:size-10 sm:size-14 rounded-full bg-gradient-to-b from-[#D5B46B] via-[#A87932] to-[#78531F] border-2 border-[#FAF5EB]/60 shadow-[0_3px_8px_rgba(0,0,0,0.5)] flex items-center justify-center mb-0.5 sm:mb-1 pointer-events-none p-0.5">
             <DongSonSun size={22} className="text-[#171411]" />
-          </div>
-          <div className="size-8 xs:size-9 sm:size-14 rounded-full bg-gradient-to-b from-[#D5B46B] via-[#A87932] to-[#78531F] border-2 border-[#FAF5EB]/60 shadow-[0_3px_8px_rgba(0,0,0,0.5)] flex items-center justify-center mb-0.5 sm:mb-1 pointer-events-none p-0.5">
-            <DongSonSun size={20} className="text-[#171411]" />
           </div>
 
           {state === 'PLAYING' ? (
