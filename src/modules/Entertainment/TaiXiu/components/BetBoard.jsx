@@ -98,7 +98,7 @@ export default function BetBoard({
           type="button"
           disabled={isLocked}
           onClick={() => handleSelectSide('XIU')}
-          className={`relative group flex flex-col items-center justify-between min-h-[68px] xs:min-h-[78px] sm:min-h-[150px] md:min-h-[165px] p-1 xs:p-1.5 sm:p-3.5 rounded-xl sm:rounded-2xl border-2 transition-all active:scale-[0.98] ${
+          className={`relative group flex flex-col items-center justify-between min-h-[82px] xs:min-h-[92px] sm:min-h-[150px] md:min-h-[165px] p-1.5 xs:p-2 sm:p-3.5 rounded-xl sm:rounded-2xl border-2 transition-all active:scale-[0.98] ${
             isSelectingXiu
               ? 'border-[#D5B46B] bg-gradient-to-b from-[#1f2e3d]/95 via-[#15232e]/95 to-[#0e171f] ring-3 ring-[#D5B46B]/60 shadow-[0_0_20px_rgba(213,180,107,0.35)]'
               : myXiuBet
@@ -150,7 +150,7 @@ export default function BetBoard({
           type="button"
           disabled={isLocked}
           onClick={() => handleSelectSide('TAI')}
-          className={`relative group flex flex-col items-center justify-between min-h-[68px] xs:min-h-[78px] sm:min-h-[150px] md:min-h-[165px] p-1 xs:p-1.5 sm:p-3.5 rounded-xl sm:rounded-2xl border-2 transition-all active:scale-[0.98] ${
+          className={`relative group flex flex-col items-center justify-between min-h-[82px] xs:min-h-[92px] sm:min-h-[150px] md:min-h-[165px] p-1.5 xs:p-2 sm:p-3.5 rounded-xl sm:rounded-2xl border-2 transition-all active:scale-[0.98] ${
             isSelectingTai
               ? 'border-[#D5B46B] bg-gradient-to-b from-[#421d1a]/95 via-[#2f1412]/95 to-[#1c0c0b] ring-3 ring-[#D5B46B]/60 shadow-[0_0_20px_rgba(213,180,107,0.35)]'
               : myTaiBet
