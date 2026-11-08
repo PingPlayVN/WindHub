@@ -155,7 +155,7 @@ export default function GiftCodeModal({ open, onClose, onSuccess }) {
                   type="text"
                   value={code}
                   onChange={(e) => setCode(e.target.value.toUpperCase())}
-                  placeholder="VD: TANTHU, TRIAN100K..."
+                  placeholder="VD: TANTHU"
                   autoComplete="off"
                   autoFocus
                   disabled={isSubmitting}
@@ -179,11 +179,10 @@ export default function GiftCodeModal({ open, onClose, onSuccess }) {
             <button
               type="submit"
               disabled={isSubmitting || !code.trim()}
-              className={`w-full min-h-[44px] rounded-xl flex items-center justify-center gap-2 font-black text-sm tracking-wide transition-all shadow-md active:scale-98 ${
-                code.trim() && !isSubmitting
-                  ? 'bg-gradient-to-r from-[#D5B46B] via-[#E5C887] to-[#A87932] text-[#171411] hover:brightness-110 shadow-[0_4px_16px_rgba(213,180,107,0.4)] cursor-pointer'
-                  : 'bg-[#2b1c15] text-[#E8DDC8]/40 border border-[#A87932]/30 cursor-not-allowed'
-              }`}
+              className={`w-full min-h-[44px] rounded-xl flex items-center justify-center gap-2 font-black text-sm tracking-wide transition-all shadow-md active:scale-98 ${code.trim() && !isSubmitting
+                ? 'bg-gradient-to-r from-[#D5B46B] via-[#E5C887] to-[#A87932] text-[#171411] hover:brightness-110 shadow-[0_4px_16px_rgba(213,180,107,0.4)] cursor-pointer'
+                : 'bg-[#2b1c15] text-[#E8DDC8]/40 border border-[#A87932]/30 cursor-not-allowed'
+                }`}
             >
               {isSubmitting ? (
                 <span>Đang kiểm tra & cộng xu...</span>
@@ -235,3 +234,4 @@ export default function GiftCodeModal({ open, onClose, onSuccess }) {
     </AnimatePresence>
   );
 }
+

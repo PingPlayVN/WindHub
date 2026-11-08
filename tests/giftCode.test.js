@@ -117,3 +117,4 @@ test('10. validateGiftCodeEligibility: rejects code with missing or 0 reward', (
   assert.equal(res.valid, false);
   assert.equal(res.code, 'INVALID_REWARD');
 });
+
