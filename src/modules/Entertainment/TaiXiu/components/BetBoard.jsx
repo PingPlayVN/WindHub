@@ -90,7 +90,7 @@ export default function BetBoard({
   const isSelectingTai = selectedSide === 'TAI';
 
   return (
-    <div className="flex flex-col gap-1 xs:gap-1.5 sm:gap-3.5 rounded-2xl sm:rounded-3xl border border-[#A87932]/40 bg-gradient-to-b from-[#221813] via-[#171411] to-[#120f0d] p-1.5 xs:p-2 sm:p-4 text-[#E8DDC8] shadow-[0_8px_24px_rgba(0,0,0,0.65)] select-none w-full shrink-0">
+    <div className="flex flex-col gap-1.5 xs:gap-2 sm:gap-3.5 rounded-2xl sm:rounded-3xl border border-[#A87932]/40 bg-gradient-to-b from-[#221813] via-[#171411] to-[#120f0d] p-2 xs:p-2.5 sm:p-4 text-[#E8DDC8] shadow-[0_8px_24px_rgba(0,0,0,0.65)] select-none w-full shrink-0">
       {/* 2 CỬA CƯỢC CHÍNH: XỈU & TÀI (PHÙ ĐIÊU ĐỒNG & SƠN MÀI) */}
       <div className="grid grid-cols-2 gap-1.5 xs:gap-2 sm:gap-4">
         {/* CỬA XỈU (4 - 10) - Men Lam Trầm & Khảm Đồng */}
@@ -98,7 +98,7 @@ export default function BetBoard({
           type="button"
           disabled={isLocked}
           onClick={() => handleSelectSide('XIU')}
-          className={`relative group flex flex-col items-center justify-between min-h-[82px] xs:min-h-[92px] sm:min-h-[150px] md:min-h-[165px] p-1.5 xs:p-2 sm:p-3.5 rounded-xl sm:rounded-2xl border-2 transition-all active:scale-[0.98] ${
+          className={`relative group flex flex-col items-center justify-between min-h-[88px] xs:min-h-[98px] sm:min-h-[150px] md:min-h-[165px] p-1.5 xs:p-2 sm:p-3.5 rounded-xl sm:rounded-2xl border-2 transition-all active:scale-[0.98] ${
             isSelectingXiu
               ? 'border-[#D5B46B] bg-gradient-to-b from-[#1f2e3d]/95 via-[#15232e]/95 to-[#0e171f] ring-3 ring-[#D5B46B]/60 shadow-[0_0_20px_rgba(213,180,107,0.35)]'
               : myXiuBet
@@ -150,7 +150,7 @@ export default function BetBoard({
           type="button"
           disabled={isLocked}
           onClick={() => handleSelectSide('TAI')}
-          className={`relative group flex flex-col items-center justify-between min-h-[82px] xs:min-h-[92px] sm:min-h-[150px] md:min-h-[165px] p-1.5 xs:p-2 sm:p-3.5 rounded-xl sm:rounded-2xl border-2 transition-all active:scale-[0.98] ${
+          className={`relative group flex flex-col items-center justify-between min-h-[88px] xs:min-h-[98px] sm:min-h-[150px] md:min-h-[165px] p-1.5 xs:p-2 sm:p-3.5 rounded-xl sm:rounded-2xl border-2 transition-all active:scale-[0.98] ${
             isSelectingTai
               ? 'border-[#D5B46B] bg-gradient-to-b from-[#421d1a]/95 via-[#2f1412]/95 to-[#1c0c0b] ring-3 ring-[#D5B46B]/60 shadow-[0_0_20px_rgba(213,180,107,0.35)]'
               : myTaiBet

@@ -19,7 +19,7 @@ import DailyRewardModal from './components/DailyRewardModal';
 import ProfileWalletModal from './components/ProfileWalletModal';
 import GameShareModal from '../components/GameShareModal';
 import DonateModal from './components/DonateModal';
-import { Ticket, ChevronDown } from 'lucide-react';
+import { Ticket, ChevronDown, TrendingUp } from 'lucide-react';
 
 class SoundEffects {
   constructor() {
@@ -497,10 +497,52 @@ export default function TaiXiuGame() {
         canClaimReward={dailyReward?.canClaimToday ?? true}
       />
 
-      {/* 2. LAYOUT CHÍNH: BÀN CHƠI TÀI XỈU (TỰ ĐỘNG THÍCH ỨNG MOBILE / DESKTOP) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-1 xs:gap-1.5 sm:gap-4 lg:gap-5 items-stretch flex-1 min-h-0 overflow-hidden lg:overflow-visible">
+      {/* 2. DẢI SOI CẦU MINI NHANH DÀNH RIÊNG CHO MOBILE (< 1024PX) */}
+      <div className="flex lg:hidden items-center justify-between gap-1.5 rounded-xl border border-[#A87932]/40 bg-gradient-to-r from-[#221711] via-[#1a120e] to-[#221711] px-2 py-1 text-[11px] shrink-0 shadow-sm">
+        <div className="flex items-center gap-1 text-[#D5B46B] font-bold shrink-0">
+          <TrendingUp size={13} className="text-[#D5B46B]" />
+          <span className="text-[10px] font-mono uppercase font-black">Cầu ({history.length}):</span>
+        </div>
+
+        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5 flex-1 min-w-0">
+          {history.length === 0 ? (
+            <span className="text-[10px] text-[#E8DDC8]/50 italic">Đang cập nhật dữ liệu phiên...</span>
+          ) : (
+            history.slice(0, 16).map((h, idx) => {
+              const isBao = h.isTriple || h.outcome === 'BAO';
+              const isTai = h.outcome === 'TAI';
+              return (
+                <span
+                  key={`${h.roundId || 'r'}-${idx}`}
+                  className={`flex size-5 xs:size-5.5 shrink-0 items-center justify-center rounded-md font-mono text-[9px] font-black border shadow-xs transition-transform ${
+                    isBao
+                      ? 'bg-gradient-to-br from-cyan-600 to-cyan-950 text-white border-cyan-400'
+                      : isTai
+                        ? 'bg-gradient-to-br from-[#8E2926] to-[#421312] text-[#FAF5EB] border-[#D5B46B]/60'
+                        : 'bg-gradient-to-br from-[#2b1f19] to-[#120d0a] text-[#D5B46B] border-[#A87932]/70'
+                  }`}
+                  title={`Ván ${h.roundId}: ${h.dice?.join('-')} (${h.total} điểm)`}
+                >
+                  {isBao ? 'B' : isTai ? 'T' : 'X'}
+                </span>
+              );
+            })
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setIsSoiCauOpen(true)}
+          className="shrink-0 flex items-center gap-0.5 rounded-md bg-[#2b1c15] border border-[#D5B46B]/40 px-1.5 py-0.5 text-[9px] font-bold text-[#D5B46B] hover:text-[#FAF5EB] active:scale-95 transition-all shadow-xs"
+        >
+          <span>Chi tiết</span>
+        </button>
+      </div>
+
+      {/* 3. LAYOUT CHÍNH: BÀN CHƠI TÀI XỈU (TỰ ĐỘNG THÍCH ỨNG MOBILE / DESKTOP) */}
+      <div className="flex flex-col lg:grid lg:grid-cols-12 gap-1 xs:gap-1.5 sm:gap-4 lg:gap-5 items-stretch flex-1 min-h-0 overflow-hidden lg:overflow-visible">
         {/* CỘT TRÁI (Mobile: Trên / Desktop: 5 phần): Khay xúc xắc + Vé cược cá nhân */}
-        <div className="lg:col-span-5 flex flex-col justify-center flex-1 min-h-0">
+        <div className="lg:col-span-5 flex flex-col flex-1 min-h-0">
           <DicePlate
             state={roomState}
             dice={dice}

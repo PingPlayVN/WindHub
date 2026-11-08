@@ -199,7 +199,7 @@ export default function DicePlate({
   return (
     <section
       aria-label="Khu vực khay xúc xắc và bát nặn Tài Xỉu"
-      className="relative flex flex-col items-center justify-center overflow-hidden rounded-2xl sm:rounded-3xl border border-[#A87932]/45 bg-gradient-to-b from-[#251812] via-[#171411] to-[#100c09] p-1.5 xs:p-2 sm:p-5 text-[#E8DDC8] shadow-[0_8px_24px_rgba(0,0,0,0.65)] w-full flex-1 min-h-0"
+      className="relative flex flex-col items-center justify-between overflow-hidden rounded-2xl sm:rounded-3xl border border-[#A87932]/45 bg-gradient-to-b from-[#251812] via-[#171411] to-[#100c09] p-2 xs:p-2.5 sm:p-4 text-[#E8DDC8] shadow-[0_8px_24px_rgba(0,0,0,0.65)] w-full flex-1 min-h-0"
     >
       {/* Background hoa văn Đông Sơn tinh tế */}
       <div className="pointer-events-none absolute inset-0 opacity-10 [background-image:radial-gradient(#D5B46B_1px,transparent_1px)] [background-size:16px_16px]" />
@@ -233,7 +233,7 @@ export default function DicePlate({
       </div>
 
       {/* KHU VỰC KHAY ĐỒNG SƠN MÀI & BÁT ÚP NẶN (DICE STAGE) */}
-      <div className="relative z-10 my-0.5 sm:my-1.5 flex size-48 xs:size-52 sm:size-60 md:size-68 items-center justify-center select-none shrink-0">
+      <div className="relative z-10 flex-1 flex size-46 xs:size-50 sm:size-60 md:size-68 items-center justify-center select-none shrink-0 my-1">
         {/* KHAY ĐỒNG / ĐĨA SƠN MÀI */}
         <div className="absolute inset-0 rounded-full border-5 sm:border-8 border-[#78531F] bg-gradient-to-br from-[#35251C] via-[#241812] to-[#171411] shadow-[0_10px_24px_rgba(0,0,0,0.8),inset_0_2px_5px_rgba(213,180,107,0.35)] flex items-center justify-center pointer-events-none">
           <div className="absolute inset-1 sm:inset-1.5 rounded-full border border-dashed border-[#D5B46B]/40 pointer-events-none" />
@@ -397,14 +397,49 @@ export default function DicePlate({
         </motion.div>
       </div>
 
-      {/* THANH ĐIỀU KHIỂN NẶN ĐĨA & NÚT MỞ NHANH */}
-      <AnimatePresence>
+      {/* THANH TRẠNG THÁI & ĐIỀU KHIỂN DƯỚI ĐÁY KHAY (LUÔN CỐ ĐỊNH CHIỀU CAO, KHÔNG ĐỂ KHOẢNG TRỐNG) */}
+      <AnimatePresence mode="wait">
+        {/* TRẠNG THÁI 1: ĐANG NHẬN CƯỢC (WAITING) */}
+        {state === 'WAITING' && (
+          <motion.div
+            key="status-waiting"
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            className="relative z-10 w-full max-w-sm rounded-xl bg-[#1d140f]/90 border border-[#A87932]/40 px-2.5 py-1.5 flex items-center justify-between text-[10px] xs:text-[11px] text-[#E8DDC8] shadow-md shrink-0"
+          >
+            <div className="flex items-center gap-1.5">
+              <Sparkles size={12} className="text-[#D5B46B] animate-pulse shrink-0" />
+              <span>Đặt cược <strong>XỈU (4-10)</strong> hoặc <strong>TÀI (11-17)</strong></span>
+            </div>
+            <span className="font-mono text-[#D5B46B] font-black uppercase text-[10px] bg-[#2b1c15] px-1.5 py-0.5 rounded-md border border-[#D5B46B]/30 shrink-0">
+              Ăn 1:1
+            </span>
+          </motion.div>
+        )}
+
+        {/* TRẠNG THÁI 2: ĐANG LẮC BÁT (PLAYING) */}
+        {state === 'PLAYING' && (
+          <motion.div
+            key="status-playing"
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            className="relative z-10 w-full max-w-sm rounded-xl bg-gradient-to-r from-[#2c1810] via-[#3a2015] to-[#2c1810] border border-amber-500/50 px-2.5 py-1.5 flex items-center justify-center gap-2 text-[10px] xs:text-[11px] text-amber-200 font-bold shadow-md animate-pulse shrink-0"
+          >
+            <Flame size={13} className="text-amber-400 animate-bounce shrink-0" />
+            <span className="uppercase tracking-wider">Đang lắc bát Đông Sơn... Chuẩn bị nặn!</span>
+          </motion.div>
+        )}
+
+        {/* TRẠNG THÁI 3: ĐANG NẶN BÁT (RESULT & CHƯA MỞ) */}
         {state === 'RESULT' && !isRevealed && (
           <motion.div
+            key="status-squeezing"
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
-            className="relative z-10 w-full max-w-sm rounded-xl bg-[#1d140f]/95 border border-[#A87932]/50 p-1.5 xs:p-2 sm:p-2.5 mt-0.5 flex items-center justify-between shadow-lg"
+            className="relative z-10 w-full max-w-sm rounded-xl bg-[#1d140f]/95 border border-[#A87932]/50 p-1.5 xs:p-2 sm:p-2.5 flex items-center justify-between shadow-lg shrink-0"
           >
             <div className="flex items-center gap-1.5 text-[10px] xs:text-[11px] sm:text-xs text-[#E8DDC8] font-semibold">
               <Move size={13} className="text-[#D5B46B] animate-spin" style={{ animationDuration: '6s' }} />
@@ -415,19 +450,21 @@ export default function DicePlate({
             <button
               type="button"
               onClick={() => setIsAutoRevealed(true)}
-              className="min-h-[28px] xs:min-h-[30px] sm:min-h-[36px] rounded-lg bg-gradient-to-r from-[#D5B46B] to-[#A87932] px-2.5 xs:px-3 py-0.5 text-[10px] xs:text-[11px] sm:text-xs font-black text-[#171411] hover:brightness-110 active:scale-95 transition-all shadow-md"
+              className="min-h-[28px] xs:min-h-[30px] sm:min-h-[36px] rounded-lg bg-gradient-to-r from-[#D5B46B] to-[#A87932] px-2.5 xs:px-3 py-0.5 text-[10px] xs:text-[11px] sm:text-xs font-black text-[#171411] hover:brightness-110 active:scale-95 transition-all shadow-md shrink-0"
             >
               Mở Ngay
             </button>
           </motion.div>
         )}
 
-        {/* KẾT QUẢ PHIÊN SAU KHI MỞ BÁT */}
+        {/* TRẠNG THÁI 4: KẾT QUẢ PHIÊN SAU KHI MỞ BÁT (RESULT & ĐÃ MỞ) */}
         {state === 'RESULT' && isRevealed && (
           <motion.div
+            key="status-revealed"
             initial={{ opacity: 0, scale: 0.92, y: 4 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            className="relative z-10 mt-0.5 sm:mt-1 flex items-center gap-2 rounded-xl border border-[#D5B46B]/60 bg-gradient-to-r from-[#2c1c14] via-[#3a251b] to-[#2c1c14] px-2.5 xs:px-3 py-1 sm:py-2 text-[#FAF5EB] shadow-[0_4px_16px_rgba(213,180,107,0.3)] w-full max-w-sm justify-center"
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="relative z-10 flex items-center gap-2 rounded-xl border border-[#D5B46B]/60 bg-gradient-to-r from-[#2c1c14] via-[#3a251b] to-[#2c1c14] px-2.5 xs:px-3 py-1 sm:py-2 text-[#FAF5EB] shadow-[0_4px_16px_rgba(213,180,107,0.3)] w-full max-w-sm justify-center shrink-0"
           >
             {isTriple ? (
               <Crown size={16} className="text-[#D5B46B] shrink-0 animate-pulse" />
@@ -444,7 +481,7 @@ export default function DicePlate({
                 3 Xúc xắc: {dice[0]} - {dice[1]} - {dice[2]}
               </p>
               {dramaticMessage && (
-                <div className={`mt-1 text-[9px] xs:text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full inline-flex items-center justify-center gap-1 border shadow-xs ${
+                <div className={`mt-0.5 text-[9px] xs:text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full inline-flex items-center justify-center gap-1 border shadow-xs ${
                   dramaticType === 'TRIPLE_JACKPOT'
                     ? 'bg-amber-500/25 text-amber-300 border-amber-400/60 animate-bounce'
                     : dramaticType === 'STREAK_BREAKER'
