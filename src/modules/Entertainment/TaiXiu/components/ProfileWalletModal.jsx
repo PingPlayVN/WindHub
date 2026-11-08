@@ -247,22 +247,20 @@ export default function ProfileWalletModal({ open, onClose, onOpenDonate, onOpen
             <button
               type="button"
               onClick={() => setActiveTab('PROFILE')}
-              className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all text-center ${
-                activeTab === 'PROFILE'
+              className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all text-center ${activeTab === 'PROFILE'
                   ? 'bg-gradient-to-r from-[#A87932] to-[#8E2926] text-[#FAF5EB] shadow-sm'
                   : 'text-[#E8DDC8]/60 hover:text-[#FAF5EB]'
-              }`}
+                }`}
             >
               Thống Kê
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('GIFTCODE')}
-              className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all text-center flex items-center justify-center gap-1 ${
-                activeTab === 'GIFTCODE'
+              className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all text-center flex items-center justify-center gap-1 ${activeTab === 'GIFTCODE'
                   ? 'bg-gradient-to-r from-[#A87932] to-[#8E2926] text-[#FAF5EB] shadow-sm'
                   : 'text-[#E8DDC8]/60 hover:text-[#FAF5EB]'
-              }`}
+                }`}
             >
               <Ticket size={12} className="text-[#D5B46B]" />
               <span>Giftcode</span>
@@ -270,11 +268,10 @@ export default function ProfileWalletModal({ open, onClose, onOpenDonate, onOpen
             <button
               type="button"
               onClick={() => setActiveTab('TRANSACTIONS')}
-              className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all text-center ${
-                activeTab === 'TRANSACTIONS'
+              className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all text-center ${activeTab === 'TRANSACTIONS'
                   ? 'bg-gradient-to-r from-[#A87932] to-[#8E2926] text-[#FAF5EB] shadow-sm'
                   : 'text-[#E8DDC8]/60 hover:text-[#FAF5EB]'
-              }`}
+                }`}
             >
               Lịch Sử Ví
             </button>
@@ -361,7 +358,7 @@ export default function ProfileWalletModal({ open, onClose, onOpenDonate, onOpen
                       type="text"
                       value={giftCodeInput}
                       onChange={(e) => setGiftCodeInput(e.target.value.toUpperCase())}
-                      placeholder="VD: TANTHU, TRIAN100K..."
+                      placeholder="VD: TANTHU..."
                       autoComplete="off"
                       disabled={isSubmittingCode}
                       className="w-full rounded-xl border border-[#D5B46B]/50 bg-[#160e0a] px-3 py-2 pr-9 text-xs sm:text-sm font-mono font-bold tracking-wider text-[#FAF5EB] placeholder:text-[#E8DDC8]/30 focus:border-[#D5B46B] focus:outline-hidden focus:ring-1 focus:ring-[#D5B46B] shadow-inner"
@@ -382,11 +379,10 @@ export default function ProfileWalletModal({ open, onClose, onOpenDonate, onOpen
                 <button
                   type="submit"
                   disabled={isSubmittingCode || !giftCodeInput.trim()}
-                  className={`w-full min-h-[38px] rounded-xl flex items-center justify-center gap-1.5 font-black text-xs tracking-wide transition-all shadow-md active:scale-98 ${
-                    giftCodeInput.trim() && !isSubmittingCode
+                  className={`w-full min-h-[38px] rounded-xl flex items-center justify-center gap-1.5 font-black text-xs tracking-wide transition-all shadow-md active:scale-98 ${giftCodeInput.trim() && !isSubmittingCode
                       ? 'bg-gradient-to-r from-[#D5B46B] to-[#A87932] text-[#171411] hover:brightness-110 shadow-sm cursor-pointer'
                       : 'bg-[#2b1c15] text-[#E8DDC8]/40 border border-[#A87932]/30 cursor-not-allowed'
-                  }`}
+                    }`}
                 >
                   {isSubmittingCode ? (
                     <span>Đang kiểm tra & cộng xu...</span>
@@ -460,23 +456,22 @@ export default function ProfileWalletModal({ open, onClose, onOpenDonate, onOpen
                         <div className="min-w-0 pr-2">
                           <div className="flex items-center gap-1.5">
                             <span
-                              className={`rounded px-1.5 py-0.2 text-[9px] font-bold ${
-                                tx.type === 'DAILY_REWARD'
+                              className={`rounded px-1.5 py-0.2 text-[9px] font-bold ${tx.type === 'DAILY_REWARD'
                                   ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
                                   : tx.type === 'GIFT_CODE'
-                                  ? 'bg-gradient-to-r from-amber-500/30 to-yellow-500/20 text-yellow-300 border border-yellow-500/40'
-                                  : tx.type === 'PAYOUT'
-                                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                                  : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                              }`}
+                                    ? 'bg-gradient-to-r from-amber-500/30 to-yellow-500/20 text-yellow-300 border border-yellow-500/40'
+                                    : tx.type === 'PAYOUT'
+                                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                      : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                                }`}
                             >
                               {tx.type === 'DAILY_REWARD'
                                 ? 'Điểm danh'
                                 : tx.type === 'GIFT_CODE'
-                                ? 'Giftcode'
-                                : tx.type === 'PAYOUT'
-                                ? 'Thắng cược'
-                                : 'Đặt cược'}
+                                  ? 'Giftcode'
+                                  : tx.type === 'PAYOUT'
+                                    ? 'Thắng cược'
+                                    : 'Đặt cược'}
                             </span>
                             <span className="font-mono text-[10px] text-[#E8DDC8]/50">{dateStr}</span>
                           </div>
@@ -487,9 +482,8 @@ export default function ProfileWalletModal({ open, onClose, onOpenDonate, onOpen
 
                         <div className="text-right shrink-0">
                           <div
-                            className={`font-mono font-bold text-sm ${
-                              isCredit ? 'text-emerald-400' : 'text-rose-400'
-                            }`}
+                            className={`font-mono font-bold text-sm ${isCredit ? 'text-emerald-400' : 'text-rose-400'
+                              }`}
                           >
                             {isCredit ? `+${tx.amount.toLocaleString()}` : tx.amount.toLocaleString()} xu
                           </div>
