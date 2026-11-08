@@ -161,7 +161,7 @@ export default function SoiCauModal({ isOpen, onClose, history = [] }) {
               </h2>
             </div>
 
-            {/* TAB CHUYỂN MẪU 1 (BIỂU ĐỒ - ƯU TIÊN HIỂN THỊ TRƯỚC) & MẪU 2 (BẢNG CẦU) */}
+            {/* TAB CHUYỂN MẪU 1 (BẢNG CẦU) & MẪU 2 (BIỂU ĐỒ) */}
             <div className="flex items-center gap-1 rounded-xl bg-[#120d0a] p-1 border border-[#A87932]/40 shadow-inner">
               <button
                 type="button"
@@ -175,8 +175,7 @@ export default function SoiCauModal({ isOpen, onClose, history = [] }) {
                     : 'text-[#E8DDC8]/80 hover:text-[#FAF5EB]'
                 }`}
               >
-                <TrendingUp size={13} />
-                <span>Mẫu 1 (Biểu Đồ)</span>
+                <span>Mẫu 1 (Bảng Cầu)</span>
               </button>
 
               <button
@@ -191,147 +190,16 @@ export default function SoiCauModal({ isOpen, onClose, history = [] }) {
                     : 'text-[#E8DDC8]/80 hover:text-[#FAF5EB]'
                 }`}
               >
-                <span>Mẫu 2 (Bảng Cầu)</span>
+                <TrendingUp size={13} />
+                <span>Mẫu 2 (Biểu Đồ)</span>
               </button>
             </div>
           </div>
 
           {/* ========================================================
-              MẪU 1: BIỂU ĐỒ TỔNG ĐIỂM & 3 XÍ NGẦU (ĐƯA TỚI TRƯỚC)
+              MẪU 1: BẢNG LƯỚI MA TRẬN 6 HÀNG & DÂY CẦU ZIC-ZAC
              ======================================================== */}
           {activeTab === 1 && (
-            <div className="space-y-4">
-              {/* THANH TỔNG HỢP TỈ LỆ TÀI / XỈU */}
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#A87932]/25 pb-2 text-xs font-black">
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1 rounded-full border border-[#8E2926] bg-[#22100f] px-2.5 py-0.5 text-[#FAF5EB] shadow-xs">
-                    <span className="size-2 rounded-full bg-[#8E2926]" />
-                    <span>Tài: {stats.tai}</span>
-                  </div>
-                  <div className="flex items-center gap-1 rounded-full border border-[#D5B46B]/60 bg-[#1c140e] px-2.5 py-0.5 text-[#D5B46B] shadow-xs">
-                    <span className="size-2 rounded-full bg-[#D5B46B]" />
-                    <span>Xỉu: {stats.xiu}</span>
-                  </div>
-                  {stats.bao > 0 && (
-                    <div className="flex items-center gap-1 rounded-full border border-cyan-500 bg-cyan-950 px-2 py-0.5 text-cyan-300 shadow-xs">
-                      <span className="size-2 rounded-full bg-cyan-400 animate-ping" />
-                      <span>Bão: {stats.bao}</span>
-                    </div>
-                  )}
-                </div>
-
-                <button
-                  type="button"
-                  onClick={scrollToNewest}
-                  className="inline-flex items-center gap-1 rounded-md bg-[#2b1c15] border border-[#D5B46B]/50 px-2 py-1 text-[11px] font-black text-[#D5B46B] hover:text-[#FAF5EB] hover:bg-[#3d271c] active:scale-95 transition-all shadow-xs"
-                >
-                  <span>Ván mới nhất</span>
-                  <ArrowRight size={12} />
-                </button>
-              </div>
-
-              {/* 3 NÚT BẬT/TẮT ĐƯỜNG XÍ NGẦU */}
-              <div className="flex flex-wrap items-center justify-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowDice1((v) => !v)}
-                  className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-black border transition-all active:scale-95 shadow-sm ${
-                    showDice1
-                      ? 'border-[#D5B46B] bg-[#2e1d15] text-[#D5B46B]'
-                      : 'border-zinc-800 bg-zinc-950/60 text-zinc-600 opacity-60'
-                  }`}
-                >
-                  <span className={`size-2.5 rounded-full ${showDice1 ? 'bg-[#D5B46B]' : 'bg-zinc-700'}`} />
-                  XÍ NGẦU 1
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setShowDice2((v) => !v)}
-                  className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-black border transition-all active:scale-95 shadow-sm ${
-                    showDice2
-                      ? 'border-[#8E2926] bg-[#341412] text-[#FAF5EB]'
-                      : 'border-zinc-800 bg-zinc-950/60 text-zinc-600 opacity-60'
-                  }`}
-                >
-                  <span className={`size-2.5 rounded-full ${showDice2 ? 'bg-[#8E2926]' : 'bg-zinc-700'}`} />
-                  XÍ NGẦU 2
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setShowDice3((v) => !v)}
-                  className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-black border transition-all active:scale-95 shadow-sm ${
-                    showDice3
-                      ? 'border-emerald-500 bg-emerald-950/70 text-emerald-300'
-                      : 'border-zinc-800 bg-zinc-950/60 text-zinc-600 opacity-60'
-                  }`}
-                >
-                  <span className={`size-2.5 rounded-full ${showDice3 ? 'bg-emerald-400' : 'bg-zinc-700'}`} />
-                  XÍ NGẦU 3
-                </button>
-              </div>
-
-              {/* KHUNG CHỨA 2 ĐỒ THỊ (TỰ ĐỘNG CUỘN ĐẾN VÁN MỚI NHẤT Ở BÊN PHẢI) */}
-              <div className="rounded-2xl border border-[#A87932]/35 bg-[#120d0a]/95 p-3 shadow-inner space-y-4">
-                {/* 1. BIỂU ĐỒ TRÊN: ĐƯỜNG TỔNG ĐIỂM (3 - 18) */}
-                <div>
-                  <div className="mb-1 flex items-center justify-between text-xs font-bold text-[#D5B46B]">
-                    <span className="flex items-center gap-1">
-                      <TrendingUp size={14} /> Biểu đồ Tổng Điểm (3 - 18)
-                    </span>
-                    <button
-                      type="button"
-                      onClick={scrollToNewest}
-                      className="text-[10px] text-[#D5B46B] hover:text-[#FAF5EB] underline font-bold"
-                    >
-                      Mới nhất bên phải ➔
-                    </button>
-                  </div>
-
-                  <div
-                    ref={totalGraphRef}
-                    className="overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-[#A87932] cursor-grab active:cursor-grabbing"
-                  >
-                    <TotalScoreGraph history={chronologicalHistory.slice(-20)} />
-                  </div>
-                </div>
-
-                {/* 2. BIỂU ĐỒ DƯỚI: ĐƯỜNG 3 XÍ NGẦU (1 - 6) */}
-                <div className="border-t border-[#A87932]/25 pt-3">
-                  <div className="mb-1 flex items-center justify-between text-xs font-bold text-[#D5B46B]">
-                    <span className="flex items-center gap-1">
-                      <Sparkles size={14} /> Biểu đồ 3 Xí Ngầu (1 - 6)
-                    </span>
-                    <button
-                      type="button"
-                      onClick={scrollToNewest}
-                      className="text-[10px] text-[#D5B46B] hover:text-[#FAF5EB] underline font-bold"
-                    >
-                      Mới nhất bên phải ➔
-                    </button>
-                  </div>
-
-                  <div
-                    ref={diceGraphRef}
-                    className="overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-[#A87932] cursor-grab active:cursor-grabbing"
-                  >
-                    <DiceTrajectoryGraph
-                      history={chronologicalHistory.slice(-20)}
-                      showDice1={showDice1}
-                      showDice2={showDice2}
-                      showDice3={showDice3}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ========================================================
-              MẪU 2: BẢNG LƯỚI MA TRẬN 6 HÀNG & DÂY CẦU ZIC-ZAC
-             ======================================================== */}
-          {activeTab === 2 && (
             <div className="space-y-4">
               {/* THANH TỔNG HỢP TỈ LỆ TÀI / XỈU */}
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#A87932]/25 pb-2 text-xs font-black">
@@ -459,6 +327,138 @@ export default function SoiCauModal({ isOpen, onClose, history = [] }) {
                         </div>
                       );
                     })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================
+              MẪU 2: BIỂU ĐỒ TỔNG ĐIỂM & 3 XÍ NGẦU CÓ TOGGLE
+             ======================================================== */}
+          {activeTab === 2 && (
+            <div className="space-y-4">
+              {/* THANH TỔNG HỢP TỈ LỆ TÀI / XỈU */}
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#A87932]/25 pb-2 text-xs font-black">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1 rounded-full border border-[#8E2926] bg-[#22100f] px-2.5 py-0.5 text-[#FAF5EB] shadow-xs">
+                    <span className="size-2 rounded-full bg-[#8E2926]" />
+                    <span>Tài: {stats.tai}</span>
+                  </div>
+                  <div className="flex items-center gap-1 rounded-full border border-[#D5B46B]/60 bg-[#1c140e] px-2.5 py-0.5 text-[#D5B46B] shadow-xs">
+                    <span className="size-2 rounded-full bg-[#D5B46B]" />
+                    <span>Xỉu: {stats.xiu}</span>
+                  </div>
+                  {stats.bao > 0 && (
+                    <div className="flex items-center gap-1 rounded-full border border-cyan-500 bg-cyan-950 px-2 py-0.5 text-cyan-300 shadow-xs">
+                      <span className="size-2 rounded-full bg-cyan-400 animate-ping" />
+                      <span>Bão: {stats.bao}</span>
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={scrollToNewest}
+                  className="inline-flex items-center gap-1 rounded-md bg-[#2b1c15] border border-[#D5B46B]/50 px-2 py-1 text-[11px] font-black text-[#D5B46B] hover:text-[#FAF5EB] hover:bg-[#3d271c] active:scale-95 transition-all shadow-xs"
+                >
+                  <span>Ván mới nhất</span>
+                  <ArrowRight size={12} />
+                </button>
+              </div>
+
+              {/* 3 NÚT BẬT/TẮT ĐƯỜNG XÍ NGẦU */}
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowDice1((v) => !v)}
+                  className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-black border transition-all active:scale-95 shadow-sm ${
+                    showDice1
+                      ? 'border-[#D5B46B] bg-[#2e1d15] text-[#D5B46B]'
+                      : 'border-zinc-800 bg-zinc-950/60 text-zinc-600 opacity-60'
+                  }`}
+                >
+                  <span className={`size-2.5 rounded-full ${showDice1 ? 'bg-[#D5B46B]' : 'bg-zinc-700'}`} />
+                  XÍ NGẦU 1
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowDice2((v) => !v)}
+                  className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-black border transition-all active:scale-95 shadow-sm ${
+                    showDice2
+                      ? 'border-[#8E2926] bg-[#341412] text-[#FAF5EB]'
+                      : 'border-zinc-800 bg-zinc-950/60 text-zinc-600 opacity-60'
+                  }`}
+                >
+                  <span className={`size-2.5 rounded-full ${showDice2 ? 'bg-[#8E2926]' : 'bg-zinc-700'}`} />
+                  XÍ NGẦU 2
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowDice3((v) => !v)}
+                  className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-black border transition-all active:scale-95 shadow-sm ${
+                    showDice3
+                      ? 'border-emerald-500 bg-emerald-950/70 text-emerald-300'
+                      : 'border-zinc-800 bg-zinc-950/60 text-zinc-600 opacity-60'
+                  }`}
+                >
+                  <span className={`size-2.5 rounded-full ${showDice3 ? 'bg-emerald-400' : 'bg-zinc-700'}`} />
+                  XÍ NGẦU 3
+                </button>
+              </div>
+
+              {/* KHUNG CHỨA 2 ĐỒ THỊ (TỰ ĐỘNG CUỘN ĐẾN VÁN MỚI NHẤT Ở BÊN PHẢI) */}
+              <div className="rounded-2xl border border-[#A87932]/35 bg-[#120d0a]/95 p-3 shadow-inner space-y-4">
+                {/* 1. BIỂU ĐỒ TRÊN: ĐƯỜNG TỔNG ĐIỂM (3 - 18) */}
+                <div>
+                  <div className="mb-1 flex items-center justify-between text-xs font-bold text-[#D5B46B]">
+                    <span className="flex items-center gap-1">
+                      <TrendingUp size={14} /> Biểu đồ Tổng Điểm (3 - 18)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={scrollToNewest}
+                      className="text-[10px] text-[#D5B46B] hover:text-[#FAF5EB] underline font-bold"
+                    >
+                      Mới nhất bên phải ➔
+                    </button>
+                  </div>
+
+                  <div
+                    ref={totalGraphRef}
+                    className="overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-[#A87932] cursor-grab active:cursor-grabbing"
+                  >
+                    <TotalScoreGraph history={chronologicalHistory.slice(-20)} />
+                  </div>
+                </div>
+
+                {/* 2. BIỂU ĐỒ DƯỚI: ĐƯỜNG 3 XÍ NGẦU (1 - 6) */}
+                <div className="border-t border-[#A87932]/25 pt-3">
+                  <div className="mb-1 flex items-center justify-between text-xs font-bold text-[#D5B46B]">
+                    <span className="flex items-center gap-1">
+                      <Sparkles size={14} /> Biểu đồ 3 Xí Ngầu (1 - 6)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={scrollToNewest}
+                      className="text-[10px] text-[#D5B46B] hover:text-[#FAF5EB] underline font-bold"
+                    >
+                      Mới nhất bên phải ➔
+                    </button>
+                  </div>
+
+                  <div
+                    ref={diceGraphRef}
+                    className="overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-[#A87932] cursor-grab active:cursor-grabbing"
+                  >
+                    <DiceTrajectoryGraph
+                      history={chronologicalHistory.slice(-20)}
+                      showDice1={showDice1}
+                      showDice2={showDice2}
+                      showDice3={showDice3}
+                    />
                   </div>
                 </div>
               </div>

@@ -542,7 +542,7 @@ export default function TaiXiuGame() {
       {/* 3. LAYOUT CHÍNH: BÀN CHƠI TÀI XỈU (TỰ ĐỘNG THÍCH ỨNG MOBILE / DESKTOP) */}
       <div className="flex flex-col lg:grid lg:grid-cols-12 gap-1 xs:gap-1.5 sm:gap-4 lg:gap-5 items-stretch flex-1 min-h-0 overflow-hidden lg:overflow-visible">
         {/* CỘT TRÁI (Mobile: Trên / Desktop: 5 phần): Khay xúc xắc + Vé cược cá nhân */}
-        <div className="lg:col-span-5 flex flex-col flex-1 min-h-0">
+        <div className="lg:col-span-5 flex flex-col lg:justify-center flex-1 min-h-0">
           <DicePlate
             state={roomState}
             dice={dice}

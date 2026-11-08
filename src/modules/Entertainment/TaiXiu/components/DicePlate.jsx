@@ -199,7 +199,7 @@ export default function DicePlate({
   return (
     <section
       aria-label="Khu vực khay xúc xắc và bát nặn Tài Xỉu"
-      className="relative flex flex-col items-center justify-between overflow-hidden rounded-2xl sm:rounded-3xl border border-[#A87932]/45 bg-gradient-to-b from-[#251812] via-[#171411] to-[#100c09] p-2 xs:p-2.5 sm:p-4 text-[#E8DDC8] shadow-[0_8px_24px_rgba(0,0,0,0.65)] w-full flex-1 min-h-0"
+      className="relative flex flex-col items-center justify-between lg:justify-center overflow-hidden rounded-2xl sm:rounded-3xl border border-[#A87932]/45 bg-gradient-to-b from-[#251812] via-[#171411] to-[#100c09] p-2 xs:p-2.5 sm:p-3 lg:p-4 text-[#E8DDC8] shadow-[0_8px_24px_rgba(0,0,0,0.65)] w-full flex-1 lg:flex-initial lg:h-auto min-h-0"
     >
       {/* Background hoa văn Đông Sơn tinh tế */}
       <div className="pointer-events-none absolute inset-0 opacity-10 [background-image:radial-gradient(#D5B46B_1px,transparent_1px)] [background-size:16px_16px]" />
@@ -233,7 +233,7 @@ export default function DicePlate({
       </div>
 
       {/* KHU VỰC KHAY ĐỒNG SƠN MÀI & BÁT ÚP NẶN (DICE STAGE) */}
-      <div className="relative z-10 my-auto flex size-48 xs:size-52 sm:size-60 md:size-68 aspect-square items-center justify-center select-none shrink-0">
+      <div className="relative z-10 my-auto lg:my-1.5 flex size-48 xs:size-52 sm:size-52 md:size-52 lg:size-52 aspect-square items-center justify-center select-none shrink-0">
         {/* KHAY ĐỒNG / ĐĨA SƠN MÀI */}
         <div className="absolute inset-0 rounded-full border-5 sm:border-8 border-[#78531F] bg-gradient-to-br from-[#35251C] via-[#241812] to-[#171411] shadow-[0_10px_24px_rgba(0,0,0,0.8),inset_0_2px_5px_rgba(213,180,107,0.35)] flex items-center justify-center pointer-events-none">
           <div className="absolute inset-1 sm:inset-1.5 rounded-full border border-dashed border-[#D5B46B]/40 pointer-events-none" />
