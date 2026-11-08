@@ -540,9 +540,9 @@ export default function TaiXiuGame() {
       </div>
 
       {/* 3. LAYOUT CHÍNH: BÀN CHƠI TÀI XỈU (TỰ ĐỘNG THÍCH ỨNG MOBILE / DESKTOP) */}
-      <div className="flex flex-col lg:grid lg:grid-cols-12 gap-1 xs:gap-1.5 sm:gap-4 lg:gap-5 items-stretch flex-1 min-h-0 overflow-hidden lg:overflow-visible">
+      <div className="flex flex-col lg:grid lg:grid-cols-12 gap-1 xs:gap-1.5 sm:gap-4 lg:gap-5 items-stretch lg:items-start flex-1 min-h-0 overflow-hidden lg:overflow-visible">
         {/* CỘT TRÁI (Mobile: Trên / Desktop: 5 phần): Khay xúc xắc + Vé cược cá nhân */}
-        <div className="lg:col-span-5 flex flex-col lg:justify-center flex-1 min-h-0">
+        <div className="lg:col-span-5 flex flex-col gap-2 sm:gap-4 flex-1 lg:flex-initial min-h-0">
           <DicePlate
             state={roomState}
             dice={dice}
@@ -562,7 +562,7 @@ export default function TaiXiuGame() {
         </div>
 
         {/* CỘT PHẢI (Mobile: Dưới / Desktop: 7 phần): Bàn cược Tài/Xỉu + Lịch sử kết quả trực quan */}
-        <div className="lg:col-span-7 flex flex-col justify-end shrink-0">
+        <div className="lg:col-span-7 flex flex-col gap-2 sm:gap-4 justify-end lg:justify-start shrink-0 lg:shrink">
           <BetBoard
             state={roomState}
             myBets={myCurrentBets}
