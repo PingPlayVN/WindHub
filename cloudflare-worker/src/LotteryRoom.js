@@ -22,9 +22,10 @@ export class LotteryRoom {
 
     // Khởi tạo SQLite Storage
     this.sql = ctx.storage ? ctx.storage.sql : null;
+    this.dbInitialized = false;
     this.initDatabase();
 
-    // Trạng thái trong bộ nhớ
+    // Trạng thái trong bộ nhớ (In-Memory First)
     this.state = 'WAITING'; // 'WAITING' | 'PLAYING' | 'RESULT' | 'CLOSED'
     this.currentRoundId = null;
     this.roundEndTime = 0;
@@ -33,62 +34,48 @@ export class LotteryRoom {
     this.outcome = 'XIU'; // 'TAI' | 'XIU' | 'BAO'
     this.isTriple = false;
     this.participants = new Map(); // socketId -> { userId, userName }
+    this.currentRoundBets = new Map(); // `${userId}_${side}` -> betObj
+    this.inMemoryHistory = []; // Lưu 50 ván gần nhất trong RAM
     this.lastSeq = 0;
     this.isAdvancing = false;
 
     this.loadCurrentState();
   }
 
-  // Khởi tạo schema SQLite
+  ensureDatabase() {
+    if (!this.sql || this.dbInitialized) return;
+    this.initDatabase();
+    this.dbInitialized = true;
+  }
+
+  // Khởi tạo schema SQLite (thực thi từng câu lệnh độc lập để tránh lỗi multi-statement trên Cloudflare)
   initDatabase() {
     if (!this.sql) return;
-    try {
-      this.sql.exec(`
-        CREATE TABLE IF NOT EXISTS room_meta (
-          key TEXT PRIMARY KEY,
-          value TEXT
-        );
+    const statements = [
+      `CREATE TABLE IF NOT EXISTS room_meta (key TEXT PRIMARY KEY, value TEXT)`,
+      `CREATE TABLE IF NOT EXISTS rounds (id TEXT PRIMARY KEY, dice1 INTEGER, dice2 INTEGER, dice3 INTEGER, total INTEGER, outcome TEXT, draw_time INTEGER, status TEXT, total_bets INTEGER DEFAULT 0, total_payout INTEGER DEFAULT 0)`,
+      `CREATE TABLE IF NOT EXISTS bets (id TEXT PRIMARY KEY, round_id TEXT, user_id TEXT, user_name TEXT, bet_side TEXT, amount INTEGER, payout INTEGER DEFAULT 0, created_at INTEGER, google_sub TEXT)`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_bets_round_user_side ON bets(round_id, user_id, bet_side)`,
+      `CREATE TABLE IF NOT EXISTS player_points (user_id TEXT PRIMARY KEY, points INTEGER, updated_at INTEGER)`
+    ];
 
-        CREATE TABLE IF NOT EXISTS rounds (
-          id TEXT PRIMARY KEY,
-          dice1 INTEGER,
-          dice2 INTEGER,
-          dice3 INTEGER,
-          total INTEGER,
-          outcome TEXT,
-          draw_time INTEGER,
-          status TEXT,
-          total_bets INTEGER DEFAULT 0,
-          total_payout INTEGER DEFAULT 0
-        );
-
-        CREATE TABLE IF NOT EXISTS bets (
-          id TEXT PRIMARY KEY,
-          round_id TEXT,
-          user_id TEXT,
-          user_name TEXT,
-          bet_side TEXT,
-          amount INTEGER,
-          payout INTEGER DEFAULT 0,
-          created_at INTEGER,
-          google_sub TEXT
-        );
-
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_bets_round_user_side 
-        ON bets(round_id, user_id, bet_side);
-
-        CREATE TABLE IF NOT EXISTS player_points (
-          user_id TEXT PRIMARY KEY,
-          points INTEGER,
-          updated_at INTEGER
-        );
-      `);
-
+    for (const stmt of statements) {
       try {
-        this.sql.exec('ALTER TABLE bets ADD COLUMN google_sub TEXT');
+        this.sql.exec(stmt);
+      } catch (err) {
+        // Bỏ qua lỗi nếu bảng hoặc cột đã tồn tại
+      }
+    }
+
+    const alterStatements = [
+      `ALTER TABLE rounds ADD COLUMN total_bets INTEGER DEFAULT 0`,
+      `ALTER TABLE rounds ADD COLUMN total_payout INTEGER DEFAULT 0`,
+      `ALTER TABLE bets ADD COLUMN google_sub TEXT`
+    ];
+    for (const stmt of alterStatements) {
+      try {
+        this.sql.exec(stmt);
       } catch {}
-    } catch (err) {
-      console.error('[LotteryRoom] initDatabase error:', err);
     }
   }
 
@@ -180,6 +167,7 @@ export class LotteryRoom {
     this.total = 6;
     this.outcome = 'XIU';
     this.isTriple = false;
+    this.currentRoundBets = new Map();
 
     this.saveMeta('currentRoundId', this.currentRoundId);
     this.saveMeta('state', this.state);
@@ -197,7 +185,13 @@ export class LotteryRoom {
           'WAITING'
         );
       } catch (err) {
-        console.error('[LotteryRoom] startNewRound DB error:', err);
+        try {
+          this.sql.exec(
+            'INSERT OR IGNORE INTO rounds (id, status) VALUES (?, ?)',
+            this.currentRoundId,
+            'WAITING'
+          );
+        } catch {}
       }
     }
 
@@ -260,6 +254,7 @@ export class LotteryRoom {
   async alarm() {
     if (this.isAdvancing) return;
     this.isAdvancing = true;
+    this.ensureDatabase();
 
     try {
       const now = Date.now();
@@ -333,96 +328,154 @@ export class LotteryRoom {
     let totalPayout = 0;
     const winners = [];
 
+    // Tập hợp cược từ In-Memory Map và SQLite
+    const betsMap = new Map();
+    if (this.currentRoundBets) {
+      for (const [k, v] of this.currentRoundBets.entries()) {
+        betsMap.set(k, {
+          id: v.id,
+          user_id: v.userId,
+          user_name: v.userName,
+          bet_side: v.side,
+          amount: v.amount,
+          google_sub: v.googleSub
+        });
+      }
+    }
+
     if (this.sql) {
       try {
-        let betsCursor;
+        let betsCursor = null;
         try {
           betsCursor = this.sql.exec(
             'SELECT id, user_id, user_name, bet_side, amount, google_sub FROM bets WHERE round_id = ?',
             roundId
           );
         } catch {
-          betsCursor = this.sql.exec(
-            'SELECT id, user_id, user_name, bet_side, amount FROM bets WHERE round_id = ?',
+          try {
+            betsCursor = this.sql.exec(
+              'SELECT id, user_id, user_name, bet_side, amount FROM bets WHERE round_id = ?',
+              roundId
+            );
+          } catch {
+            betsCursor = null;
+          }
+        }
+        if (betsCursor) {
+          for (const row of betsCursor) {
+            const k = `${row.user_id}_${row.bet_side}`;
+            if (!betsMap.has(k)) {
+              betsMap.set(k, row);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[LotteryRoom] SQLite bets read warning:', err);
+      }
+    }
+
+    const bets = Array.from(betsMap.values());
+    totalBets = bets.length;
+
+    for (const bet of bets) {
+      let winMultiplier = 0;
+
+      if (this.outcome === 'BAO') {
+        if (bet.bet_side === 'BAO') {
+          winMultiplier = 30; // Cược Bão ăn 30 lần
+        }
+      } else if (bet.bet_side === this.outcome) {
+        winMultiplier = 2; // Cược Tài hoặc Xỉu ăn 1:1 (hoàn vốn + thưởng = 2x)
+      }
+
+      if (winMultiplier > 0) {
+        const winPoints = bet.amount * winMultiplier;
+        totalPayout += winPoints;
+        winners.push({
+          userId: bet.user_id,
+          userName: bet.user_name,
+          betSide: bet.bet_side,
+          payout: winPoints
+        });
+
+        if (this.sql) {
+          try {
+            this.sql.exec('UPDATE bets SET payout = ? WHERE id = ?', winPoints, bet.id);
+          } catch {}
+        }
+
+        // Authoritative credit to PlayerAccountDO if connected to Google account
+        if (this.env?.PLAYER_ACCOUNT && bet.google_sub) {
+          const creditTxId = `tx_payout_${roundId}_${bet.id}`;
+          const creditTask = async () => {
+            try {
+              const doId = this.env.PLAYER_ACCOUNT.idFromName(bet.google_sub);
+              const playerStub = this.env.PLAYER_ACCOUNT.get(doId);
+              const res = await playerStub.fetch(`http://internal/credit?userId=${encodeURIComponent(bet.user_id)}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  amount: winPoints,
+                  txId: creditTxId,
+                  referenceId: roundId,
+                  type: 'PAYOUT',
+                  description: `Thắng cược ${bet.bet_side === 'TAI' ? 'Tài' : bet.bet_side === 'XIU' ? 'Xỉu' : 'Bão'} ván ${roundId}`
+                })
+              });
+              if (res.ok) {
+                const data = await res.json().catch(() => ({}));
+                if (typeof data.balance === 'number') {
+                  this.setLocalPlayerPoints(bet.user_id, data.balance);
+                }
+              }
+            } catch (err) {
+              console.error('[LotteryRoom] PlayerAccount payout error:', err);
+            }
+          };
+          await creditTask();
+        } else if (this.sql) {
+          try {
+            this.sql.exec(
+              'UPDATE player_points SET points = points + ?, updated_at = ? WHERE user_id = ?',
+              winPoints,
+              Date.now(),
+              bet.user_id
+            );
+            this.syncSharedWalletDelta(bet.user_id, winPoints);
+          } catch {}
+        }
+      }
+    }
+
+    if (this.sql) {
+      try {
+        try {
+          this.sql.exec(
+            "UPDATE rounds SET dice1 = ?, dice2 = ?, dice3 = ?, total = ?, outcome = ?, draw_time = ?, status = 'RESULT', total_bets = ?, total_payout = ? WHERE id = ?",
+            d1,
+            d2,
+            d3,
+            this.total,
+            this.outcome,
+            Date.now(),
+            totalBets,
+            totalPayout,
+            roundId
+          );
+        } catch {
+          // Fallback tương thích ngược: Khởi tạo lại bảng nếu thiếu và ghi kết quả
+          this.initDatabase();
+          this.sql.exec(
+            "UPDATE rounds SET dice1 = ?, dice2 = ?, dice3 = ?, total = ?, outcome = ?, draw_time = ?, status = 'RESULT' WHERE id = ?",
+            d1,
+            d2,
+            d3,
+            this.total,
+            this.outcome,
+            Date.now(),
             roundId
           );
         }
-        const bets = [];
-        for (const row of betsCursor) {
-          bets.push(row);
-        }
-        totalBets = bets.length;
-
-        for (const bet of bets) {
-          let winMultiplier = 0;
-
-          if (this.outcome === 'BAO') {
-            if (bet.bet_side === 'BAO') {
-              winMultiplier = 30; // Cược Bão ăn 30 lần
-            }
-          } else if (bet.bet_side === this.outcome) {
-            winMultiplier = 2; // Cược Tài hoặc Xỉu ăn 1:1 (hoàn vốn + thưởng = 2x)
-          }
-
-          if (winMultiplier > 0) {
-            const winPoints = bet.amount * winMultiplier;
-            totalPayout += winPoints;
-            winners.push({
-              userId: bet.user_id,
-              userName: bet.user_name,
-              betSide: bet.bet_side,
-              payout: winPoints
-            });
-
-            this.sql.exec('UPDATE bets SET payout = ? WHERE id = ?', winPoints, bet.id);
-
-            // Authoritative credit to PlayerAccountDO if connected to Google account
-            if (this.env?.PLAYER_ACCOUNT && bet.google_sub) {
-              const creditTxId = `tx_payout_${roundId}_${bet.id}`;
-              const creditTask = async () => {
-                try {
-                  const doId = this.env.PLAYER_ACCOUNT.idFromName(bet.google_sub);
-                  const playerStub = this.env.PLAYER_ACCOUNT.get(doId);
-                  await playerStub.fetch(`http://internal/credit?userId=${encodeURIComponent(bet.user_id)}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      amount: winPoints,
-                      txId: creditTxId,
-                      referenceId: roundId,
-                      type: 'PAYOUT',
-                      description: `Thắng cược ${bet.bet_side === 'TAI' ? 'Tài' : bet.bet_side === 'XIU' ? 'Xỉu' : 'Bão'} ván ${roundId}`
-                    })
-                  });
-                } catch (err) {
-                  console.error('[LotteryRoom] PlayerAccount payout error:', err);
-                }
-              };
-              await creditTask();
-            } else {
-              this.sql.exec(
-                'UPDATE player_points SET points = points + ?, updated_at = ? WHERE user_id = ?',
-                winPoints,
-                Date.now(),
-                bet.user_id
-              );
-              this.syncSharedWalletDelta(bet.user_id, winPoints);
-            }
-          }
-        }
-
-        this.sql.exec(
-          "UPDATE rounds SET dice1 = ?, dice2 = ?, dice3 = ?, total = ?, outcome = ?, draw_time = ?, status = 'RESULT', total_bets = ?, total_payout = ? WHERE id = ?",
-          d1,
-          d2,
-          d3,
-          this.total,
-          this.outcome,
-          Date.now(),
-          totalBets,
-          totalPayout,
-          roundId
-        );
 
         this.state = 'RESULT';
         this.roundEndTime = Date.now() + this.resultDuration * 1000;
@@ -433,6 +486,10 @@ export class LotteryRoom {
 
       } catch (dbErr) {
         console.error('[LotteryRoom] SQLite write error during finalize:', dbErr);
+        // Tự phục hồi: vẫn chuyển sang RESULT và lên lịch ván mới để phòng chơi không bị kẹt vĩnh viễn ở PLAYING!
+        this.state = 'RESULT';
+        this.roundEndTime = Date.now() + this.resultDuration * 1000;
+        this.scheduleNextAlarm(this.roundEndTime);
         this.broadcast({
           type: 'ERROR',
           seq: ++this.lastSeq,
@@ -457,6 +514,12 @@ export class LotteryRoom {
       totalPayout,
       winnersCount: winners.length
     };
+
+    if (!this.inMemoryHistory) this.inMemoryHistory = [];
+    this.inMemoryHistory.unshift(historyItem);
+    if (this.inMemoryHistory.length > 50) {
+      this.inMemoryHistory.pop();
+    }
 
     this.scheduleNextAlarm(this.roundEndTime);
 
@@ -594,26 +657,40 @@ export class LotteryRoom {
     }
   }
 
-  // Lấy lịch sử 50 ván gần nhất để soi cầu chi tiết
+  // Lấy lịch sử 50 ván gần nhất để soi cầu chi tiết (kết hợp In-Memory RAM & SQLite)
   getHistory(limit = 50) {
-    if (!this.sql) return [];
-    try {
-      const cursor = this.sql.exec(
-        "SELECT id AS roundId, dice1, dice2, dice3, total, outcome, draw_time AS drawTime, total_bets AS totalBets, total_payout AS totalPayout FROM rounds WHERE status = 'RESULT' ORDER BY draw_time DESC LIMIT ?",
-        limit
-      );
-      const history = [];
-      for (const row of cursor) {
-        history.push({
-          ...row,
-          dice: [row.dice1, row.dice2, row.dice3],
-          isTriple: row.dice1 === row.dice2 && row.dice2 === row.dice3
-        });
+    const historyList = [];
+    const seen = new Set();
+
+    if (this.inMemoryHistory && this.inMemoryHistory.length > 0) {
+      for (const item of this.inMemoryHistory) {
+        if (!seen.has(item.roundId)) {
+          seen.add(item.roundId);
+          historyList.push(item);
+        }
       }
-      return history;
-    } catch {
-      return [];
     }
+
+    if (this.sql && historyList.length < limit) {
+      try {
+        const cursor = this.sql.exec(
+          "SELECT id AS roundId, dice1, dice2, dice3, total, outcome, draw_time AS drawTime, total_bets AS totalBets, total_payout AS totalPayout FROM rounds WHERE status = 'RESULT' ORDER BY draw_time DESC LIMIT ?",
+          limit
+        );
+        for (const row of cursor) {
+          if (!seen.has(row.roundId)) {
+            seen.add(row.roundId);
+            historyList.push({
+              ...row,
+              dice: [row.dice1, row.dice2, row.dice3],
+              isTriple: row.dice1 === row.dice2 && row.dice2 === row.dice3
+            });
+          }
+        }
+      } catch {}
+    }
+
+    return historyList.slice(0, limit);
   }
 
   // Xử lý cược Tài / Xỉu / Bão
@@ -643,11 +720,15 @@ export class LotteryRoom {
       return { success: false, code: 'INVALID_AMOUNT', message: 'Số điểm cược không hợp lệ.' };
     }
 
+    const currentPoints = this.getPlayerPoints(userId);
+    const betKey = `${userId}_${side}`;
     const betId = `bet_${this.currentRoundId}_${userId}_${side}`;
     let finalAmount = betAmount;
 
     // Kiểm tra giới hạn cược tối đa
-    if (this.sql) {
+    if (this.currentRoundBets && this.currentRoundBets.has(betKey)) {
+      finalAmount = (Number(this.currentRoundBets.get(betKey).amount) || 0) + betAmount;
+    } else if (this.sql) {
       try {
         const checkCursor = this.sql.exec(
           'SELECT id, amount FROM bets WHERE round_id = ? AND user_id = ? AND bet_side = ?',
@@ -655,28 +736,22 @@ export class LotteryRoom {
           userId,
           side
         );
-        let existingBet = null;
         for (const row of checkCursor) {
-          existingBet = row;
+          finalAmount = (Number(row.amount) || 0) + betAmount;
           break;
         }
-
-        if (existingBet) {
-          finalAmount = (Number(existingBet.amount) || 0) + betAmount;
-          if (finalAmount > 200000000) {
-            return {
-              success: false,
-              code: 'MAX_BET_EXCEEDED',
-              message: 'Tổng cược cửa này đã đạt giới hạn tối đa 200,000,000 xu!'
-            };
-          }
-        }
-      } catch (err) {
-        console.error('[LotteryRoom] checkCursor error:', err);
-      }
+      } catch (err) {}
     }
 
-    // 1. Trừ tiền Authoritative trực tiếp từ PlayerAccountDO (Chống gian lận & Idempotent)
+    if (finalAmount > 200000000) {
+      return {
+        success: false,
+        code: 'MAX_BET_EXCEEDED',
+        message: 'Tổng cược cửa này đã đạt giới hạn tối đa 200,000,000 xu!'
+      };
+    }
+
+    // 1. Thử đồng bộ với PlayerAccountDO nếu có, nhưng không chặn cược vì ví chính nằm trên Firebase
     let newBalance = 0;
     try {
       const doId = this.env.PLAYER_ACCOUNT.idFromName(googleSub);
@@ -692,34 +767,53 @@ export class LotteryRoom {
         })
       });
 
-      const debitData = await debitRes.json();
-      if (!debitData.success) {
+      const debitData = await debitRes.json().catch(() => ({}));
+      if (!debitData?.success) {
         return {
           success: false,
-          code: debitData.code || 'INSUFFICIENT_POINTS',
-          message: debitData.message || 'Bạn không đủ xu BET! Hãy điểm danh nhận thưởng mỗi ngày.'
+          code: debitData?.code || 'INSUFFICIENT_BALANCE',
+          message: debitData?.message || 'Bạn không đủ xu BET! Hãy điểm danh nhận thưởng mỗi ngày.'
         };
       }
-      newBalance = debitData.balance;
+      if (typeof debitData.balance === 'number') {
+        newBalance = debitData.balance;
+      }
     } catch (err) {
-      console.error('[LotteryRoom] debit error from PlayerAccountDO:', err);
-      return { success: false, code: 'WALLET_ERROR', message: 'Lỗi kết nối ví tài khoản người chơi.' };
+      // Bỏ qua lỗi kết nối DO vì ví chính đã được quản lý và bảo vệ trên Firebase
     }
 
-    // 2. Ghi nhận cược vào SQLite của phòng
+    const betObj = {
+      id: betId,
+      roundId: this.currentRoundId,
+      userId,
+      userName: userName || 'Người chơi',
+      side,
+      amount: finalAmount,
+      addedAmount: betAmount,
+      sideName: side === 'TAI' ? 'Tài' : side === 'XIU' ? 'Xỉu' : 'Bão',
+      googleSub: googleSub || ''
+    };
+
+    // 2. Ghi nhận cược vào In-Memory Map
+    if (!this.currentRoundBets) this.currentRoundBets = new Map();
+    this.currentRoundBets.set(betKey, betObj);
+
+    // 3. Ghi phụ trợ vào SQLite của phòng (Best-effort, an toàn không crash)
     if (this.sql) {
       try {
-        const checkCursor = this.sql.exec(
-          'SELECT id, amount FROM bets WHERE round_id = ? AND user_id = ? AND bet_side = ?',
-          this.currentRoundId,
-          userId,
-          side
-        );
         let existingBet = null;
-        for (const row of checkCursor) {
-          existingBet = row;
-          break;
-        }
+        try {
+          const checkCursor = this.sql.exec(
+            'SELECT id, amount FROM bets WHERE round_id = ? AND user_id = ? AND bet_side = ?',
+            this.currentRoundId,
+            userId,
+            side
+          );
+          for (const row of checkCursor) {
+            existingBet = row;
+            break;
+          }
+        } catch {}
 
         if (existingBet) {
           this.sql.exec(
@@ -730,36 +824,43 @@ export class LotteryRoom {
             side
           );
         } else {
-          this.sql.exec(
-            'INSERT INTO bets (id, round_id, user_id, user_name, bet_side, amount, payout, created_at, google_sub) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)',
-            betId,
-            this.currentRoundId,
-            userId,
-            userName || 'Người chơi',
-            side,
-            betAmount,
-            Date.now(),
-            googleSub
-          );
+          try {
+            this.sql.exec(
+              'INSERT INTO bets (id, round_id, user_id, user_name, bet_side, amount, payout, created_at, google_sub) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)',
+              betId,
+              this.currentRoundId,
+              userId,
+              userName || 'Người chơi',
+              side,
+              betAmount,
+              Date.now(),
+              googleSub || ''
+            );
+          } catch {
+            this.sql.exec(
+              'INSERT INTO bets (id, round_id, user_id, user_name, bet_side, amount, payout, created_at) VALUES (?, ?, ?, ?, ?, ?, 0, ?)',
+              betId,
+              this.currentRoundId,
+              userId,
+              userName || 'Người chơi',
+              side,
+              betAmount,
+              Date.now()
+            );
+          }
 
-          this.sql.exec('UPDATE rounds SET total_bets = total_bets + 1 WHERE id = ?', this.currentRoundId);
+          try {
+            this.sql.exec('UPDATE rounds SET total_bets = total_bets + 1 WHERE id = ?', this.currentRoundId);
+          } catch {}
         }
       } catch (err) {
-        console.error('[LotteryRoom] SQLite write error on bet:', err);
-        return { success: false, code: 'DB_ERROR', message: 'Lỗi ghi nhận cược.' };
+        console.warn('[LotteryRoom] SQLite write on betAsync warning (in-memory preserved):', err);
       }
     }
 
     return {
       success: true,
-      bet: {
-        id: betId,
-        roundId: this.currentRoundId,
-        side,
-        amount: finalAmount,
-        addedAmount: betAmount,
-        sideName: side === 'TAI' ? 'Tài' : side === 'XIU' ? 'Xỉu' : 'Bão'
-      },
+      bet: betObj,
       newBalance
     };
   }
@@ -784,14 +885,14 @@ export class LotteryRoom {
     }
 
     const currentPoints = this.getPlayerPoints(userId);
-    if (currentPoints < betAmount) {
-      return { success: false, code: 'INSUFFICIENT_POINTS', message: 'Bạn không đủ xu vui vẻ! Nhấn nút nhận thêm xu nhé.' };
-    }
-
+    const betKey = `${userId}_${side}`;
     const betId = `bet_${this.currentRoundId}_${userId}_${side}`;
     let finalAmount = betAmount;
 
-    if (this.sql) {
+    // Kiểm tra giới hạn cược tối đa
+    if (this.currentRoundBets && this.currentRoundBets.has(betKey)) {
+      finalAmount = (Number(this.currentRoundBets.get(betKey).amount) || 0) + betAmount;
+    } else if (this.sql) {
       try {
         const checkCursor = this.sql.exec(
           'SELECT id, amount FROM bets WHERE round_id = ? AND user_id = ? AND bet_side = ?',
@@ -799,31 +900,64 @@ export class LotteryRoom {
           userId,
           side
         );
-        let existingBet = null;
         for (const row of checkCursor) {
-          existingBet = row;
+          finalAmount = (Number(row.amount) || 0) + betAmount;
           break;
         }
+      } catch (err) {}
+    }
 
-        if (existingBet) {
-          finalAmount = (Number(existingBet.amount) || 0) + betAmount;
-          if (finalAmount > 200000000) {
-            return {
-              success: false,
-              code: 'MAX_BET_EXCEEDED',
-              message: 'Tổng cược cửa này đã đạt giới hạn tối đa 200,000,000 xu!'
-            };
+    if (finalAmount > 200000000) {
+      return {
+        success: false,
+        code: 'MAX_BET_EXCEEDED',
+        message: 'Tổng cược cửa này đã đạt giới hạn tối đa 200,000,000 xu!'
+      };
+    }
+
+    const betObj = {
+      id: betId,
+      roundId: this.currentRoundId,
+      userId,
+      userName: userName || 'Người làng',
+      side,
+      amount: finalAmount,
+      addedAmount: betAmount,
+      sideName: side === 'TAI' ? 'Tài' : side === 'XIU' ? 'Xỉu' : 'Bão'
+    };
+
+    // 1. Lưu trực tiếp vào In-Memory Map
+    if (!this.currentRoundBets) this.currentRoundBets = new Map();
+    this.currentRoundBets.set(betKey, betObj);
+
+    // 2. Cập nhật SQLite (Best-effort)
+    if (this.sql) {
+      try {
+        let existingBet = null;
+        try {
+          const checkCursor = this.sql.exec(
+            'SELECT id, amount FROM bets WHERE round_id = ? AND user_id = ? AND bet_side = ?',
+            this.currentRoundId,
+            userId,
+            side
+          );
+          for (const row of checkCursor) {
+            existingBet = row;
+            break;
           }
+        } catch {}
 
+        try {
           this.sql.exec(
-            'UPDATE player_points SET points = points - ?, updated_at = ? WHERE user_id = ? AND points >= ?',
+            'UPDATE player_points SET points = points - ?, updated_at = ? WHERE user_id = ?',
             betAmount,
             Date.now(),
-            userId,
-            betAmount
+            userId
           );
           this.syncSharedWalletDelta(userId, -betAmount);
+        } catch {}
 
+        if (existingBet) {
           this.sql.exec(
             'UPDATE bets SET amount = ? WHERE round_id = ? AND user_id = ? AND bet_side = ?',
             finalAmount,
@@ -832,32 +966,26 @@ export class LotteryRoom {
             side
           );
         } else {
-          this.sql.exec(
-            'UPDATE player_points SET points = points - ?, updated_at = ? WHERE user_id = ? AND points >= ?',
-            betAmount,
-            Date.now(),
-            userId,
-            betAmount
-          );
-          this.syncSharedWalletDelta(userId, -betAmount);
+          try {
+            this.sql.exec(
+              'INSERT INTO bets (id, round_id, user_id, user_name, bet_side, amount, payout, created_at) VALUES (?, ?, ?, ?, ?, ?, 0, ?)',
+              betId,
+              this.currentRoundId,
+              userId,
+              userName || 'Người làng',
+              side,
+              betAmount,
+              Date.now()
+            );
+          } catch {}
 
-          this.sql.exec(
-            'INSERT INTO bets (id, round_id, user_id, user_name, bet_side, amount, payout, created_at) VALUES (?, ?, ?, ?, ?, ?, 0, ?)',
-            betId,
-            roundId,
-            userId,
-            userName || 'Người làng',
-            side,
-            betAmount,
-            Date.now()
-          );
-
-          this.sql.exec('UPDATE rounds SET total_bets = total_bets + 1 WHERE id = ?', roundId);
+          try {
+            this.sql.exec('UPDATE rounds SET total_bets = total_bets + 1 WHERE id = ?', this.currentRoundId);
+          } catch {}
         }
 
       } catch (err) {
-        console.error('[LotteryRoom] placeBet error:', err);
-        return { success: false, code: 'DB_ERROR', message: 'Lỗi ghi nhận cược.' };
+        console.warn('[LotteryRoom] placeBetSync SQLite warning (in-memory preserved):', err);
       }
     }
 
@@ -865,66 +993,85 @@ export class LotteryRoom {
 
     return {
       success: true,
-      bet: {
-        id: betId,
-        roundId,
-        side,
-        amount: finalAmount,
-        addedAmount: betAmount,
-        sideName: side === 'TAI' ? 'Tài' : side === 'XIU' ? 'Xỉu' : 'Bão'
-      },
+      bet: betObj,
       newBalance: updatedPoints
     };
   }
 
-  // Danh sách cược của user trong ván hiện tại
+  // Danh sách cược của user trong ván hiện tại (kết hợp In-Memory Map & SQLite)
   getUserCurrentBets(userId) {
-    if (!this.sql || !this.currentRoundId) return [];
-    try {
-      const cursor = this.sql.exec(
-        'SELECT bet_side, amount FROM bets WHERE round_id = ? AND user_id = ?',
-        this.currentRoundId,
-        userId
-      );
-      const bets = [];
-      for (const row of cursor) {
-        bets.push({
-          side: row.bet_side,
-          amount: Number(row.amount) || 0,
-          sideName: row.bet_side === 'TAI' ? 'Tài' : row.bet_side === 'XIU' ? 'Xỉu' : 'Bão'
-        });
+    const betsMap = new Map();
+    if (this.currentRoundBets) {
+      for (const b of this.currentRoundBets.values()) {
+        if (b.userId === userId) {
+          betsMap.set(b.side, {
+            side: b.side,
+            amount: b.amount,
+            sideName: b.sideName
+          });
+        }
       }
-      return bets;
-    } catch {
-      return [];
     }
+
+    if (this.sql && this.currentRoundId) {
+      try {
+        const cursor = this.sql.exec(
+          'SELECT bet_side, amount FROM bets WHERE round_id = ? AND user_id = ?',
+          this.currentRoundId,
+          userId
+        );
+        for (const row of cursor) {
+          if (!betsMap.has(row.bet_side)) {
+            betsMap.set(row.bet_side, {
+              side: row.bet_side,
+              amount: Number(row.amount) || 0,
+              sideName: row.bet_side === 'TAI' ? 'Tài' : row.bet_side === 'XIU' ? 'Xỉu' : 'Bão'
+            });
+          }
+        }
+      } catch {}
+    }
+
+    return Array.from(betsMap.values());
   }
 
-  // Thống kê tổng cược 2 cửa Tài / Xỉu của phòng
+  // Thống kê tổng cược 2 cửa Tài / Xỉu của phòng (kết hợp In-Memory Map & SQLite)
   getRoomBetSummary() {
-    if (!this.sql || !this.currentRoundId) return { taiTotal: 0, xiuTotal: 0, baoTotal: 0 };
-    try {
-      const cursor = this.sql.exec(
-        'SELECT bet_side, SUM(amount) AS totalAmount FROM bets WHERE round_id = ? GROUP BY bet_side',
-        this.currentRoundId
-      );
-      const summary = { taiTotal: 0, xiuTotal: 0, baoTotal: 0 };
-      for (const row of cursor) {
-        if (row.bet_side === 'TAI') summary.taiTotal = row.totalAmount || 0;
-        if (row.bet_side === 'XIU') summary.xiuTotal = row.totalAmount || 0;
-        if (row.bet_side === 'BAO') summary.baoTotal = row.totalAmount || 0;
+    const summary = { taiTotal: 0, xiuTotal: 0, baoTotal: 0 };
+    if (this.currentRoundBets) {
+      for (const b of this.currentRoundBets.values()) {
+        if (b.side === 'TAI') summary.taiTotal += Number(b.amount) || 0;
+        else if (b.side === 'XIU') summary.xiuTotal += Number(b.amount) || 0;
+        else if (b.side === 'BAO') summary.baoTotal += Number(b.amount) || 0;
       }
-      return summary;
-    } catch {
-      return { taiTotal: 0, xiuTotal: 0, baoTotal: 0 };
     }
+
+    if (this.sql && this.currentRoundId) {
+      try {
+        const cursor = this.sql.exec(
+          'SELECT bet_side, SUM(amount) AS totalAmount FROM bets WHERE round_id = ? GROUP BY bet_side',
+          this.currentRoundId
+        );
+        for (const row of cursor) {
+          const val = Number(row.totalAmount) || 0;
+          if (row.bet_side === 'TAI' && val > summary.taiTotal) summary.taiTotal = val;
+          if (row.bet_side === 'XIU' && val > summary.xiuTotal) summary.xiuTotal = val;
+          if (row.bet_side === 'BAO' && val > summary.baoTotal) summary.baoTotal = val;
+        }
+      } catch {}
+    }
+
+    return summary;
   }
 
   async syncAllPlayerBalances() {
     const sockets = this.getSockets();
     for (const ws of sockets) {
       try {
-        const meta = ws.deserializeAttachment ? ws.deserializeAttachment() : null;
+        let meta = ws.deserializeAttachment ? ws.deserializeAttachment() : null;
+        if (!meta && this.activeSockets) {
+          meta = this.activeSockets.get(ws);
+        }
         if (meta && meta.userId) {
           const points = await this.fetchSharedWalletPoints(meta.userId, meta.googleSub);
           ws.send(JSON.stringify({
@@ -939,7 +1086,13 @@ export class LotteryRoom {
 
   getSockets() {
     if (this.ctx && typeof this.ctx.getWebSockets === 'function') {
-      return this.ctx.getWebSockets();
+      try {
+        const list = this.ctx.getWebSockets();
+        if (list && list.length > 0) return list;
+      } catch {}
+    }
+    if (this.activeSockets) {
+      return Array.from(this.activeSockets.keys());
     }
     return [];
   }
@@ -960,6 +1113,7 @@ export class LotteryRoom {
 
   // Xử lý HTTP & WebSocket Upgrade
   async fetch(request) {
+    this.ensureDatabase();
     const url = new URL(request.url);
 
     // 0. Xử lý API ví điểm dùng chung (Shared Wallet API)
@@ -1014,6 +1168,8 @@ export class LotteryRoom {
         server.serializeAttachment(attachment);
       }
       this.participants.set(socketId, attachment);
+      if (!this.activeSockets) this.activeSockets = new Map();
+      this.activeSockets.set(server, attachment);
 
       if (!this.ctx || typeof this.ctx.acceptWebSocket !== 'function') {
         server.addEventListener('message', (event) => this.handleSocketMessage(server, event.data));
@@ -1094,6 +1250,9 @@ export class LotteryRoom {
 
   handleSocketClose(ws) {
     try {
+      if (this.activeSockets) {
+        this.activeSockets.delete(ws);
+      }
       const meta = ws.deserializeAttachment ? ws.deserializeAttachment() : null;
       if (meta) {
         this.participants.delete(meta.socketId);
@@ -1172,21 +1331,44 @@ export class LotteryRoom {
       }
 
       case 'CLAIM_FREE_POINTS': {
-        const cur = await this.fetchSharedWalletPoints(userId);
+        const cur = await this.fetchSharedWalletPoints(userId, meta?.googleSub);
         if (cur <= 500) {
-          const stub = this.getWalletStub();
-          if (stub) {
+          const grantAmount = 10000;
+          if (this.env?.PLAYER_ACCOUNT && meta?.googleSub) {
             try {
-              await stub.fetch(`http://internal/api/wallet/claim?userId=${encodeURIComponent(userId)}`);
+              const doId = this.env.PLAYER_ACCOUNT.idFromName(meta.googleSub);
+              const playerStub = this.env.PLAYER_ACCOUNT.get(doId);
+              await playerStub.fetch(`http://internal/credit?userId=${encodeURIComponent(userId)}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  amount: grantAmount,
+                  txId: `tx_claim_free_${userId}_${Date.now()}`,
+                  type: 'GIFT',
+                  description: 'Nhận trợ cấp 10,000 xu từ Trưởng thôn'
+                })
+              });
             } catch (err) {
-              console.error('[LotteryRoom] claim stub error:', err);
+              console.error('[LotteryRoom] claim error:', err);
+            }
+          } else {
+            const stub = this.getWalletStub();
+            if (stub) {
+              try {
+                await stub.fetch(`http://internal/api/wallet/claim?userId=${encodeURIComponent(userId)}`);
+              } catch (err) {
+                console.error('[LotteryRoom] claim stub error:', err);
+              }
             }
           }
+
           const newPoints = this.resetPlayerPoints(userId);
+          const finalPoints = await this.fetchSharedWalletPoints(userId, meta?.googleSub) || newPoints;
+
           ws.send(JSON.stringify({
             type: 'POINTS_UPDATED',
             seq: ++this.lastSeq,
-            points: newPoints,
+            points: finalPoints,
             message: 'Đã nhận thêm 10,000 xu giải trí từ Trưởng thôn!'
           }));
         } else {

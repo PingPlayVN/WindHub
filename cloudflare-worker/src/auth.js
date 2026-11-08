@@ -117,11 +117,24 @@ export async function verifyGoogleIdToken(idToken, env = {}, fetchFn = fetch) {
   }
 
   // 2. Strict audience validation: GOOGLE_CLIENT_ID must be configured
-  if (!env.GOOGLE_CLIENT_ID) {
+  const allowedClientIds = (env.GOOGLE_CLIENT_ID || '')
+    .split(',')
+    .map((id) => id.trim())
+    .filter(Boolean);
+
+  if (allowedClientIds.length === 0) {
     throw new Error('GOOGLE_CLIENT_ID is not configured on server');
   }
 
-  if (payload.aud !== env.GOOGLE_CLIENT_ID) {
+  const isAudValid = allowedClientIds.some((allowed) => {
+    if (allowed.includes('*')) {
+      const regex = new RegExp('^' + allowed.replace(/\./g, '\\.').replace(/\*/g, '.*') + '$');
+      return regex.test(payload.aud);
+    }
+    return allowed === payload.aud;
+  });
+
+  if (!isAudValid) {
     throw new Error(`Audience mismatch: expected ${env.GOOGLE_CLIENT_ID}, got ${payload.aud}`);
   }
 

@@ -1,7 +1,7 @@
 // src/modules/Entertainment/TaiXiu/index.jsx
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useTaiXiuSocket } from './hooks/useTaiXiuSocket';
@@ -17,6 +17,8 @@ import GameInfoModal from './components/GameInfoModal';
 import GoogleLoginGate from './components/GoogleLoginGate';
 import DailyRewardModal from './components/DailyRewardModal';
 import ProfileWalletModal from './components/ProfileWalletModal';
+import GameShareModal from '../components/GameShareModal';
+import DonateModal from './components/DonateModal';
 import { Ticket, ChevronDown } from 'lucide-react';
 
 class SoundEffects {
@@ -55,6 +57,114 @@ class SoundEffects {
       osc.stop(this.ctx.currentTime + 0.08);
     } catch {
       // AudioContext unavailable or blocked by user gesture
+    }
+  }
+
+  // Tiếng xúc xắc lách cách va đập liên hồi trong bát sứ khi xóc đĩa
+  playDiceRattle(duration = 2.4) {
+    if (!this.enabled || this.volume <= 0) return;
+    try {
+      this.init();
+      if (!this.ctx) return;
+      const now = this.ctx.currentTime;
+      const rattleCount = Math.floor(duration * 10); // Khoảng 24 cú va đập lách cách ngẫu nhiên
+
+      for (let i = 0; i < rattleCount; i++) {
+        const jitter = (Math.random() - 0.5) * 0.045;
+        const hitTime = now + (i * (duration / rattleCount)) + jitter;
+        if (hitTime < now) continue;
+
+        // 1. Tiếng gõ gốm sứ / nhựa đục của xúc xắc va thành bát
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        const baseFreq = 1600 + Math.random() * 1600;
+        osc.type = Math.random() > 0.5 ? 'triangle' : 'sine';
+        osc.frequency.setValueAtTime(baseFreq, hitTime);
+        osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.45, hitTime + 0.035);
+
+        const hitVol = (0.09 + Math.random() * 0.11) * this.volume;
+        gain.gain.setValueAtTime(hitVol, hitTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, hitTime + 0.035);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(hitTime);
+        osc.stop(hitTime + 0.04);
+
+        // 2. Tiếng sột soạt ma sát lạo xạo giữa 3 viên xúc xắc
+        const bufferSize = Math.floor(this.ctx.sampleRate * 0.025);
+        const noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const output = noiseBuffer.getChannelData(0);
+        for (let s = 0; s < bufferSize; s++) {
+          output[s] = Math.random() * 2 - 1;
+        }
+
+        const whiteNoise = this.ctx.createBufferSource();
+        whiteNoise.buffer = noiseBuffer;
+
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(2800 + Math.random() * 1400, hitTime);
+        filter.Q.setValueAtTime(5, hitTime);
+
+        const noiseGain = this.ctx.createGain();
+        noiseGain.gain.setValueAtTime(0.05 * this.volume, hitTime);
+        noiseGain.gain.exponentialRampToValueAtTime(0.0001, hitTime + 0.025);
+
+        whiteNoise.connect(filter);
+        filter.connect(noiseGain);
+        noiseGain.connect(this.ctx.destination);
+
+        whiteNoise.start(hitTime);
+        whiteNoise.stop(hitTime + 0.025);
+      }
+    } catch {
+      // AudioContext unavailable
+    }
+  }
+
+  // Tiếng đồng xu vàng nổ thưởng leng keng ngân vang rộn ràng
+  playCoinJingle() {
+    if (!this.enabled || this.volume <= 0) return;
+    try {
+      this.init();
+      if (!this.ctx) return;
+      const now = this.ctx.currentTime;
+      const coinFrequencies = [2093, 2637, 3136, 4186, 2637, 3520, 4186, 5274, 3136, 4186, 5274];
+
+      coinFrequencies.forEach((freq, idx) => {
+        const dropTime = now + idx * 0.065 + (Math.random() - 0.5) * 0.02;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, dropTime);
+        osc.frequency.exponentialRampToValueAtTime(freq * 0.985, dropTime + 0.35);
+
+        const v = (0.13 + Math.random() * 0.07) * this.volume;
+        gain.gain.setValueAtTime(v, dropTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, dropTime + 0.35);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(dropTime);
+        osc.stop(dropTime + 0.36);
+
+        // Họa âm leng keng kim loại đanh
+        const harmOsc = this.ctx.createOscillator();
+        const harmGain = this.ctx.createGain();
+        harmOsc.type = 'triangle';
+        harmOsc.frequency.setValueAtTime(freq * 1.5, dropTime);
+        harmGain.gain.setValueAtTime(v * 0.4, dropTime);
+        harmGain.gain.exponentialRampToValueAtTime(0.0001, dropTime + 0.16);
+
+        harmOsc.connect(harmGain);
+        harmGain.connect(this.ctx.destination);
+        harmOsc.start(dropTime);
+        harmOsc.stop(dropTime + 0.17);
+      });
+    } catch {
+      // AudioContext unavailable
     }
   }
 
@@ -133,7 +243,15 @@ export default function TaiXiuGame() {
     dailyReward
   } = useAuthStore();
 
-  const [roomId, setRoomId] = useState('tai-xiu-30s');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const roomParam = searchParams.get('room');
+  const initialRoom = (roomParam === 'tai-xiu-15s' || roomParam === 'tai-xiu-25s')
+    ? 'tai-xiu-15s'
+    : 'tai-xiu-30s';
+
+  const [roomId, setRoomId] = useState(initialRoom);
+  const [isShareOpen, setIsShareOpen] = useState(false);
+  const [isDonateOpen, setIsDonateOpen] = useState(false);
   const [isSoiCauOpen, setIsSoiCauOpen] = useState(false);
   const [isSoundSettingsOpen, setIsSoundSettingsOpen] = useState(false);
   const [isMyBetsOpen, setIsMyBetsOpen] = useState(false);
@@ -141,6 +259,24 @@ export default function TaiXiuGame() {
   const [isGameInfoOpen, setIsGameInfoOpen] = useState(false);
   const [isDailyRewardOpen, setIsDailyRewardOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+  // Cập nhật roomId khi URL thay đổi (ví dụ người dùng dán link mới)
+  useEffect(() => {
+    if (roomParam === 'tai-xiu-15s' || roomParam === 'tai-xiu-25s') {
+      setRoomId('tai-xiu-15s');
+    } else if (roomParam === 'tai-xiu-30s' || roomParam === 'tai-xiu-50s') {
+      setRoomId('tai-xiu-30s');
+    }
+  }, [roomParam]);
+
+  const handleSelectRoom = (newRoomId) => {
+    setRoomId(newRoomId);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('room', newRoomId);
+      return next;
+    }, { replace: true });
+  };
 
   useEffect(() => {
     initPlayerAuth();
@@ -217,6 +353,8 @@ export default function TaiXiuGame() {
     total,
     outcome,
     isTriple,
+    dramaticType,
+    dramaticMessage,
     onlineCount,
     myPoints,
     myCurrentBets,
@@ -232,8 +370,31 @@ export default function TaiXiuGame() {
     enabled: isPlayerAuthenticated && !!player?.userId
   });
 
+  // Khi chuyển sang pha Xóc đĩa (PLAYING) -> Phát tiếng xúc xắc lách cách rộn rã trong bát
+  const prevRoomStateRef = useRef(roomState);
+  useEffect(() => {
+    if (roomState === 'PLAYING' && prevRoomStateRef.current !== 'PLAYING') {
+      sfx.playDiceRattle(3.0);
+    }
+    prevRoomStateRef.current = roomState;
+  }, [roomState]);
+
   // KHI MỞ BÁT RA MỚI THÔNG BÁO THẮNG HAY THUA & PHÁT NHẠC CHIẾN THẮNG
   const handleReveal = useCallback(() => {
+    // Thông báo kịch bản đột biến nếu có
+    if (dramaticMessage) {
+      if (dramaticType === 'TRIPLE_JACKPOT') {
+        sfx.playWinFanfare();
+        toast.warning(dramaticMessage, { duration: 6000 });
+      } else if (dramaticType === 'STREAK_BREAKER') {
+        sfx.playPop();
+        toast.info(dramaticMessage, { duration: 5000 });
+      } else if (dramaticType === 'EDGE_TENSION') {
+        sfx.playPop();
+        toast.info(dramaticMessage, { duration: 4500 });
+      }
+    }
+
     // 1. Kiểm tra người chơi có đặt cược ván này không
     const userBets = myCurrentBets;
     if (!userBets || userBets.length === 0) {
@@ -246,10 +407,14 @@ export default function TaiXiuGame() {
     const myWin = (latestWinners || []).find((w) => w.userId === activeUserId);
     if (myWin) {
       const sideName = myWin.betSide === 'TAI' ? 'TÀI' : myWin.betSide === 'XIU' ? 'XỈU' : 'BÃO';
+      sfx.playCoinJingle();
       sfx.playWinFanfare();
       toast.success(`🎉 Thắng lớn! Cửa ${sideName} (${total} điểm) nổ giòn giã! Nhận +${myWin.payout.toLocaleString()} xu!`, {
         duration: 5000
       });
+
+      // Ví người chơi đã được useTaiXiuSocket tự động cộng thưởng vào Firestore và Zustand Store
+
     } else {
       toast.error(`Tiếc quá! Kết quả ra ${outcome === 'TAI' ? 'TÀI' : outcome === 'XIU' ? 'XỈU' : 'BÃO'} (${total} điểm). Chúc bạn ván sau thắng lớn!`, {
         duration: 4000
@@ -285,7 +450,8 @@ export default function TaiXiuGame() {
   };
 
   const handleTestSound = () => {
-    sfx.playWinFanfare();
+    sfx.playDiceRattle(1.2);
+    setTimeout(() => sfx.playCoinJingle(), 600);
   };
 
   const handlePlaceBet = useCallback((betSide, amount) => {
@@ -298,18 +464,18 @@ export default function TaiXiuGame() {
     return <GoogleLoginGate />;
   }
 
-  const effectivePoints = betBalance || myPoints;
+  const effectivePoints = typeof betBalance === 'number' ? betBalance : myPoints;
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="mx-auto flex w-full max-w-6xl flex-col h-full max-h-[calc(100dvh-5.5rem)] lg:max-h-none lg:h-auto justify-between lg:justify-start gap-2 sm:gap-4 lg:gap-5 pb-1 lg:pb-10"
+      className="mx-auto flex w-full max-w-6xl flex-col h-full lg:min-h-full justify-between gap-1 xs:gap-1.5 sm:gap-3 lg:gap-5 pb-0 lg:pb-8 overflow-hidden lg:overflow-visible"
     >
       {/* 1. HEADER ĐIỀU KHIỂN & CHỌN PHÒNG (TỰ CO GỌN TRÊN MOBILE, MỞ RỘNG TRÊN DESKTOP) */}
       <RoomSwitchHeader
         currentRoomId={roomId}
-        onSelectRoom={(id) => setRoomId(id)}
+        onSelectRoom={handleSelectRoom}
         connectionStatus={connectionStatus}
         onlineCount={onlineCount}
         myPoints={effectivePoints}
@@ -325,49 +491,28 @@ export default function TaiXiuGame() {
         onOpenGameInfo={() => setIsGameInfoOpen(true)}
         onOpenDailyReward={() => setIsDailyRewardOpen(true)}
         onOpenProfile={() => setIsProfileOpen(true)}
+        onOpenShare={() => setIsShareOpen(true)}
+        onOpenDonate={() => setIsDonateOpen(true)}
         onExitGame={() => navigate('/entertainment')}
         canClaimReward={dailyReward?.canClaimToday ?? true}
       />
 
       {/* 2. LAYOUT CHÍNH: BÀN CHƠI TÀI XỈU (TỰ ĐỘNG THÍCH ỨNG MOBILE / DESKTOP) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 sm:gap-4 lg:gap-5 items-start flex-1 min-h-0">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-1 xs:gap-1.5 sm:gap-4 lg:gap-5 items-stretch flex-1 min-h-0 overflow-hidden lg:overflow-visible">
         {/* CỘT TRÁI (Mobile: Trên / Desktop: 5 phần): Khay xúc xắc + Vé cược cá nhân */}
-        <div className="lg:col-span-5 flex flex-col gap-2 sm:gap-4">
+        <div className="lg:col-span-5 flex flex-col justify-center flex-1 min-h-0">
           <DicePlate
             state={roomState}
             dice={dice}
             total={total}
             outcome={outcome}
             isTriple={isTriple}
+            dramaticType={dramaticType}
+            dramaticMessage={dramaticMessage}
             roundEndTime={roundEndTime}
             waitingDuration={waitingDuration}
             onReveal={handleReveal}
           />
-
-          {/* NÚT CHUYỂN BÀN CHƠI TRÊN MOBILE (NẰM DƯỚI NẶN BÁT VÀ TRÊN ĐẶT CƯỢC) */}
-          <div className="flex lg:hidden items-center w-full">
-            <button
-              type="button"
-              onClick={() => setIsRoomSelectorOpen(true)}
-              className="w-full flex items-center justify-between px-3 py-2 rounded-xl border border-[#D5B46B]/40 bg-gradient-to-r from-[#241712] via-[#2d1e17] to-[#241712] text-xs font-bold text-[#E8DDC8] shadow-md active:scale-[0.98] transition-all hover:border-[#D5B46B]"
-            >
-              <div className="flex items-center gap-2">
-                <span className="text-base">{roomId === 'tai-xiu-15s' ? '⚡' : '🏛️'}</span>
-                <div className="text-left">
-                  <span className="text-[9px] text-[#D5B46B] font-semibold uppercase tracking-wider block leading-tight">
-                    BÀN ĐANG CHƠI
-                  </span>
-                  <span className="text-xs font-black text-[#FAF5EB]">
-                    {roomId === 'tai-xiu-15s' ? 'Chợ Phiên (25s)' : 'Xóm Đình (50s)'}
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center gap-1.5 text-[11px] font-black text-[#D5B46B] bg-[#171411]/90 px-2.5 py-1 rounded-lg border border-[#A87932]/50 shadow-inner">
-                <span>Đổi bàn</span>
-                <ChevronDown size={14} />
-              </div>
-            </button>
-          </div>
 
           <div className="hidden lg:block">
             <MyBetsCard myCurrentBets={myCurrentBets} />
@@ -375,13 +520,14 @@ export default function TaiXiuGame() {
         </div>
 
         {/* CỘT PHẢI (Mobile: Dưới / Desktop: 7 phần): Bàn cược Tài/Xỉu + Lịch sử kết quả trực quan */}
-        <div className="lg:col-span-7 flex flex-col gap-2 sm:gap-4">
+        <div className="lg:col-span-7 flex flex-col justify-end shrink-0">
           <BetBoard
             state={roomState}
             myBets={myCurrentBets}
             myPoints={effectivePoints}
             betSummary={betSummary}
             onPlaceBet={handlePlaceBet}
+            onOpenDonate={() => setIsDonateOpen(true)}
           />
 
           <div className="hidden lg:block">
@@ -397,12 +543,25 @@ export default function TaiXiuGame() {
       <DailyRewardModal
         open={isDailyRewardOpen}
         onClose={() => setIsDailyRewardOpen(false)}
-        onRewardClaimed={() => sfx.playWinFanfare()}
+        onRewardClaimed={() => {
+          sfx.playCoinJingle();
+          sfx.playWinFanfare();
+        }}
       />
 
       <ProfileWalletModal
         open={isProfileOpen}
         onClose={() => setIsProfileOpen(false)}
+        onOpenDonate={() => setIsDonateOpen(true)}
+      />
+
+      <DonateModal
+        isOpen={isDonateOpen}
+        onClose={() => setIsDonateOpen(false)}
+        onSuccess={() => {
+          sfx.playCoinJingle();
+          sfx.playWinFanfare();
+        }}
       />
 
       <SoiCauModal
@@ -440,12 +599,21 @@ export default function TaiXiuGame() {
         isOpen={isRoomSelectorOpen}
         onClose={() => setIsRoomSelectorOpen(false)}
         currentRoomId={roomId}
-        onSelectRoom={(id) => setRoomId(id)}
+        onSelectRoom={handleSelectRoom}
       />
 
       <GameInfoModal
         isOpen={isGameInfoOpen}
         onClose={() => setIsGameInfoOpen(false)}
+      />
+
+      <GameShareModal
+        isOpen={isShareOpen}
+        onClose={() => setIsShareOpen(false)}
+        gameTitle="Tài Xỉu Dân Gian"
+        roomTitle={roomId === 'tai-xiu-15s' ? 'Bàn Chợ Phiên (25s)' : 'Bàn Xóm Đình (50s)'}
+        shareUrl={typeof window !== 'undefined' ? `${window.location.origin}/entertainment/tai-xiu?room=${roomId}` : ''}
+        description="Mời bạn bè cùng vào chung bàn cược thời gian thực, soi cầu và thử vận may cùng nhau!"
       />
     </motion.div>
   );

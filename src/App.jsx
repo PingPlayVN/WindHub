@@ -6,6 +6,7 @@ import { Toaster, toast } from 'sonner';
 import { MotionConfig } from 'framer-motion';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useUIStore } from '@/store/useUIStore';
+import { isAdminEmail } from '@/services/auth';
 import MainLayout from '@/components/layout/MainLayout';
 import Loader from '@/components/ui/Loader';
 import OfflineGate from '@/components/ui/OfflineGate';
@@ -48,12 +49,14 @@ function App() {
   }, [theme]);
 
   useEffect(() => {
+    // Khôi phục phiên đăng nhập người chơi Google & Ví Game
+    useAuthStore.getState().initPlayerAuth();
+
     let unsubscribe;
     Promise.all([
       import('firebase/auth'),
       import('@/services/firebase'),
-      import('@/services/auth'),
-    ]).then(([{ onAuthStateChanged }, { auth }, { isAdminEmail }]) => {
+    ]).then(([{ onAuthStateChanged }, { auth }]) => {
       unsubscribe = onAuthStateChanged(auth, (user) => setAuth(user, isAdminEmail(user?.email)));
     });
     return () => unsubscribe?.();
@@ -98,7 +101,7 @@ function App() {
     return (
       <MotionConfig reducedMotion="never" transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}>
         <Toaster position="top-right" richColors theme={theme} />
-        <div className="fixed inset-0 w-screen h-[100dvh] overflow-hidden bg-gradient-to-b from-[#1a0f07] via-[#24140b] to-[#0d0704] select-none text-amber-100 flex flex-col p-2 sm:p-4 z-50">
+        <div className="fixed inset-0 w-screen h-[100dvh] max-h-[100dvh] overflow-hidden lg:overflow-y-auto overflow-x-hidden bg-gradient-to-b from-[#1a0f07] via-[#24140b] to-[#0d0704] select-none text-amber-100 flex flex-col p-1 xs:p-1.5 sm:p-3 lg:p-4 z-50 overscroll-none">
           <Suspense fallback={<Loader fullScreen text="Đang tải sòng quay số..." />}>
             <OfflineGate pageTitle="Tài Xỉu Dân Gian">
               <TaiXiu />

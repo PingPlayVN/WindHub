@@ -100,7 +100,10 @@ export async function claimDailyRewardApi() {
   return apiRequest('/api/reward/claim', { method: 'POST' });
 }
 
-export async function fetchWsTicket() {
-  return apiRequest('/api/lottery/ws-ticket', { method: 'POST' });
+export async function fetchWsTicket(params = {}) {
+  return apiRequest('/api/lottery/ws-ticket', {
+    method: 'POST',
+    body: JSON.stringify(params)
+  });
 }
 

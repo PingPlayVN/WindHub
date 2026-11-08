@@ -5,3 +5,6 @@ gitpush.bat
 .wrangler
 .wrangler/
 .vite_cache/
+client_secret*.json
+codex
+npm

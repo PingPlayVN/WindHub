@@ -1,13 +1,15 @@
 // src/modules/Entertainment/TaiXiu/components/ProfileWalletModal.jsx
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, User, History, LogOut, RefreshCw, ShieldCheck } from 'lucide-react';
+import { X, History, LogOut, RefreshCw, ShieldCheck, Coffee, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/store/useAuthStore';
 import { fetchPlayerTransactions, fetchPlayerBalance } from '@/services/playerApi';
+import { fetchPlayerTransactionsFromFirestore } from '@/services/firebaseWallet';
 import { HeritageCoinIcon, DongSonSun } from './HeritageIcons';
+import UserAvatar from '@/components/ui/UserAvatar';
 
-export default function ProfileWalletModal({ open, onClose }) {
+export default function ProfileWalletModal({ open, onClose, onOpenDonate }) {
   const { player, betBalance, playerStats, updateBetBalance, logoutPlayer } = useAuthStore();
   const [activeTab, setActiveTab] = useState('PROFILE'); // 'PROFILE' | 'TRANSACTIONS'
   const [transactions, setTransactions] = useState([]);
@@ -23,10 +25,18 @@ export default function ProfileWalletModal({ open, onClose }) {
   const loadTransactions = async () => {
     setLoadingTx(true);
     try {
-      const data = await fetchPlayerTransactions(50);
-      if (data && Array.isArray(data.transactions)) {
-        setTransactions(data.transactions);
+      const uid = player?.userId || player?.uid;
+      let list = [];
+      if (uid) {
+        list = await fetchPlayerTransactionsFromFirestore(uid, 50);
       }
+      if (list.length === 0) {
+        const data = await fetchPlayerTransactions(50).catch(() => ({}));
+        if (data && Array.isArray(data.transactions)) {
+          list = data.transactions;
+        }
+      }
+      setTransactions(list);
     } catch {
       toast.error('Không thể tải lịch sử giao dịch ví.');
     } finally {
@@ -37,6 +47,18 @@ export default function ProfileWalletModal({ open, onClose }) {
   const handleRefreshBalance = async () => {
     setRefreshing(true);
     try {
+      const uid = player?.userId || player?.uid;
+      if (uid) {
+        const { getDoc, doc } = await import('firebase/firestore');
+        const { db } = await import('@/services/firebase');
+        const snap = await getDoc(doc(db, 'players', uid));
+        if (snap.exists() && typeof snap.data().balance === 'number') {
+          const bal = snap.data().balance;
+          updateBetBalance(bal);
+          toast.success(`Đã cập nhật số dư: ${bal.toLocaleString()} xu`);
+          return;
+        }
+      }
       const data = await fetchPlayerBalance();
       if (typeof data.balance === 'number') {
         updateBetBalance(data.balance);
@@ -52,7 +74,7 @@ export default function ProfileWalletModal({ open, onClose }) {
   const handleLogout = async () => {
     await logoutPlayer();
     onClose();
-    toast.info('Đã đăng xuất tài khoản Google.');
+    toast.info('Đã đăng xuất tài khoản khỏi hệ thống và game.');
   };
 
   if (!open) return null;
@@ -91,17 +113,13 @@ export default function ProfileWalletModal({ open, onClose }) {
           <div className="flex items-start justify-between gap-4 pb-4 border-b border-[#A87932]/30 relative z-10 shrink-0">
             <div className="flex items-center gap-3">
               <div className="relative size-12 shrink-0">
-                {player?.avatarUrl ? (
-                  <img
-                    src={player.avatarUrl}
-                    alt={player.displayName}
-                    className="size-12 rounded-full border-2 border-[#D5B46B] object-cover shadow-md"
-                  />
-                ) : (
-                  <div className="flex size-12 items-center justify-center rounded-full border-2 border-[#D5B46B] bg-[#2b1c15] text-[#D5B46B]">
-                    <User size={24} />
-                  </div>
-                )}
+                <UserAvatar
+                  src={player?.avatarUrl}
+                  name={player?.displayName}
+                  email={player?.email}
+                  size={48}
+                  className="border-2 border-[#D5B46B] shadow-md"
+                />
                 <span className="absolute -bottom-1 -right-1 flex size-5 items-center justify-center rounded-full bg-emerald-500 text-white border border-[#2a1b14]">
                   <ShieldCheck size={12} />
                 </span>
@@ -153,6 +171,32 @@ export default function ProfileWalletModal({ open, onClose }) {
               className="flex size-8 items-center justify-center rounded-xl border border-[#A87932]/40 bg-[#2b1c15] text-[#D5B46B] hover:text-[#FAF5EB] active:scale-95 transition-all"
             >
               <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
+            </button>
+          </div>
+
+          {/* NÚT ỦNG HỘ SERVER NHẬN XU (DONATE) */}
+          <div className="mb-3 flex items-center justify-between rounded-xl border border-amber-500/40 bg-gradient-to-r from-amber-950/40 via-[#27170f] to-amber-950/40 p-2.5 relative z-10 shrink-0">
+            <div className="flex items-center gap-2">
+              <span className="flex size-8 items-center justify-center rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                <Coffee size={16} />
+              </span>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-amber-400 block">Ủng Hộ Duy Trì Server</span>
+                <p className="text-[11px] text-[#FAF5EB] font-bold">10k = 100k xu • 20k = 250k xu</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (onOpenDonate) {
+                  onClose();
+                  onOpenDonate();
+                }
+              }}
+              className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-[#D5B46B] to-[#A87932] text-[#171411] text-xs font-black active:scale-95 transition-all shadow-sm flex items-center gap-1"
+            >
+              <span>Ủng hộ</span>
+              <ArrowRight size={13} />
             </button>
           </div>
 

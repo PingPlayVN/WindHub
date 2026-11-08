@@ -60,10 +60,9 @@ export const taiXiuToolEntry = {
   link: '/entertainment/tai-xiu'
 };
 
-// Sắp xếp thứ tự hiển thị: Từ vựng -> Casio 580 -> Tài Xỉu -> Image Art -> Các công cụ khác
+// Sắp xếp thứ tự hiển thị: Từ vựng -> Casio 580 -> Image Art -> Các công cụ khác
 export const toolEntries = [
   ...otherEntries.filter((t) => t.id === 'VocabularyPractice'),
   casio580Entry,
-  taiXiuToolEntry,
   ...otherEntries.filter((t) => t.id !== 'VocabularyPractice'),
 ].filter(Boolean);

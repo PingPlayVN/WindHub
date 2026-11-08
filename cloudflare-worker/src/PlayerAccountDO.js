@@ -32,63 +32,58 @@ export class PlayerAccountDO {
 
   initSchema() {
     if (!this.sql || this.initialized) return;
-    try {
-      this.sql.exec(`
-        CREATE TABLE IF NOT EXISTS account (
-          user_id TEXT PRIMARY KEY,
-          google_sub TEXT UNIQUE NOT NULL,
-          email TEXT,
-          display_name TEXT,
-          avatar_url TEXT,
-          created_at INTEGER NOT NULL,
-          last_login_at INTEGER NOT NULL,
-          last_logout_at INTEGER NOT NULL DEFAULT 0
-        );
+    const statements = [
+      `CREATE TABLE IF NOT EXISTS account (
+        user_id TEXT PRIMARY KEY,
+        google_sub TEXT UNIQUE NOT NULL,
+        email TEXT,
+        display_name TEXT,
+        avatar_url TEXT,
+        created_at INTEGER NOT NULL,
+        last_login_at INTEGER NOT NULL,
+        last_logout_at INTEGER NOT NULL DEFAULT 0
+      )`,
+      `CREATE TABLE IF NOT EXISTS wallet (
+        user_id TEXT PRIMARY KEY,
+        balance INTEGER NOT NULL DEFAULT 0,
+        updated_at INTEGER NOT NULL
+      )`,
+      `CREATE TABLE IF NOT EXISTS transactions (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        type TEXT NOT NULL,
+        amount INTEGER NOT NULL,
+        balance_after INTEGER NOT NULL,
+        reference_id TEXT,
+        description TEXT,
+        created_at INTEGER NOT NULL
+      )`,
+      `CREATE TABLE IF NOT EXISTS daily_rewards (
+        user_id TEXT NOT NULL,
+        reward_date TEXT NOT NULL,
+        streak_day INTEGER NOT NULL,
+        amount INTEGER NOT NULL,
+        claimed_at INTEGER NOT NULL,
+        PRIMARY KEY (user_id, reward_date)
+      )`,
+      `CREATE TABLE IF NOT EXISTS reward_streak (
+        user_id TEXT PRIMARY KEY,
+        current_streak INTEGER NOT NULL DEFAULT 0,
+        last_claimed_date TEXT,
+        updated_at INTEGER NOT NULL
+      )`,
+      `ALTER TABLE account ADD COLUMN last_logout_at INTEGER NOT NULL DEFAULT 0`
+    ];
 
-        CREATE TABLE IF NOT EXISTS wallet (
-          user_id TEXT PRIMARY KEY,
-          balance INTEGER NOT NULL DEFAULT 0,
-          updated_at INTEGER NOT NULL
-        );
-
-        CREATE TABLE IF NOT EXISTS transactions (
-          id TEXT PRIMARY KEY,
-          user_id TEXT NOT NULL,
-          type TEXT NOT NULL,
-          amount INTEGER NOT NULL,
-          balance_after INTEGER NOT NULL,
-          reference_id TEXT,
-          description TEXT,
-          created_at INTEGER NOT NULL
-        );
-
-        CREATE TABLE IF NOT EXISTS daily_rewards (
-          user_id TEXT NOT NULL,
-          reward_date TEXT NOT NULL,
-          streak_day INTEGER NOT NULL,
-          amount INTEGER NOT NULL,
-          claimed_at INTEGER NOT NULL,
-          PRIMARY KEY (user_id, reward_date)
-        );
-
-        CREATE TABLE IF NOT EXISTS reward_streak (
-          user_id TEXT PRIMARY KEY,
-          current_streak INTEGER NOT NULL DEFAULT 0,
-          last_claimed_date TEXT,
-          updated_at INTEGER NOT NULL
-        );
-      `);
-
+    for (const stmt of statements) {
       try {
-        this.sql.exec('ALTER TABLE account ADD COLUMN last_logout_at INTEGER NOT NULL DEFAULT 0');
-      } catch {
-        // Column may already exist
+        this.sql.exec(stmt);
+      } catch (err) {
+        // Table or column might already exist
       }
-
-      this.initialized = true;
-    } catch (err) {
-      console.error('[PlayerAccountDO] initSchema error:', err);
     }
+
+    this.initialized = true;
   }
 
   getAccountByGoogleSub(googleSub) {
@@ -101,12 +96,25 @@ export class PlayerAccountDO {
   }
 
   getAccountByUserId(userId) {
-    if (!this.sql) return null;
+    if (!this.sql || !userId) return null;
     const cursor = this.sql.exec('SELECT * FROM account WHERE user_id = ?', userId);
     for (const row of cursor) {
       return row;
     }
     return null;
+  }
+
+  getPrimaryAccount() {
+    if (!this.sql) return null;
+    try {
+      const cursor = this.sql.exec('SELECT * FROM account LIMIT 1');
+      for (const row of cursor) {
+        return row;
+      }
+      return null;
+    } catch {
+      return null;
+    }
   }
 
   loginOrRegister({ googleSub, email, displayName, avatarUrl, initialPoints = 10000 }) {
@@ -197,8 +205,14 @@ export class PlayerAccountDO {
   getBalance(userId) {
     if (!this.sql) return 0;
     try {
-      const cursor = this.sql.exec('SELECT balance FROM wallet WHERE user_id = ?', userId);
-      for (const row of cursor) {
+      if (userId) {
+        const cursor = this.sql.exec('SELECT balance FROM wallet WHERE user_id = ?', userId);
+        for (const row of cursor) {
+          return Number(row.balance) || 0;
+        }
+      }
+      const cursorAll = this.sql.exec('SELECT balance FROM wallet LIMIT 1');
+      for (const row of cursorAll) {
         return Number(row.balance) || 0;
       }
       return 0;
@@ -217,10 +231,13 @@ export class PlayerAccountDO {
       return { success: false, code: 'MISSING_TX_ID', message: 'Thiếu transaction ID' };
     }
 
+    const acc = (userId && this.getAccountByUserId(userId)) || this.getPrimaryAccount();
+    const targetUserId = acc?.user_id || userId;
+
     // Idempotency check: if transaction already executed, return current balance
     const existingTx = this.getTransactionById(txId);
     if (existingTx) {
-      const curBalance = this.getBalance(userId);
+      const curBalance = this.getBalance(targetUserId);
       return {
         success: true,
         idempotent: true,
@@ -230,7 +247,7 @@ export class PlayerAccountDO {
       };
     }
 
-    const currentBalance = this.getBalance(userId);
+    const currentBalance = this.getBalance(targetUserId);
     if (currentBalance < debitAmount) {
       return {
         success: false,
@@ -248,14 +265,14 @@ export class PlayerAccountDO {
         'UPDATE wallet SET balance = balance - ?, updated_at = ? WHERE user_id = ? AND balance >= ?',
         debitAmount,
         now,
-        userId,
+        targetUserId,
         debitAmount
       );
 
       this.sql.exec(
         'INSERT INTO transactions (id, user_id, type, amount, balance_after, reference_id, description, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
         txId,
-        userId,
+        targetUserId,
         'BET',
         -debitAmount,
         newBalance,
@@ -285,10 +302,13 @@ export class PlayerAccountDO {
       return { success: false, code: 'MISSING_TX_ID', message: 'Thiếu transaction ID' };
     }
 
+    const acc = (userId && this.getAccountByUserId(userId)) || this.getPrimaryAccount();
+    const targetUserId = acc?.user_id || userId;
+
     // Idempotency check
     const existingTx = this.getTransactionById(txId);
     if (existingTx) {
-      const curBalance = this.getBalance(userId);
+      const curBalance = this.getBalance(targetUserId);
       return {
         success: true,
         idempotent: true,
@@ -298,7 +318,7 @@ export class PlayerAccountDO {
       };
     }
 
-    const currentBalance = this.getBalance(userId);
+    const currentBalance = this.getBalance(targetUserId);
     const newBalance = currentBalance + creditAmount;
     const now = Date.now();
 
@@ -307,13 +327,13 @@ export class PlayerAccountDO {
         'UPDATE wallet SET balance = balance + ?, updated_at = ? WHERE user_id = ?',
         creditAmount,
         now,
-        userId
+        targetUserId
       );
 
       this.sql.exec(
         'INSERT INTO transactions (id, user_id, type, amount, balance_after, reference_id, description, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
         txId,
-        userId,
+        targetUserId,
         type,
         creditAmount,
         newBalance,

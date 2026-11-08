@@ -1,6 +1,6 @@
 // src/modules/Entertainment/TaiXiu/components/RoomSwitchHeader.jsx
 import React from 'react';
-import { Wifi, WifiOff, Users, Volume2, VolumeX, ShieldAlert, ArrowLeft, TrendingUp, Ticket, Gift, User } from 'lucide-react';
+import { Wifi, WifiOff, Users, Volume2, VolumeX, ShieldAlert, ArrowLeft, TrendingUp, Ticket, Gift, User, Share2, ChevronDown, Coffee } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { DongSonSun, HeritageCoinIcon } from './HeritageIcons';
 
@@ -15,12 +15,14 @@ export default function RoomSwitchHeader({
   onOpenSoundSettings,
   onToggleSoiCau,
   isSoiCauOpen = false,
-  _onOpenRoomSelector,
+  onOpenRoomSelector,
   onOpenMyBets,
   myBetsCount = 0,
   onOpenGameInfo,
   onOpenDailyReward,
   onOpenProfile,
+  onOpenShare,
+  onOpenDonate,
   onExitGame,
   canClaimReward = true,
 }) {
@@ -34,37 +36,47 @@ export default function RoomSwitchHeader({
   };
 
   return (
-    <header className="w-full select-none">
+    <header className="w-full select-none shrink-0">
       {/* =========================================================================
           1. HEADER TỐI GIẢN GÓI GỌN 1 HÀNG DÀNH RIÊNG CHO MOBILE (< 1024PX)
           ========================================================================= */}
-      <div className="flex lg:hidden items-center justify-between gap-1.5 rounded-2xl border border-[#A87932]/45 bg-gradient-to-r from-[#241712] via-[#1a120e] to-[#241712] p-1.5 text-[#E8DDC8] shadow-md">
-        {/* Nhóm bên trái: Thoát bàn về sảnh */}
-        <div className="flex items-center gap-1 min-w-0">
+      <div className="flex lg:hidden items-center justify-between gap-1 rounded-xl border border-[#A87932]/45 bg-gradient-to-r from-[#241712] via-[#1a120e] to-[#241712] p-1 text-[#E8DDC8] shadow-md h-9 xs:h-10">
+        {/* Nhóm bên trái: Thoát bàn về sảnh & Đổi bàn trực tiếp */}
+        <div className="flex items-center gap-1 min-w-0 shrink-0">
           <Link
             to="/entertainment"
             onClick={handleExit}
             title="Rời bàn về sảnh giải trí"
             aria-label="Rời bàn về sảnh giải trí"
-            className="flex size-8 shrink-0 items-center justify-center rounded-xl border border-[#A87932]/50 bg-[#2b1c15] text-[#D5B46B] active:scale-95 transition-all shadow-inner"
+            className="flex size-7 shrink-0 items-center justify-center rounded-lg border border-[#A87932]/50 bg-[#2b1c15] text-[#D5B46B] active:scale-95 transition-all shadow-inner"
           >
-            <ArrowLeft size={16} />
+            <ArrowLeft size={14} />
           </Link>
+
+          {/* Nút Đổi Bàn Chơi Siêu Gọn Ngay Trên Header */}
+          <button
+            type="button"
+            onClick={onOpenRoomSelector}
+            title="Đổi bàn chơi (50s / 25s)"
+            className="flex items-center gap-1 rounded-lg border border-[#D5B46B]/50 bg-[#2b1c15] px-1.5 py-1 text-[10px] font-black text-[#FAF5EB] active:scale-95 transition-all shadow-inner shrink-0"
+          >
+            <span>{currentRoomId === 'tai-xiu-15s' ? '⚡ 25s' : '🏛️ 50s'}</span>
+            <ChevronDown size={11} className="text-[#D5B46B]" />
+          </button>
         </div>
 
         {/* Nhóm trung tâm: VÍ XU & NÚT ĐIỂM DANH */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1 shrink-0">
           <button
             type="button"
             onClick={onOpenProfile}
             title="Nhấn để xem Ví & Sổ cái giao dịch"
-            className="flex items-center gap-1 rounded-xl border border-[#D5B46B]/40 bg-gradient-to-r from-[#2a1c15] to-[#171411] px-2 py-1 text-xs shadow-inner active:scale-95 transition-all"
+            className="flex items-center gap-1 rounded-lg border border-[#D5B46B]/40 bg-gradient-to-r from-[#2a1c15] to-[#171411] px-1.5 py-0.5 text-xs shadow-inner active:scale-95 transition-all"
           >
-            <HeritageCoinIcon size={14} className="text-[#D5B46B] shrink-0" />
-            <span className="font-mono text-xs xs:text-sm font-black text-[#D5B46B]">
+            <HeritageCoinIcon size={12} className="text-[#D5B46B] shrink-0" />
+            <span className="font-mono text-[11px] xs:text-xs font-black text-[#D5B46B]">
               {myPoints.toLocaleString()}
             </span>
-            <span className="text-[9px] text-[#E8DDC8]/80 font-medium">xu</span>
           </button>
 
           {/* Nút Hộp Quà Điểm Danh 7 Ngày */}
@@ -72,20 +84,30 @@ export default function RoomSwitchHeader({
             type="button"
             onClick={onOpenDailyReward}
             title={canClaimReward ? '🎁 Có quà điểm danh hôm nay!' : 'Đã điểm danh hôm nay'}
-            className={`flex size-7 items-center justify-center rounded-xl border transition-all active:scale-95 relative ${
+            className={`flex size-6 xs:size-7 items-center justify-center rounded-lg border transition-all active:scale-95 relative ${
               canClaimReward
                 ? 'border-[#D5B46B] bg-gradient-to-br from-[#8E2926] to-[#A87932] text-[#FAF5EB] shadow-[0_0_8px_rgba(213,180,107,0.5)] animate-pulse'
                 : 'border-[#A87932]/40 bg-[#2b1c15] text-[#D5B46B]/60'
             }`}
           >
-            <Gift size={14} />
+            <Gift size={12} />
             {canClaimReward && (
-              <span className="absolute -top-1 -right-1 size-2 rounded-full bg-amber-400 shadow-[0_0_4px_#f59e0b]" />
+              <span className="absolute -top-0.5 -right-0.5 size-1.5 rounded-full bg-amber-400 shadow-[0_0_4px_#f59e0b]" />
             )}
+          </button>
+
+          {/* Nút Ủng hộ Server (Donate) */}
+          <button
+            type="button"
+            onClick={onOpenDonate}
+            title="Ủng hộ duy trì server • Tặng xu tri ân"
+            className="flex size-6 xs:size-7 items-center justify-center rounded-lg border border-amber-500/60 bg-gradient-to-br from-[#8E2926] to-[#A87932] text-[#FAF5EB] shadow-[0_0_6px_rgba(213,180,107,0.4)] active:scale-95 transition-all"
+          >
+            <Coffee size={12} className="text-amber-200" />
           </button>
         </div>
 
-        {/* Nhóm bên phải: CÁC NÚT MỞ POPUP PHỤ TRỢ */}
+        {/* Nhóm bên phải: CÁC NÚT MỞ POPUP PHỤ TRỢ (ICON GỌN) */}
         <div className="flex items-center gap-1 shrink-0">
           {/* Nút Soi Cầu (Popup) */}
           <button
@@ -93,14 +115,14 @@ export default function RoomSwitchHeader({
             onClick={onToggleSoiCau}
             title="Mở Bảng Soi Cầu"
             aria-label="Mở Bảng Soi Cầu"
-            className={`flex size-8 items-center justify-center rounded-xl border transition-all active:scale-95 relative ${
+            className={`flex size-7 items-center justify-center rounded-lg border transition-all active:scale-95 relative ${
               isSoiCauOpen
                 ? 'border-[#D5B46B] bg-[#D5B46B] text-[#171411] shadow-[0_0_10px_rgba(213,180,107,0.5)]'
                 : 'border-[#A87932]/50 bg-[#2b1c15] text-[#D5B46B] hover:text-[#FAF5EB]'
             }`}
           >
-            <TrendingUp size={15} />
-            <span className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-amber-400 shadow-[0_0_4px_#f59e0b]" />
+            <TrendingUp size={13} />
+            <span className="absolute -top-0.5 -right-0.5 size-1.5 rounded-full bg-amber-400 shadow-[0_0_4px_#f59e0b]" />
           </button>
 
           {/* Nút Vé Cược Cá Nhân (Popup) */}
@@ -109,13 +131,38 @@ export default function RoomSwitchHeader({
             onClick={onOpenMyBets}
             title="Xem Vé Cược Của Bạn"
             aria-label="Xem Vé Cược Của Bạn"
-            className="flex size-8 items-center justify-center rounded-xl border border-[#A87932]/50 bg-[#2b1c15] text-[#D5B46B] hover:text-[#FAF5EB] active:scale-95 transition-all relative"
+            className="flex size-7 items-center justify-center rounded-lg border border-[#A87932]/50 bg-[#2b1c15] text-[#D5B46B] hover:text-[#FAF5EB] active:scale-95 transition-all relative"
           >
-            <Ticket size={15} />
+            <Ticket size={13} />
             {myBetsCount > 0 && (
-              <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-[#8E2926] text-[9px] font-black text-[#FAF5EB] border border-[#D5B46B]">
+              <span className="absolute -top-1 -right-1 flex size-3.5 items-center justify-center rounded-full bg-[#8E2926] text-[8px] font-black text-[#FAF5EB] border border-[#D5B46B]">
                 {myBetsCount}
               </span>
+            )}
+          </button>
+
+          {/* Nút Chia Sẻ Bàn Chơi (Popup) */}
+          <button
+            type="button"
+            onClick={onOpenShare}
+            title="Chia sẻ liên kết bàn chơi cho bạn bè"
+            aria-label="Chia sẻ liên kết bàn chơi cho bạn bè"
+            className="flex size-7 items-center justify-center rounded-lg border border-[#A87932]/50 bg-[#2b1c15] text-[#D5B46B] hover:text-[#FAF5EB] active:scale-95 transition-all"
+          >
+            <Share2 size={13} />
+          </button>
+
+          {/* Nút Âm Thanh (Popup) */}
+          <button
+            type="button"
+            onClick={onOpenSoundSettings}
+            title="Cài đặt âm thanh & Lofi"
+            aria-label="Cài đặt âm thanh & Lofi"
+            className="flex size-7 items-center justify-center rounded-lg border border-[#A87932]/50 bg-[#2b1c15] text-[#D5B46B] hover:text-[#FAF5EB] active:scale-95 transition-all relative"
+          >
+            {sfxEnabled || bgmEnabled ? <Volume2 size={13} /> : <VolumeX size={13} className="text-[#E8DDC8]/40" />}
+            {bgmEnabled && (
+              <span className="absolute top-0.5 right-0.5 size-1 rounded-full bg-emerald-400 shadow-[0_0_4px_#34d399]" />
             )}
           </button>
 
@@ -125,23 +172,9 @@ export default function RoomSwitchHeader({
             onClick={onOpenProfile}
             title="Hồ sơ tài khoản & Ví Xu"
             aria-label="Hồ sơ tài khoản & Ví Xu"
-            className="flex size-8 items-center justify-center rounded-xl border border-[#A87932]/50 bg-[#2b1c15] text-[#D5B46B] hover:text-[#FAF5EB] active:scale-95 transition-all"
+            className="flex size-7 items-center justify-center rounded-lg border border-[#A87932]/50 bg-[#2b1c15] text-[#D5B46B] hover:text-[#FAF5EB] active:scale-95 transition-all"
           >
-            <User size={15} />
-          </button>
-
-          {/* Nút Âm Thanh (Popup) */}
-          <button
-            type="button"
-            onClick={onOpenSoundSettings}
-            title="Cài đặt âm thanh & Lofi"
-            aria-label="Cài đặt âm thanh & Lofi"
-            className="flex size-8 items-center justify-center rounded-xl border border-[#A87932]/50 bg-[#2b1c15] text-[#D5B46B] hover:text-[#FAF5EB] active:scale-95 transition-all relative"
-          >
-            {sfxEnabled || bgmEnabled ? <Volume2 size={15} /> : <VolumeX size={15} className="text-[#E8DDC8]/40" />}
-            {bgmEnabled && (
-              <span className="absolute top-1 right-1 size-1.5 rounded-full bg-emerald-400 shadow-[0_0_4px_#34d399]" />
-            )}
+            <User size={13} />
           </button>
 
           {/* Nút Thông Tin & Luật (Popup) */}
@@ -150,9 +183,9 @@ export default function RoomSwitchHeader({
             onClick={onOpenGameInfo}
             title="Xem Luật Chơi & Giải Thích"
             aria-label="Xem Luật Chơi & Giải Thích"
-            className="flex size-8 items-center justify-center rounded-xl border border-[#A87932]/50 bg-[#2b1c15] text-[#D5B46B] hover:text-[#FAF5EB] active:scale-95 transition-all"
+            className="flex size-7 items-center justify-center rounded-lg border border-[#A87932]/50 bg-[#2b1c15] text-[#D5B46B] hover:text-[#FAF5EB] active:scale-95 transition-all"
           >
-            <ShieldAlert size={15} />
+            <ShieldAlert size={13} />
           </button>
         </div>
       </div>
@@ -218,12 +251,12 @@ export default function RoomSwitchHeader({
             {/* SỐ BÀ CON & SỐ DƯ XU */}
             <div className="flex items-center gap-2 shrink-0 ml-auto">
               <div
-                title={`${onlineCount} bà con đang cùng sòng`}
+                title={`${onlineCount} người chơi đang cùng sòng`}
                 className="flex items-center gap-1.5 rounded-xl border border-[#A87932]/35 bg-[#1f1612]/90 px-2.5 py-1.5 text-xs text-[#E8DDC8]"
               >
                 <Users size={14} className="text-[#D5B46B]" />
                 <span className="text-xs">
-                  <strong className="text-[#FAF5EB]">{onlineCount}</strong> bà con
+                  <strong className="text-[#FAF5EB]">{onlineCount}</strong> người chơi
                 </span>
               </div>
 
@@ -243,6 +276,17 @@ export default function RoomSwitchHeader({
                 {canClaimReward && (
                   <span className="size-2 rounded-full bg-amber-400 shadow-[0_0_4px_#f59e0b]" />
                 )}
+              </button>
+
+              {/* Nút Ủng hộ server (Donate) */}
+              <button
+                type="button"
+                onClick={onOpenDonate}
+                title="Ủng hộ duy trì server • Tặng thêm 100k - 250k xu"
+                className="flex items-center gap-1.5 rounded-xl border border-[#D5B46B] bg-gradient-to-r from-[#8E2926] via-[#A87932] to-[#8E2926] px-3 py-1.5 text-xs font-black text-[#FAF5EB] hover:brightness-110 active:scale-95 shadow-[0_0_12px_rgba(213,180,107,0.35)] transition-all"
+              >
+                <Coffee size={15} className="text-amber-300 animate-pulse" />
+                <span>Ủng hộ server</span>
               </button>
 
               {/* Nút Xem Ví Xu & Sổ cái */}
@@ -285,6 +329,17 @@ export default function RoomSwitchHeader({
                     title="Đang phát nhạc nền Lofi"
                   />
                 )}
+              </button>
+
+              {/* Nút Chia sẻ liên kết bàn chơi */}
+              <button
+                type="button"
+                onClick={onOpenShare}
+                title="Chia sẻ liên kết bàn chơi cho bạn bè"
+                aria-label="Chia sẻ liên kết bàn chơi cho bạn bè"
+                className="flex size-9 items-center justify-center rounded-xl border border-[#A87932]/50 bg-[#2b1c15] text-[#D5B46B] hover:bg-[#3d271c] hover:border-[#D5B46B] hover:text-[#FAF5EB] active:scale-95 transition-all shadow-inner"
+              >
+                <Share2 size={16} />
               </button>
             </div>
           </div>

@@ -9,31 +9,33 @@ import { HeritageCoinIcon, DongSonSun } from './HeritageIcons';
 const REWARD_AMOUNTS = [5000, 10000, 15000, 25000, 40000, 60000, 100000];
 
 export default function DailyRewardModal({ open, onClose, onRewardClaimed }) {
-  const { dailyReward, claimReward, betBalance } = useAuthStore();
+  const { dailyReward, claimReward, claimDailyReward, betBalance } = useAuthStore();
   const [isClaiming, setIsClaiming] = useState(false);
 
   if (!open) return null;
 
   const currentStreak = dailyReward?.currentStreak || 0;
-  const canClaimToday = dailyReward?.canClaimToday ?? true;
-  const claimedToday = dailyReward?.claimedToday || false;
-  const nextStreakDay = dailyReward?.nextStreakDay || 1;
-  const nextRewardAmount = dailyReward?.nextRewardAmount || REWARD_AMOUNTS[nextStreakDay - 1] || 5000;
+  const canClaimToday = dailyReward?.canClaimToday ?? dailyReward?.canClaim ?? true;
+  const claimedToday = dailyReward?.claimedToday || (dailyReward?.canClaimToday === false);
+  const nextStreakDay = dailyReward?.nextStreakDay || (dailyReward?.streakDay ? (dailyReward.streakDay % 7) + 1 : 1);
+  const nextRewardAmount = dailyReward?.nextRewardAmount || dailyReward?.rewardAmount || REWARD_AMOUNTS[nextStreakDay - 1] || 5000;
 
   const handleClaim = async () => {
     if (!canClaimToday || isClaiming) return;
     setIsClaiming(true);
     try {
-      const res = await claimReward();
-      if (res.success) {
-        toast.success(`🎉 Điểm danh thành công! Bạn nhận được +${res.amount.toLocaleString()} xu!`, {
+      const claimFn = claimReward || claimDailyReward;
+      const res = await claimFn();
+      if (res?.success || res?.ok) {
+        const receivedAmount = res.amount || res.rewardAmount || nextRewardAmount;
+        toast.success(`🎉 Điểm danh thành công! Bạn nhận được +${receivedAmount.toLocaleString()} xu!`, {
           duration: 5000
         });
         if (typeof onRewardClaimed === 'function') {
-          onRewardClaimed(res.newBalance);
+          onRewardClaimed(res.newBalance || res.balance);
         }
       } else {
-        toast.error(res.message || 'Không thể nhận thưởng hôm nay.');
+        toast.error(res?.message || 'Không thể nhận thưởng hôm nay.');
       }
     } catch (err) {
       toast.error(err.message || 'Lỗi kết nối khi nhận thưởng.');

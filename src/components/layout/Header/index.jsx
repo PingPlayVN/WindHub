@@ -7,12 +7,15 @@ import { useAuthStore } from '@/store/useAuthStore';
 import useInstallPrompt from '@/hooks/useInstallPrompt';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
+import UserAvatar from '@/components/ui/UserAvatar';
+import UserProfileModal from './UserProfileModal';
 
 export default function Header() {
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
   const { theme, toggleTheme } = useThemeStore();
   const { toggleSidebar, openLogin } = useUIStore();
-  const { user, isAdmin } = useAuthStore();
+  const { user, isAdmin, player, logout } = useAuthStore();
   const { canInstall, isInstalled, install } = useInstallPrompt();
   const [showInstallHelp, setShowInstallHelp] = useState(false);
   const location = useLocation();
@@ -32,8 +35,7 @@ export default function Header() {
 
   const handleLogout = async () => {
     try {
-      const [{ signOut }, { auth }] = await Promise.all([import('firebase/auth'), import('@/services/firebase')]);
-      await signOut(auth);
+      await logout();
       toast.success('Đăng xuất thành công');
     } catch {
       toast.error('Không thể đăng xuất');
@@ -98,10 +100,25 @@ export default function Header() {
             </button>
           )}
           {isAdmin ? (
-            <div className="relative flex items-center gap-1">
-              <div className="flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-800 dark:bg-amber-950 dark:text-amber-300">
-                <ShieldCheck size={15} /> Admin
-              </div>
+            <div className="relative flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setShowProfileModal(true)}
+                title="Xem hồ sơ & Ví game"
+                className="group flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 py-1 pl-2.5 pr-1 text-xs font-semibold text-amber-800 transition hover:bg-amber-500/20 active:scale-95 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-950/70"
+              >
+                <div className="flex items-center gap-1">
+                  <ShieldCheck size={14} className="text-amber-600 dark:text-amber-400" />
+                  <span>Admin</span>
+                </div>
+                <UserAvatar
+                  src={player?.avatarUrl || user?.photoURL}
+                  name={player?.displayName || user?.displayName}
+                  email={player?.email || user?.email}
+                  size={26}
+                  className="border border-amber-500/50"
+                />
+              </button>
 
               {/* NÚT BẬT ERUDA: Dùng md:hidden để chỉ hiện trên Mobile */}
               <button aria-label="Mobile DevTools" onClick={toggleEruda} className="md:hidden rounded-full p-1.5 text-amber-700 transition hover:bg-amber-100 dark:text-amber-300 dark:hover:bg-amber-950">
@@ -112,12 +129,28 @@ export default function Header() {
                 <CircleHelp size={17} />
               </button>
             </div>
-          ) : user ? (
-            <span className="hidden max-w-40 truncate text-xs text-slate-500 sm:block">{user.email}</span>
+          ) : (user || player) ? (
+            <button
+              type="button"
+              onClick={() => setShowProfileModal(true)}
+              title="Xem hồ sơ & Ví game"
+              className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50/80 py-1 pl-1 pr-2.5 text-xs font-medium text-slate-700 transition hover:bg-slate-100 active:scale-95 dark:border-zinc-800 dark:bg-zinc-900/60 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            >
+              <UserAvatar
+                src={player?.avatarUrl || user?.photoURL}
+                name={player?.displayName || user?.displayName}
+                email={player?.email || user?.email}
+                size={26}
+                className="border border-slate-300 dark:border-zinc-700"
+              />
+              <span className="hidden max-w-36 truncate text-xs font-medium sm:block">
+                {player?.displayName || user?.displayName || player?.email || user?.email}
+              </span>
+            </button>
           ) : (
             <button onClick={openLogin} className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-amber-700 transition hover:bg-amber-50 active:scale-95 dark:text-amber-400 dark:hover:bg-amber-950"><LogIn size={18} /> Đăng nhập</button>
           )}
-          {user && <button aria-label="Đăng xuất" onClick={handleLogout} className="rounded-full p-2 text-slate-600 transition hover:bg-slate-100 active:scale-95 dark:text-slate-300 dark:hover:bg-slate-900"><LogOut size={19} /></button>}
+          {(user || player) && <button aria-label="Đăng xuất" onClick={handleLogout} className="rounded-full p-2 text-slate-600 transition hover:bg-slate-100 active:scale-95 dark:text-slate-300 dark:hover:bg-slate-900"><LogOut size={19} /></button>}
           <button
             type="button"
             aria-label={theme === 'light' ? 'Bật giao diện tối' : 'Bật giao diện sáng'}
@@ -128,6 +161,14 @@ export default function Header() {
           </button>
         </div>
       </header>
+
+      {/* USER PROFILE MODAL */}
+      <UserProfileModal
+        open={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        onOpenShortcuts={() => setShowShortcuts(true)}
+        onToggleEruda={toggleEruda}
+      />
 
       {/* POPUP PHÍM TẮT XỊN XÒ */}
       <AnimatePresence>

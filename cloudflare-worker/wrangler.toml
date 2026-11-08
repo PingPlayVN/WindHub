@@ -6,8 +6,8 @@ workers_dev = true
 [vars]
 # Set this to your deployed WindHub origin in production. Keep * for local development.
 ALLOWED_ORIGIN = "*"
-# GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
-# SESSION_SECRET = "14W!ndH#07uB@20Se$09ss!0nKey#32"
+GOOGLE_CLIENT_ID = "439323775591-jgo64nveb397v0dtj5g3v0b5gv59a9vt.apps.googleusercontent.com"
+SESSION_SECRET = "14W!ndH#07uB@20Se$09ss!0nKey#32"
 
 [durable_objects]
 bindings = [

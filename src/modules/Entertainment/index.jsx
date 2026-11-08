@@ -1,7 +1,9 @@
 // src/modules/Entertainment/index.jsx
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Dices, Sparkles, ArrowRight, Lock } from 'lucide-react';
+import { Dices, Sparkles, ArrowRight, Lock, Share2 } from 'lucide-react';
+import GameShareModal from './components/GameShareModal';
 
 const GAMES = [
   {
@@ -29,6 +31,8 @@ const GAMES = [
 ];
 
 export default function Entertainment() {
+  const [shareGame, setShareGame] = useState(null);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -109,9 +113,24 @@ export default function Entertainment() {
 
                 <div className="mt-6 pt-3 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between">
                   {game.isLive ? (
-                    <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-600 dark:text-amber-400 group-hover:translate-x-1 transition-transform">
-                      Vào sòng ngay <ArrowRight size={14} />
-                    </span>
+                    <>
+                      <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-600 dark:text-amber-400 group-hover:translate-x-1 transition-transform">
+                        Vào sòng ngay <ArrowRight size={14} />
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setShareGame(game);
+                        }}
+                        title="Chia sẻ liên kết trò chơi"
+                        className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-500 hover:text-amber-600 hover:bg-amber-500/10 dark:text-slate-400 dark:hover:text-amber-400 transition-colors"
+                      >
+                        <Share2 size={13} />
+                        <span>Chia sẻ</span>
+                      </button>
+                    </>
                   ) : (
                     <span className="text-xs text-slate-400 italic">Đang xây dựng...</span>
                   )}
@@ -121,6 +140,15 @@ export default function Entertainment() {
           })}
         </div>
       </div>
+
+      <GameShareModal
+        isOpen={!!shareGame}
+        onClose={() => setShareGame(null)}
+        gameTitle={shareGame?.title || 'Tài Xỉu Dân Gian'}
+        roomTitle="Sòng Trò Chơi"
+        shareUrl={shareGame ? `${typeof window !== 'undefined' ? window.location.origin : ''}${shareGame.link}` : ''}
+        description={shareGame?.subtitle || 'Mời bạn bè cùng tham gia sòng trò chơi dân gian trực tuyến trên WindHub!'}
+      />
     </motion.div>
   );
 }

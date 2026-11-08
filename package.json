@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@cyntler/react-doc-viewer": "^1.17.1",
+    "@doan-labs/peek": "^2.0.0",
     "@embedpdf/react-pdf-viewer": "^2.15.0",
     "@uploadcare/react-uploader": "^1.17.0",
     "firebase": "^12.17.1",

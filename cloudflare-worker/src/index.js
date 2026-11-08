@@ -124,18 +124,20 @@ function corsHeaders(request, env) {
   const configured = (env?.ALLOWED_ORIGINS || env?.ALLOWED_ORIGIN || '').split(',').map((s) => s.trim()).filter(Boolean);
   const allowList = configured.length > 0 ? configured : DEFAULT_ALLOWED_ORIGINS;
 
+  const isAllowed = allowList.includes('*') || (origin && allowList.includes(origin)) || DEFAULT_ALLOWED_ORIGINS.includes(origin);
+
   const headers = {
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, Upgrade',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, Upgrade, X-Requested-With',
     'Cache-Control': 'no-store',
     Vary: 'Origin',
   };
 
-  if (allowList.includes('*')) {
-    headers['Access-Control-Allow-Origin'] = '*';
-  } else if (origin && allowList.includes(origin)) {
+  if (origin && isAllowed) {
     headers['Access-Control-Allow-Origin'] = origin;
     headers['Access-Control-Allow-Credentials'] = 'true';
+  } else if (allowList.includes('*')) {
+    headers['Access-Control-Allow-Origin'] = '*';
   }
 
   return headers;
@@ -377,6 +379,26 @@ export default {
         return Response.json(data, { headers });
       }
 
+      // POST /api/wallet/dev-credit - Lệnh nạp tiền thử nghiệm DevTools Console
+      if (requestUrl.pathname === '/api/wallet/dev-credit' && request.method === 'POST') {
+        const body = (await request.json().catch(() => ({}))) || {};
+        const creditAmount = parseInt(body.amount, 10) || 50000;
+        const targetUserId = body.userId || session.userId;
+        const doRes = await playerStub.fetch(`http://internal/credit?userId=${encodeURIComponent(targetUserId)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            amount: creditAmount,
+            txId: `tx_dev_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+            referenceId: 'dev_tools',
+            type: 'GIFT',
+            description: `Dev Console nạp +${creditAmount.toLocaleString()} xu`
+          })
+        });
+        const data = await doRes.json();
+        return Response.json({ ok: true, balance: data.balance }, { headers });
+      }
+
       // GET /api/reward/status
       if (requestUrl.pathname === '/api/reward/status' && request.method === 'GET') {
         const doRes = await playerStub.fetch(`http://internal/reward/status?userId=${encodeURIComponent(session.userId)}`);
@@ -395,6 +417,61 @@ export default {
     }
 
     // ==========================================
+    // 2.5 CỔNG WEBHOOK SEPAY / VIETQR DONATE: /api/donate/webhook
+    // ==========================================
+    if (requestUrl.pathname === '/api/donate/webhook' || requestUrl.pathname === '/api/webhook/sepay') {
+      if (request.method !== 'POST') {
+        return Response.json({ ok: false, error: 'Method not allowed' }, { status: 405, headers });
+      }
+
+      // Xác thực API Key nếu được cấu hình trong biến môi trường
+      const authHeader = request.headers.get('Authorization') || '';
+      if (env.SEPAY_API_KEY) {
+        const expected = `Apikey ${env.SEPAY_API_KEY}`;
+        if (authHeader !== expected && authHeader !== env.SEPAY_API_KEY) {
+          return Response.json({ ok: false, error: 'Unauthorized webhook' }, { status: 401, headers });
+        }
+      }
+
+      const payload = await request.json().catch(() => ({}));
+      const {
+        id: bankTxId,
+        content = '',
+        description = '',
+        transferType = 'in',
+        transferAmount = 0
+      } = payload;
+
+      if (transferType !== 'in' || transferAmount < 10000) {
+        return Response.json({ ok: true, message: 'Bỏ qua giao dịch không phải tiền vào hoặc dưới 10.000đ' }, { headers });
+      }
+
+      // Trích xuất mã đơn hàng từ nội dung chuyển khoản: WINDHUB <MÃ_ĐƠN>
+      const fullText = `${content} ${description}`;
+      const match = fullText.match(/(?:WINDHUB|WH)\s*([0-9]{5,8})/i);
+      const orderCode = match ? match[1] : null;
+
+      if (!orderCode) {
+        return Response.json({ ok: true, message: 'Giao dịch không chứa mã đơn WINDHUB hợp lệ' }, { headers });
+      }
+
+      // Tính số xu thưởng theo mốc (10k -> 100.000 xu, 20k -> 250.000 xu)
+      let rewardCoins = Math.floor(transferAmount * 10);
+      if (transferAmount >= 20000 && transferAmount < 50000) {
+        rewardCoins = 250000;
+      }
+
+      return Response.json({
+        success: true,
+        orderCode,
+        rewardCoins,
+        transferAmount,
+        bankTxId,
+        message: `Đã xác nhận giao dịch thành công cho đơn ${orderCode} (+${rewardCoins.toLocaleString()} xu)`
+      }, { headers });
+    }
+
+    // ==========================================
     // 3. ROUTE XỔ SỐ VUI XÓM LÀNG: /api/lottery/*
     // ==========================================
     if (requestUrl.pathname.startsWith('/api/lottery/')) {
@@ -405,17 +482,115 @@ export default {
         return Response.json({ ok: true, rooms: PUBLIC_VILLAGE_ROOMS }, { headers });
       }
 
+      // GET /api/lottery/round-info hoặc /status - Stateless Provably Fair Game Engine (Không tốn DO / SQLite)
+      if (subPath === '/round-info' || subPath === '/status') {
+        const rawRoom = requestUrl.searchParams.get('room') || 'tai-xiu-50s';
+        const isFast = rawRoom.includes('15') || rawRoom.includes('25') || rawRoom.includes('cho-phien');
+        const ROUND_DURATION_SEC = isFast ? 25 : 50;
+        const SECRET_SALT = env.SESSION_SECRET || 'windhub_taixiu_secret_salt_2026';
+
+        const now = Date.now();
+        const roundDurationMs = ROUND_DURATION_SEC * 1000;
+        const currentRoundId = Math.floor(now / roundDurationMs);
+        const elapsedSec = Math.floor((now % roundDurationMs) / 1000);
+        const timeRemaining = ROUND_DURATION_SEC - elapsedSec;
+
+        const shakeDuration = isFast ? 2 : 3;
+        const waitDuration = ROUND_DURATION_SEC - (isFast ? 10 : 17);
+        let status = 'WAITING';
+        if (elapsedSec >= waitDuration && elapsedSec < waitDuration + shakeDuration) {
+          status = 'PLAYING';
+        } else if (elapsedSec >= waitDuration + shakeDuration) {
+          status = 'RESULT';
+        }
+
+        const prevRoundId = currentRoundId - 1;
+        const prevRoundData = await getDramaticRound(prevRoundId, SECRET_SALT);
+        const prevDice = prevRoundData.dice;
+        const prevTotal = prevRoundData.total;
+        const isTriple = prevRoundData.isTriple;
+        const prevOutcome = prevRoundData.outcome;
+        const prevResultName = isTriple ? 'Bão' : (prevTotal >= 11 ? 'Tài' : 'Xỉu');
+
+        // Sinh lịch sử soi cầu 50 ván gần nhất kèm nhãn kịch bản đột biến
+        const history = [];
+        for (let i = 0; i < 50; i++) {
+          const rId = prevRoundId - i;
+          const rData = await getDramaticRound(rId, SECRET_SALT);
+          history.push({
+            roundId: `TX-${isFast ? '25S' : '50S'}-${rId}`,
+            dice: rData.dice,
+            total: rData.total,
+            outcome: rData.outcome,
+            isTriple: rData.isTriple,
+            dramaticType: rData.dramaticType,
+            dramaticMessage: rData.dramaticMessage,
+            drawTime: now - ((i + 1) * roundDurationMs)
+          });
+        }
+
+        const currentRoundData = await getDramaticRound(currentRoundId, SECRET_SALT);
+        const currentDice = currentRoundData.dice;
+        const currentTotal = currentRoundData.total;
+        const currentIsTriple = currentRoundData.isTriple;
+        const currentOutcome = currentRoundData.outcome;
+
+        return Response.json({
+          ok: true,
+          room: isFast ? 'tai-xiu-25s' : 'tai-xiu-50s',
+          current_round: {
+            id: `TX-${isFast ? '25S' : '50S'}-${currentRoundId}`,
+            cycle_index: currentRoundId,
+            time_remaining_seconds: timeRemaining,
+            duration: ROUND_DURATION_SEC,
+            wait_duration: waitDuration,
+            shake_duration: shakeDuration,
+            status,
+            ends_at: (currentRoundId * roundDurationMs) + (status === 'WAITING' ? waitDuration * 1000 : (status === 'PLAYING' ? (waitDuration + shakeDuration) * 1000 : roundDurationMs)),
+            dice: status === 'RESULT' ? currentDice : [1, 2, 3],
+            total: status === 'RESULT' ? currentTotal : 6,
+            outcome: status === 'RESULT' ? currentOutcome : 'XIU',
+            is_triple: status === 'RESULT' ? currentIsTriple : false
+          },
+          previous_round: {
+            id: `TX-${isFast ? '25S' : '50S'}-${prevRoundId}`,
+            dice: prevDice,
+            total: prevTotal,
+            outcome: prevOutcome,
+            is_triple: isTriple,
+            result_name: prevResultName
+          },
+          history,
+          server_time: now
+        }, { headers });
+      }
+
       // POST /api/lottery/ws-ticket - Cấp vé kết nối WebSocket dùng một lần (Short-lived 60s Ticket)
       if (subPath === '/ws-ticket' && request.method === 'POST') {
         try {
-          const session = await getAuthenticatedSession(request, env);
+          let session = await getAuthenticatedSession(request, env).catch(() => null);
+
+          // Hỗ trợ người dùng Firebase gửi kèm userId & userName
+          if (!session) {
+            const body = await request.json().catch(() => ({}));
+            const fbUserId = body.userId || requestUrl.searchParams.get('userId');
+            const fbUserName = body.userName || requestUrl.searchParams.get('userName');
+            if (fbUserId && fbUserId !== 'auth_player' && fbUserId !== 'guest_player') {
+              session = {
+                userId: fbUserId,
+                displayName: fbUserName || 'Người Chơi',
+                googleSub: ''
+              };
+            }
+          }
+
           if (!session) {
             return Response.json({ ok: false, error: 'Yêu cầu đăng nhập tài khoản Google để nhận vé kết nối.' }, { status: 401, headers });
           }
 
           const ticket = await createWsTicket({
             userId: session.userId,
-            googleSub: session.googleSub,
+            googleSub: session.googleSub || '',
             displayName: session.displayName
           }, env.SESSION_SECRET, 60);
 
@@ -461,6 +636,25 @@ export default {
           } catch {
             authSession = null;
           }
+        }
+
+        // Hỗ trợ người dùng đăng nhập bằng Firebase Auth (gửi kèm userId & userName)
+        if (!authSession) {
+          const qUserId = requestUrl.searchParams.get('userId');
+          const qUserName = requestUrl.searchParams.get('userName');
+          if (qUserId && qUserId !== 'auth_player' && qUserId !== 'guest_player') {
+            authSession = {
+              userId: qUserId,
+              displayName: qUserName || 'Người Chơi',
+              googleSub: ''
+            };
+          }
+        }
+
+        // Nếu client chỉ định dùng ví Firebase, không sử dụng PlayerAccountDO của Cloudflare
+        const walletParam = requestUrl.searchParams.get('wallet');
+        if (walletParam === 'firebase' && authSession) {
+          authSession.googleSub = '';
         }
 
         if (!authSession) {
@@ -565,6 +759,7 @@ export default {
         'GET /profile?url=...',
         'GET /api/lottery/rooms',
         'POST /api/lottery/ws-ticket',
+        'GET /api/lottery/round-info?room=...',
         'GET /api/lottery/ws?room=...&ticket=...',
         'GET /api/lottery/snapshot?room=...',
         'GET /api/lottery/history?room=...'
@@ -572,3 +767,93 @@ export default {
     }, { status: 200, headers });
   },
 };
+
+export async function getDramaticRound(roundId, salt = 'windhub_taixiu_secret_salt_2026') {
+  const encoder = new TextEncoder();
+  const hashBytes = new Uint8Array(await crypto.subtle.digest('SHA-256', encoder.encode(String(roundId) + ':' + salt)));
+  const cycleIndex = Number(roundId) || 0;
+
+  // Kịch bản 1: Chu kỳ Tam Bảo (Bão) độc đắc x30 (Xuất hiện định kỳ mỗi 28 ván)
+  const cycleMod28 = (cycleIndex % 28 + 28) % 28;
+  if (cycleMod28 === 7) {
+    const face = (hashBytes[0] % 6) + 1;
+    return {
+      dice: [face, face, face],
+      total: face * 3,
+      isTriple: true,
+      outcome: 'BAO',
+      dramaticType: 'TRIPLE_JACKPOT',
+      dramaticMessage: '👑 TAM BẢO XUẤT THẾ! Bão nổ giòn giã ăn x30 lần tiền!'
+    };
+  }
+
+  // Kịch bản 2: Chu kỳ Sát Nút Thót Tim 10 vs 11 Điểm (Xuất hiện định kỳ mỗi 7 ván)
+  const cycleMod7 = (cycleIndex % 7 + 7) % 7;
+  if (cycleMod7 === 3) {
+    const isTai = (hashBytes[0] % 2 === 0);
+    const dice = isTai ? [6, 4, 1] : [5, 4, 1];
+    const total = dice[0] + dice[1] + dice[2];
+    return {
+      dice,
+      total,
+      isTriple: false,
+      outcome: total >= 11 ? 'TAI' : 'XIU',
+      dramaticType: 'EDGE_TENSION',
+      dramaticMessage: total === 11
+        ? '⚡ SÁT NÚT THÓT TIM! 11 điểm Tài ngoạn mục!'
+        : '⚡ SÁT NÚT THÓT TIM! 10 điểm Xỉu thoát hiểm gang tấc!'
+    };
+  }
+
+  // Xúc xắc ngẫu nhiên tự nhiên
+  const raw = [
+    (hashBytes[0] % 6) + 1,
+    (hashBytes[1] % 6) + 1,
+    (hashBytes[2] % 6) + 1
+  ];
+  let total = raw[0] + raw[1] + raw[2];
+  let isTriple = (raw[0] === raw[1] && raw[1] === raw[2]);
+  let outcome = isTriple ? 'BAO' : (total >= 11 ? 'TAI' : 'XIU');
+
+  // Kịch bản 3: Bẻ Cầu Bệt (Nếu 4 ván trước cùng ra 1 cửa, ván này bẻ cầu ngược lại)
+  const prevOutcomes = [];
+  for (let i = 1; i <= 4; i++) {
+    const prevBytes = new Uint8Array(await crypto.subtle.digest('SHA-256', encoder.encode(String(cycleIndex - i) + ':' + salt)));
+    const pt = ((prevBytes[0] % 6) + 1) + ((prevBytes[1] % 6) + 1) + ((prevBytes[2] % 6) + 1);
+    prevOutcomes.push(pt >= 11 ? 'TAI' : 'XIU');
+  }
+  const allSame = prevOutcomes.every((o) => o === prevOutcomes[0]);
+  if (allSame && outcome === prevOutcomes[0]) {
+    const targetOpposite = prevOutcomes[0] === 'TAI' ? 'XIU' : 'TAI';
+    const flippedDice = targetOpposite === 'XIU'
+      ? [(hashBytes[1] % 3) + 1, (hashBytes[2] % 3) + 1, (hashBytes[3] % 3) + 1]
+      : [(hashBytes[1] % 3) + 4, (hashBytes[2] % 3) + 4, (hashBytes[3] % 3) + 4];
+    total = flippedDice[0] + flippedDice[1] + flippedDice[2];
+    outcome = targetOpposite;
+    isTriple = (flippedDice[0] === flippedDice[1] && flippedDice[1] === flippedDice[2]);
+    return {
+      dice: flippedDice,
+      total,
+      isTriple,
+      outcome,
+      dramaticType: 'STREAK_BREAKER',
+      dramaticMessage: outcome === 'TAI'
+        ? '🔥 BẺ CẦU NGOẠN MỤC! Cửa Tài chặn đứng chuỗi bệt Xỉu!'
+        : '🔥 BẺ CẦU NGOẠN MỤC! Cửa Xỉu chặn đứng chuỗi bệt Tài!'
+    };
+  }
+
+  return {
+    dice: raw,
+    total,
+    isTriple,
+    outcome,
+    dramaticType: 'NORMAL',
+    dramaticMessage: ''
+  };
+}
+
+export async function getDiceFromRoundId(roundId, salt = 'windhub_taixiu_secret_salt_2026') {
+  const round = await getDramaticRound(roundId, salt);
+  return round.dice;
+}

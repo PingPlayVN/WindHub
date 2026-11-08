@@ -11,59 +11,44 @@ export default function GoogleLoginGate() {
   const navigate = useNavigate();
   const { loginWithGoogle, isPlayerLoading } = useAuthStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const googleBtnContainerRef = useRef(null);
 
-  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+  // Đăng nhập trực tiếp bằng Google Popup (Firebase Auth) - Bảo mật, tiện lợi, không bị lỗi 403 Origin iframe của GIS
+  const handleGooglePopupSignIn = async () => {
+    setIsSubmitting(true);
+    try {
+      const [{ GoogleAuthProvider, signInWithPopup }, { auth }] = await Promise.all([
+        import('firebase/auth'),
+        import('@/services/firebase')
+      ]);
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
 
-  // Nạp Google Identity Services (GIS) script
-  useEffect(() => {
-    let script = document.getElementById('google-gis-script');
-
-    const initializeGis = () => {
-      if (window.google?.accounts?.id && googleClientId) {
-        window.google.accounts.id.initialize({
-          client_id: googleClientId,
-          callback: async (response) => {
-            if (response.credential) {
-              setIsSubmitting(true);
-              try {
-                await loginWithGoogle(response.credential);
-                toast.success('Đăng nhập Google thành công! Chúc bạn chơi vui vẻ.');
-              } catch (err) {
-                toast.error(err.message || 'Đăng nhập Google thất bại.');
-              } finally {
-                setIsSubmitting(false);
-              }
-            }
-          }
-        });
-
-        if (googleBtnContainerRef.current) {
-          googleBtnContainerRef.current.innerHTML = '';
-          window.google.accounts.id.renderButton(googleBtnContainerRef.current, {
-            theme: 'filled_black',
-            size: 'large',
-            shape: 'pill',
-            text: 'signin_with',
-            locale: 'vi',
-            width: 280
-          });
+      try {
+        const credential = GoogleAuthProvider.credentialFromResult(result);
+        const idToken = credential?.idToken;
+        if (idToken) {
+          await loginWithGoogle(idToken);
+        } else {
+          await useAuthStore.getState().initPlayerAuth();
         }
+      } catch (workerErr) {
+        console.warn('Worker sync error:', workerErr);
       }
-    };
 
-    if (!script) {
-      script = document.createElement('script');
-      script.id = 'google-gis-script';
-      script.src = 'https://accounts.google.com/gsi/client';
-      script.async = true;
-      script.defer = true;
-      script.onload = initializeGis;
-      document.head.appendChild(script);
-    } else {
-      initializeGis();
+      toast.success(`Đăng nhập Google thành công! Xin chào ${user.displayName || user.email}`);
+    } catch (err) {
+      if (err.code === 'auth/popup-closed-by-user') {
+        toast.info('Bạn đã đóng cửa sổ đăng nhập.');
+      } else {
+        console.error('Google sign in error:', err);
+        toast.error(err.message || 'Đăng nhập Google thất bại.');
+      }
+    } finally {
+      setIsSubmitting(false);
     }
-  }, [googleClientId, loginWithGoogle]);
+  };
 
   // Hỗ trợ đăng nhập thử nghiệm môi trường phát triển (Khi chưa có Client ID Google)
   const handleDevSignIn = async () => {
@@ -148,19 +133,32 @@ export default function GoogleLoginGate() {
 
         {/* NÚT ĐĂNG NHẬP GOOGLE */}
         <div className="flex flex-col items-center gap-3">
-          {/* Nơi render nút Google Identity Services */}
-          <div ref={googleBtnContainerRef} className="min-h-[44px] flex items-center justify-center w-full" />
+          {/* Nút Đăng Nhập Google Native Popup (Hoạt động ổn định trên mọi port / domain không bị lỗi 403 iframe) */}
+          <button
+            type="button"
+            disabled={isSubmitting || isPlayerLoading}
+            onClick={handleGooglePopupSignIn}
+            className="flex w-full items-center justify-center gap-3 rounded-2xl bg-white px-5 py-3 text-sm font-bold text-slate-800 shadow-xl transition-all hover:bg-slate-100 hover:shadow-2xl active:scale-[0.98] disabled:opacity-60 cursor-pointer"
+          >
+            <svg className="size-5 shrink-0" viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+            </svg>
+            <span>{isSubmitting ? 'Đang kết nối Google...' : 'Đăng nhập nhanh với Google'}</span>
+          </button>
 
-          {/* Nút đăng nhập phụ trợ / Fallback (CHỈ cho phép trong môi trường Local Dev Vite) */}
-          {import.meta.env.DEV && (!googleClientId || !window.google?.accounts?.id) && (
+          {/* Nút đăng nhập phụ trợ / Fallback (Môi trường Local Dev Vite) */}
+          {import.meta.env.DEV && (
             <button
               type="button"
               disabled={isSubmitting || isPlayerLoading}
               onClick={handleDevSignIn}
-              className="w-full flex items-center justify-center gap-2 rounded-2xl border border-[#D5B46B]/60 bg-gradient-to-r from-[#8E2926] via-[#A8322E] to-[#6A1A17] py-3 px-4 font-bold text-[#FAF5EB] shadow-lg hover:brightness-110 active:scale-98 transition-all disabled:opacity-60"
+              className="w-full flex items-center justify-center gap-2 rounded-2xl border border-[#D5B46B]/40 bg-[#251812] py-2.5 px-4 text-xs font-semibold text-[#D5B46B] hover:text-[#FAF5EB] hover:bg-[#342219] active:scale-98 transition-all disabled:opacity-60"
             >
-              <LogIn size={18} />
-              <span>{isSubmitting ? 'Đang kết nối...' : 'Đăng Nhập Thử Nghiệm (Dev Only)'}</span>
+              <LogIn size={15} />
+              <span>{isSubmitting ? 'Đang kết nối...' : 'Tài khoản thử nghiệm Local (Dev)'}</span>
             </button>
           )}
 

@@ -1,13 +1,13 @@
 // src/utils/devTools.js
 import { useAuthStore } from '@/store/useAuthStore';
-import { getWorkerBaseUrl, getStoredSessionToken } from '@/services/playerApi';
+import { creditPlayerWallet, setPlayerBalanceInFirestore } from '@/services/firebaseWallet';
 
 export function setupDevTools() {
   if (typeof window === 'undefined') return;
 
   window.get_user_id = () => {
     const store = useAuthStore.getState();
-    const userId = store.player?.userId || localStorage.getItem('windhub_last_user_id') || 'guest_player';
+    const userId = store.user?.uid || store.player?.userId || store.player?.uid || localStorage.getItem('windhub_last_user_id') || 'guest_player';
     console.log('%c[WindHub DevTools] User ID: %c' + userId, 'color: #D5B46B; font-weight: bold;', 'color: #38bdf8; font-weight: bold;');
     return userId;
   };
@@ -27,42 +27,63 @@ export function setupDevTools() {
       userId = window.get_user_id();
     }
 
-    console.log(`%c[WindHub DevTools] Đang cộng +${amount.toLocaleString()} xu cho ${userId}...`, 'color: #38bdf8;');
+    console.log(`%c[WindHub DevTools] Đang cộng +${amount.toLocaleString()} xu cho ${userId} trên Firebase Firestore...`, 'color: #38bdf8;');
 
-    try {
-      const baseUrl = getWorkerBaseUrl();
-      const token = getStoredSessionToken();
-      const res = await fetch(`${baseUrl}/api/wallet/dev-credit`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        },
-        body: JSON.stringify({ userId, amount })
-      });
-
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && typeof data.balance === 'number') {
-        useAuthStore.getState().updateBetBalance(data.balance);
-        console.log(`%c[WindHub DevTools] Thành công! Số dư ví của ${userId}: ${data.balance.toLocaleString()} xu.`, 'color: #4ade80; font-weight: bold;');
-        return data.balance;
+    // 1. Thử ghi trực tiếp vào Firebase Firestore
+    if (userId && userId !== 'guest_player') {
+      try {
+        const res = await creditPlayerWallet(userId, amount, {
+          type: 'DEV_CREDIT',
+          description: `Admin DevTools cộng +${amount.toLocaleString()} xu`
+        });
+        if (res && typeof res.balance === 'number') {
+          useAuthStore.getState().updateBetBalance(res.balance);
+          try {
+            localStorage.setItem('windhub_dev_balance', String(res.balance));
+          } catch {}
+          console.log(`%c[WindHub DevTools] Thành công! Số dư ví Firestore của ${userId}: ${res.balance.toLocaleString()} xu. (Đã lưu Firebase & F5 không mất)`, 'color: #4ade80; font-weight: bold;');
+          return res.balance;
+        }
+      } catch (fbErr) {
+        console.warn('[WindHub DevTools] Firebase credit error:', fbErr);
       }
-    } catch {
-      // Fallback: update client store optimistically if worker endpoint is not reachable
     }
 
+    // 2. Fallback nếu không có Firestore user
     const current = useAuthStore.getState().betBalance || 0;
     const newBal = current + amount;
     useAuthStore.getState().updateBetBalance(newBal);
-    console.log(`%c[WindHub DevTools] Đã cập nhật số dư client: ${newBal.toLocaleString()} xu.`, 'color: #fbbf24; font-weight: bold;');
+    try {
+      localStorage.setItem('windhub_dev_balance', String(newBal));
+    } catch {}
+    console.log(`%c[WindHub DevTools] Đã cập nhật số dư client: ${newBal.toLocaleString()} xu. (Đã lưu bộ nhớ F5 không mất)`, 'color: #fbbf24; font-weight: bold;');
     return newBal;
   };
   window.getMoney = window.get_money;
 
   window.set_money = async (amount = 100000) => {
-    const cur = useAuthStore.getState().betBalance || 0;
-    const delta = amount - cur;
-    return window.get_money(delta);
+    const userId = window.get_user_id();
+    console.log(`%c[WindHub DevTools] Đang đặt số dư ví ${userId} = ${amount.toLocaleString()} xu trên Firebase Firestore...`, 'color: #38bdf8;');
+
+    if (userId && userId !== 'guest_player') {
+      try {
+        await setPlayerBalanceInFirestore(userId, amount);
+        useAuthStore.getState().updateBetBalance(amount);
+        try {
+          localStorage.setItem('windhub_dev_balance', String(amount));
+        } catch {}
+        console.log(`%c[WindHub DevTools] Thành công! Số dư ví Firestore của ${userId} = ${amount.toLocaleString()} xu. (F5 không mất)`, 'color: #4ade80; font-weight: bold;');
+        return amount;
+      } catch (err) {
+        console.warn('[WindHub DevTools] Firebase set error:', err);
+      }
+    }
+
+    useAuthStore.getState().updateBetBalance(amount);
+    try {
+      localStorage.setItem('windhub_dev_balance', String(amount));
+    } catch {}
+    return amount;
   };
   window.setMoney = window.set_money;
 

@@ -19,7 +19,8 @@ export default function BetBoard({
   myBets = [],
   myPoints = 10000,
   betSummary = { taiTotal: 0, xiuTotal: 0, baoTotal: 0 },
-  onPlaceBet
+  onPlaceBet,
+  onOpenDonate
 }) {
   const [selectedSide, setSelectedSide] = useState(null); // 'XIU' | 'TAI' | null
   const [pendingAmount, setPendingAmount] = useState(0);
@@ -89,15 +90,15 @@ export default function BetBoard({
   const isSelectingTai = selectedSide === 'TAI';
 
   return (
-    <div className="flex flex-col gap-2 xs:gap-2.5 sm:gap-3.5 rounded-2xl sm:rounded-3xl border border-[#A87932]/40 bg-gradient-to-b from-[#221813] via-[#171411] to-[#120f0d] p-2.5 xs:p-3 sm:p-4 text-[#E8DDC8] shadow-[0_8px_24px_rgba(0,0,0,0.65)] select-none w-full">
+    <div className="flex flex-col gap-1 xs:gap-1.5 sm:gap-3.5 rounded-2xl sm:rounded-3xl border border-[#A87932]/40 bg-gradient-to-b from-[#221813] via-[#171411] to-[#120f0d] p-1.5 xs:p-2 sm:p-4 text-[#E8DDC8] shadow-[0_8px_24px_rgba(0,0,0,0.65)] select-none w-full shrink-0">
       {/* 2 CỬA CƯỢC CHÍNH: XỈU & TÀI (PHÙ ĐIÊU ĐỒNG & SƠN MÀI) */}
-      <div className="grid grid-cols-2 gap-2 xs:gap-2.5 sm:gap-4">
+      <div className="grid grid-cols-2 gap-1.5 xs:gap-2 sm:gap-4">
         {/* CỬA XỈU (4 - 10) - Men Lam Trầm & Khảm Đồng */}
         <button
           type="button"
           disabled={isLocked}
           onClick={() => handleSelectSide('XIU')}
-          className={`relative group flex flex-col items-center justify-between min-h-[92px] xs:min-h-[105px] sm:min-h-[150px] md:min-h-[165px] p-2 xs:p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl border-2 transition-all active:scale-[0.98] ${
+          className={`relative group flex flex-col items-center justify-between min-h-[68px] xs:min-h-[78px] sm:min-h-[150px] md:min-h-[165px] p-1 xs:p-1.5 sm:p-3.5 rounded-xl sm:rounded-2xl border-2 transition-all active:scale-[0.98] ${
             isSelectingXiu
               ? 'border-[#D5B46B] bg-gradient-to-b from-[#1f2e3d]/95 via-[#15232e]/95 to-[#0e171f] ring-3 ring-[#D5B46B]/60 shadow-[0_0_20px_rgba(213,180,107,0.35)]'
               : myXiuBet
@@ -106,38 +107,38 @@ export default function BetBoard({
           } disabled:opacity-40 disabled:cursor-not-allowed`}
         >
           {/* Họa tiết chim Lạc trang trí góc */}
-          <div className="pointer-events-none absolute top-1.5 left-1.5 xs:top-2 xs:left-2 opacity-20 text-[#D5B46B]">
-            <ChimLac size={14} />
+          <div className="pointer-events-none absolute top-1 left-1 xs:top-2 xs:left-2 opacity-20 text-[#D5B46B]">
+            <ChimLac size={13} />
           </div>
 
           <div className="text-center w-full">
-            <span className="font-mono text-[8px] xs:text-[9px] sm:text-xs uppercase tracking-widest text-[#D5B46B] font-bold block">
+            <span className="font-mono text-[7.5px] xs:text-[8.5px] sm:text-xs uppercase tracking-widest text-[#D5B46B] font-bold block">
               TỔNG 4 - 10 • ĂN 1:1
             </span>
-            <h2 className="text-2xl xs:text-3xl sm:text-4xl font-black text-[#FAF5EB] tracking-wider mt-0.5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+            <h2 className="text-xl xs:text-2xl sm:text-4xl font-black text-[#FAF5EB] tracking-wider mt-0.5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
               XỈU
             </h2>
           </div>
 
-          <div className="mt-1 xs:mt-1.5 sm:mt-2.5 flex flex-col items-center gap-1 w-full">
-            <div className="flex items-center gap-1 text-[10px] xs:text-[11px] sm:text-xs text-[#E8DDC8]/80 font-medium">
-              <span>Làng:</span>
+          <div className="mt-0.5 xs:mt-1 sm:mt-2.5 flex flex-col items-center gap-0.5 w-full">
+            <div className="flex items-center gap-1 text-[9px] xs:text-[10px] sm:text-xs text-[#E8DDC8]/80 font-medium">
+              <span>Tổng:</span>
               <strong className="font-mono text-[#D5B46B]">
                 {(betSummary.xiuTotal || 0).toLocaleString()}
               </strong>
-              <span className="text-[9px]">xu</span>
+              <span className="text-[8px] xs:text-[9px]">xu</span>
             </div>
 
             {isSelectingXiu ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-[#D5B46B] text-[#171411] px-2 xs:px-2.5 py-0.5 font-mono text-[9px] xs:text-[10px] sm:text-xs font-black animate-pulse shadow-sm">
-                + Chuẩn bị: {pendingAmount.toLocaleString()} xu
+              <span className="inline-flex items-center gap-1 rounded-full bg-[#D5B46B] text-[#171411] px-1.5 xs:px-2 py-0.5 font-mono text-[8px] xs:text-[9px] sm:text-xs font-black animate-pulse shadow-sm">
+                +{pendingAmount.toLocaleString()}
               </span>
             ) : myXiuBet ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-[#D5B46B]/20 border border-[#D5B46B]/60 text-[#D5B46B] px-2 xs:px-2.5 py-0.5 font-mono text-[9px] xs:text-[10px] sm:text-xs font-bold shadow-xs">
-                <Check size={11} strokeWidth={3} /> Đã cược: {myXiuBet.amount.toLocaleString()} xu
+              <span className="inline-flex items-center gap-1 rounded-full bg-[#D5B46B]/20 border border-[#D5B46B]/60 text-[#D5B46B] px-1.5 xs:px-2 py-0.5 font-mono text-[8px] xs:text-[9px] sm:text-xs font-bold shadow-xs">
+                <Check size={10} strokeWidth={3} /> Đã cược: {myXiuBet.amount.toLocaleString()}
               </span>
             ) : (
-              <span className="text-[9px] xs:text-[10px] sm:text-xs text-[#E8DDC8]/90 font-bold bg-[#171411]/80 px-2 xs:px-2.5 py-0.5 rounded-full border border-[#A87932]/50 group-hover:border-[#D5B46B] group-hover:text-[#FAF5EB] transition-colors">
+              <span className="text-[8px] xs:text-[9px] sm:text-xs text-[#E8DDC8]/90 font-bold bg-[#171411]/80 px-1.5 xs:px-2 py-0.5 rounded-full border border-[#A87932]/50 group-hover:border-[#D5B46B] group-hover:text-[#FAF5EB] transition-colors">
                 + Chọn Xỉu
               </span>
             )}
@@ -149,7 +150,7 @@ export default function BetBoard({
           type="button"
           disabled={isLocked}
           onClick={() => handleSelectSide('TAI')}
-          className={`relative group flex flex-col items-center justify-between min-h-[92px] xs:min-h-[105px] sm:min-h-[150px] md:min-h-[165px] p-2 xs:p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl border-2 transition-all active:scale-[0.98] ${
+          className={`relative group flex flex-col items-center justify-between min-h-[68px] xs:min-h-[78px] sm:min-h-[150px] md:min-h-[165px] p-1 xs:p-1.5 sm:p-3.5 rounded-xl sm:rounded-2xl border-2 transition-all active:scale-[0.98] ${
             isSelectingTai
               ? 'border-[#D5B46B] bg-gradient-to-b from-[#421d1a]/95 via-[#2f1412]/95 to-[#1c0c0b] ring-3 ring-[#D5B46B]/60 shadow-[0_0_20px_rgba(213,180,107,0.35)]'
               : myTaiBet
@@ -158,38 +159,38 @@ export default function BetBoard({
           } disabled:opacity-40 disabled:cursor-not-allowed`}
         >
           {/* Họa tiết mặt trời Đông Sơn trang trí góc */}
-          <div className="pointer-events-none absolute top-1.5 right-1.5 xs:top-2 xs:right-2 opacity-20 text-[#D5B46B]">
-            <DongSonSun size={14} />
+          <div className="pointer-events-none absolute top-1 right-1 xs:top-2 xs:right-2 opacity-20 text-[#D5B46B]">
+            <DongSonSun size={13} />
           </div>
 
           <div className="text-center w-full">
-            <span className="font-mono text-[8px] xs:text-[9px] sm:text-xs uppercase tracking-widest text-[#D5B46B] font-bold block">
+            <span className="font-mono text-[7.5px] xs:text-[8.5px] sm:text-xs uppercase tracking-widest text-[#D5B46B] font-bold block">
               TỔNG 11 - 17 • ĂN 1:1
             </span>
-            <h2 className="text-2xl xs:text-3xl sm:text-4xl font-black text-[#FAF5EB] tracking-wider mt-0.5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+            <h2 className="text-xl xs:text-2xl sm:text-4xl font-black text-[#FAF5EB] tracking-wider mt-0.5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
               TÀI
             </h2>
           </div>
 
-          <div className="mt-1 xs:mt-1.5 sm:mt-2.5 flex flex-col items-center gap-1 w-full">
-            <div className="flex items-center gap-1 text-[10px] xs:text-[11px] sm:text-xs text-[#E8DDC8]/80 font-medium">
-              <span>Làng:</span>
+          <div className="mt-0.5 xs:mt-1 sm:mt-2.5 flex flex-col items-center gap-0.5 w-full">
+            <div className="flex items-center gap-1 text-[9px] xs:text-[10px] sm:text-xs text-[#E8DDC8]/80 font-medium">
+              <span>Tổng:</span>
               <strong className="font-mono text-[#D5B46B]">
                 {(betSummary.taiTotal || 0).toLocaleString()}
               </strong>
-              <span className="text-[9px]">xu</span>
+              <span className="text-[8px] xs:text-[9px]">xu</span>
             </div>
 
             {isSelectingTai ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-[#D5B46B] text-[#171411] px-2 xs:px-2.5 py-0.5 font-mono text-[9px] xs:text-[10px] sm:text-xs font-black animate-pulse shadow-sm">
-                + Chuẩn bị: {pendingAmount.toLocaleString()} xu
+              <span className="inline-flex items-center gap-1 rounded-full bg-[#D5B46B] text-[#171411] px-1.5 xs:px-2 py-0.5 font-mono text-[8px] xs:text-[9px] sm:text-xs font-black animate-pulse shadow-sm">
+                +{pendingAmount.toLocaleString()}
               </span>
             ) : myTaiBet ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-[#8E2926]/30 border border-[#8E2926] text-[#FAF5EB] px-2 xs:px-2.5 py-0.5 font-mono text-[9px] xs:text-[10px] sm:text-xs font-bold shadow-xs">
-                <Check size={11} strokeWidth={3} /> Đã cược: {myTaiBet.amount.toLocaleString()} xu
+              <span className="inline-flex items-center gap-1 rounded-full bg-[#8E2926]/30 border border-[#8E2926] text-[#FAF5EB] px-1.5 xs:px-2 py-0.5 font-mono text-[8px] xs:text-[9px] sm:text-xs font-bold shadow-xs">
+                <Check size={10} strokeWidth={3} /> Đã cược: {myTaiBet.amount.toLocaleString()}
               </span>
             ) : (
-              <span className="text-[9px] xs:text-[10px] sm:text-xs text-[#E8DDC8]/90 font-bold bg-[#171411]/80 px-2 xs:px-2.5 py-0.5 rounded-full border border-[#A87932]/50 group-hover:border-[#D5B46B] group-hover:text-[#FAF5EB] transition-colors">
+              <span className="text-[8px] xs:text-[9px] sm:text-xs text-[#E8DDC8]/90 font-bold bg-[#171411]/80 px-1.5 xs:px-2 py-0.5 rounded-full border border-[#A87932]/50 group-hover:border-[#D5B46B] group-hover:text-[#FAF5EB] transition-colors">
                 + Chọn Tài
               </span>
             )}
@@ -198,14 +199,14 @@ export default function BetBoard({
       </div>
 
       {/* THANH CHỌN MỆNH GIÁ CHIP CƯỢC (1k, 10k, 50k, 100k, 500k, 1M, 10M, 50M) */}
-      <div className="flex items-center justify-between gap-1.5 border-t border-[#A87932]/25 pt-2">
-        <div className="hidden xs:flex items-center gap-1 text-[11px] font-bold text-[#D5B46B] shrink-0">
-          <HeritageCoinIcon size={14} />
+      <div className="flex items-center justify-between gap-1 border-t border-[#A87932]/25 pt-1 sm:pt-2">
+        <div className="hidden xs:flex items-center gap-1 text-[10px] font-bold text-[#D5B46B] shrink-0">
+          <HeritageCoinIcon size={12} />
           <span>Chip:</span>
         </div>
 
         {/* Danh sách 8 mệnh giá chip theo yêu cầu */}
-        <div className="flex flex-1 items-center justify-between gap-1 overflow-x-auto no-scrollbar py-0.5">
+        <div className="flex flex-1 items-center justify-between gap-1 overflow-x-auto no-scrollbar py-0.5 touch-pan-x">
           {CHIP_VALUES.map((chip) => {
             const isSelected = selectedChip === chip.value;
             return (
@@ -213,7 +214,7 @@ export default function BetBoard({
                 key={chip.label}
                 type="button"
                 onClick={() => handleSelectChip(chip.value)}
-                className={`min-h-[28px] xs:min-h-[30px] sm:min-h-[34px] px-2 xs:px-2.5 sm:px-3 py-0.5 rounded-lg xs:rounded-xl font-mono text-[10px] xs:text-[11px] sm:text-xs font-black transition-all active:scale-95 shrink-0 ${
+                className={`min-h-[25px] xs:min-h-[28px] sm:min-h-[34px] px-1.5 xs:px-2 sm:px-3 py-0.5 rounded-lg xs:rounded-xl font-mono text-[9px] xs:text-[10px] sm:text-xs font-black transition-all active:scale-95 shrink-0 ${
                   isSelected
                     ? 'bg-gradient-to-r from-[#D5B46B] to-[#A87932] text-[#171411] shadow-[0_2px_8px_rgba(213,180,107,0.4)] border border-[#FAF5EB]/60 scale-105'
                     : 'bg-[#241712]/90 text-[#E8DDC8] border border-[#A87932]/40 hover:border-[#D5B46B]/70 hover:text-[#FAF5EB]'
@@ -229,7 +230,7 @@ export default function BetBoard({
             type="button"
             disabled={isLocked || myPoints <= 0}
             onClick={handleAllIn}
-            className="min-h-[28px] xs:min-h-[30px] sm:min-h-[34px] px-2 xs:px-2.5 sm:px-3 py-0.5 rounded-lg xs:rounded-xl border border-[#D5B46B]/60 bg-[#2b1b14] text-[10px] xs:text-[11px] sm:text-xs font-black text-[#D5B46B] hover:bg-[#3d271c] hover:border-[#D5B46B] hover:text-[#FAF5EB] disabled:opacity-40 transition-all active:scale-95 shrink-0"
+            className="min-h-[25px] xs:min-h-[28px] sm:min-h-[34px] px-1.5 xs:px-2 sm:px-3 py-0.5 rounded-lg xs:rounded-xl border border-[#D5B46B]/60 bg-[#2b1b14] text-[9px] xs:text-[10px] sm:text-xs font-black text-[#D5B46B] hover:bg-[#3d271c] hover:border-[#D5B46B] hover:text-[#FAF5EB] disabled:opacity-40 transition-all active:scale-95 shrink-0"
             title="Đặt cược toàn bộ số xu hiện có"
           >
             Tất tay
@@ -238,15 +239,15 @@ export default function BetBoard({
       </div>
 
       {/* THANH THAO TÁC: NÚT XÁC NHẬN GIÁ TIỀN & NÚT HỦY BÊN PHẢI */}
-      <div className="flex items-center gap-2 pt-1 border-t border-[#A87932]/25">
+      <div className="flex items-center gap-1.5 pt-1 border-t border-[#A87932]/25">
         {/* NÚT XÁC NHẬN GIÁ TIỀN */}
         <button
           type="button"
           disabled={isLocked || !selectedSide || pendingAmount <= 0 || pendingAmount > myPoints}
           onClick={handleConfirmBet}
-          className="flex-1 flex items-center justify-center gap-1.5 xs:gap-2 min-h-[36px] xs:min-h-[40px] sm:min-h-[44px] px-2.5 xs:px-3 py-1.5 rounded-xl font-mono text-[11px] xs:text-xs sm:text-sm font-black transition-all active:scale-[0.98] shadow-md bg-gradient-to-r from-[#D5B46B] via-[#E8CD8C] to-[#A87932] text-[#171411] hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed disabled:grayscale"
+          className="flex-1 flex items-center justify-center gap-1 xs:gap-1.5 min-h-[32px] xs:min-h-[36px] sm:min-h-[44px] px-2 xs:px-3 py-1 rounded-xl font-mono text-[10px] xs:text-xs sm:text-sm font-black transition-all active:scale-[0.98] shadow-md bg-gradient-to-r from-[#D5B46B] via-[#E8CD8C] to-[#A87932] text-[#171411] hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed disabled:grayscale"
         >
-          <Check size={16} strokeWidth={3} />
+          <Check size={14} strokeWidth={3} />
           <span>
             {!selectedSide || pendingAmount === 0
               ? 'CHỌN CỬA ĐẶT CƯỢC'
@@ -259,18 +260,29 @@ export default function BetBoard({
           type="button"
           disabled={!selectedSide && pendingAmount === 0}
           onClick={handleCancelBet}
-          className="flex items-center justify-center gap-1 min-h-[36px] xs:min-h-[40px] sm:min-h-[44px] px-3 xs:px-4 py-1.5 rounded-xl font-mono text-[11px] xs:text-xs sm:text-sm font-black transition-all active:scale-95 shadow-md border border-[#8E2926]/70 bg-gradient-to-b from-[#2a1413] to-[#1a0c0b] text-[#FAF5EB] hover:bg-[#3d1917] hover:border-[#8E2926] disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
+          className="flex items-center justify-center gap-1 min-h-[32px] xs:min-h-[36px] sm:min-h-[44px] px-2.5 xs:px-3 py-1 rounded-xl font-mono text-[10px] xs:text-xs sm:text-sm font-black transition-all active:scale-95 shadow-md border border-[#8E2926]/70 bg-gradient-to-b from-[#2a1413] to-[#1a0c0b] text-[#FAF5EB] hover:bg-[#3d1917] hover:border-[#8E2926] disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
           title="Hủy mức cược và cửa vừa chọn"
         >
-          <X size={15} strokeWidth={2.5} />
+          <X size={14} strokeWidth={2.5} />
           <span>Hủy</span>
         </button>
       </div>
 
       {/* CẢNH BÁO NẾU SỐ DƯ KHÔNG ĐỦ SỐ TIỀN ĐANG CHỌN */}
       {selectedSide && pendingAmount > myPoints && (
-        <div className="rounded-lg sm:rounded-xl border border-[#8E2926]/60 bg-[#8E2926]/15 px-2.5 py-1 text-[10px] xs:text-[11px] sm:text-xs text-[#FAF5EB] font-medium leading-snug">
-          Số dư (<strong className="font-mono text-[#D5B46B]">{myPoints.toLocaleString()}</strong> xu) không đủ mức {pendingAmount.toLocaleString()} xu. Hãy chọn mệnh giá nhỏ hơn hoặc bấm dấu (+) nhận xu!
+        <div className="rounded-lg sm:rounded-xl border border-[#8E2926]/60 bg-[#8E2926]/15 px-2.5 py-1 text-[10px] xs:text-[11px] sm:text-xs text-[#FAF5EB] font-medium leading-snug flex items-center justify-between gap-1">
+          <span>
+            Số dư (<strong className="font-mono text-[#D5B46B]">{myPoints.toLocaleString()}</strong> xu) không đủ mức {pendingAmount.toLocaleString()} xu.
+          </span>
+          {onOpenDonate && (
+            <button
+              type="button"
+              onClick={onOpenDonate}
+              className="px-2 py-0.5 rounded-md bg-[#D5B46B] text-[#171411] text-[10px] font-black shrink-0 hover:brightness-110 active:scale-95"
+            >
+              Ủng hộ nhận xu
+            </button>
+          )}
         </div>
       )}
     </div>

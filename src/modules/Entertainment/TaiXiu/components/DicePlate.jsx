@@ -25,58 +25,58 @@ function HeritageDiceFace({ value }) {
         return (
           <div className="flex items-center justify-center h-full w-full">
             {/* Đại hồng tâm: Vòng tròn son đỏ lớn với nhụy vàng thếp kim */}
-            <span className={`size-4.5 xs:size-5 sm:size-6.5 md:size-7.5 ${dotBase(true)} relative flex items-center justify-center`}>
-              <span className="size-1.5 xs:size-1.5 sm:size-2 rounded-full bg-gradient-to-br from-[#D5B46B] to-[#966E26] shadow-xs" />
+            <span className={`size-3.5 xs:size-4 sm:size-6.5 md:size-7.5 ${dotBase(true)} relative flex items-center justify-center`}>
+              <span className="size-1 xs:size-1.5 sm:size-2 rounded-full bg-gradient-to-br from-[#D5B46B] to-[#966E26] shadow-xs" />
             </span>
           </div>
         );
       case 2:
         return (
-          <div className="flex justify-between h-full w-full p-1 xs:p-1.5 sm:p-2.5">
-            <span className={`size-1.5 xs:size-2 sm:size-2.5 md:size-3 self-start ${dotBase(false)}`} />
-            <span className={`size-1.5 xs:size-2 sm:size-2.5 md:size-3 self-end ${dotBase(false)}`} />
+          <div className="flex justify-between h-full w-full p-0.5 xs:p-1 sm:p-2.5">
+            <span className={`size-1 xs:size-1.5 sm:size-2.5 md:size-3 self-start ${dotBase(false)}`} />
+            <span className={`size-1 xs:size-1.5 sm:size-2.5 md:size-3 self-end ${dotBase(false)}`} />
           </div>
         );
       case 3:
         return (
-          <div className="flex justify-between h-full w-full p-1 xs:p-1.5 sm:p-2.5">
-            <span className={`size-1.5 xs:size-2 sm:size-2.5 md:size-3 self-start ${dotBase(false)}`} />
-            <span className={`size-1.5 xs:size-2 sm:size-2.5 md:size-3 self-center ${dotBase(false)}`} />
-            <span className={`size-1.5 xs:size-2 sm:size-2.5 md:size-3 self-end ${dotBase(false)}`} />
+          <div className="flex justify-between h-full w-full p-0.5 xs:p-1 sm:p-2.5">
+            <span className={`size-1 xs:size-1.5 sm:size-2.5 md:size-3 self-start ${dotBase(false)}`} />
+            <span className={`size-1 xs:size-1.5 sm:size-2.5 md:size-3 self-center ${dotBase(false)}`} />
+            <span className={`size-1 xs:size-1.5 sm:size-2.5 md:size-3 self-end ${dotBase(false)}`} />
           </div>
         );
       case 4:
         return (
-          <div className="grid grid-cols-2 place-content-between h-full w-full p-1 xs:p-1.5 sm:p-2.5">
-            <span className={`size-1.5 xs:size-2 sm:size-2.5 md:size-3 ${dotBase(true)}`} />
-            <span className={`size-1.5 xs:size-2 sm:size-2.5 md:size-3 justify-self-end ${dotBase(true)}`} />
-            <span className={`size-1.5 xs:size-2 sm:size-2.5 md:size-3 ${dotBase(true)}`} />
-            <span className={`size-1.5 xs:size-2 sm:size-2.5 md:size-3 justify-self-end ${dotBase(true)}`} />
+          <div className="grid grid-cols-2 place-content-between h-full w-full p-0.5 xs:p-1 sm:p-2.5">
+            <span className={`size-1 xs:size-1.5 sm:size-2.5 md:size-3 ${dotBase(true)}`} />
+            <span className={`size-1 xs:size-1.5 sm:size-2.5 md:size-3 justify-self-end ${dotBase(true)}`} />
+            <span className={`size-1 xs:size-1.5 sm:size-2.5 md:size-3 ${dotBase(true)}`} />
+            <span className={`size-1 xs:size-1.5 sm:size-2.5 md:size-3 justify-self-end ${dotBase(true)}`} />
           </div>
         );
       case 5:
         return (
-          <div className="relative h-full w-full p-1 xs:p-1.5 sm:p-2.5 flex flex-col justify-between">
+          <div className="relative h-full w-full p-0.5 xs:p-1 sm:p-2.5 flex flex-col justify-between">
             <div className="flex justify-between">
-              <span className={`size-1.5 xs:size-2 sm:size-2.5 md:size-3 ${dotBase(false)}`} />
-              <span className={`size-1.5 xs:size-2 sm:size-2.5 md:size-3 ${dotBase(false)}`} />
+              <span className={`size-1 xs:size-1.5 sm:size-2.5 md:size-3 ${dotBase(false)}`} />
+              <span className={`size-1 xs:size-1.5 sm:size-2.5 md:size-3 ${dotBase(false)}`} />
             </div>
-            <span className={`size-1.5 xs:size-2 sm:size-2.5 md:size-3 self-center ${dotBase(false)}`} />
+            <span className={`size-1 xs:size-1.5 sm:size-2.5 md:size-3 self-center ${dotBase(false)}`} />
             <div className="flex justify-between">
-              <span className={`size-1.5 xs:size-2 sm:size-2.5 md:size-3 ${dotBase(false)}`} />
-              <span className={`size-1.5 xs:size-2 sm:size-2.5 md:size-3 ${dotBase(false)}`} />
+              <span className={`size-1 xs:size-1.5 sm:size-2.5 md:size-3 ${dotBase(false)}`} />
+              <span className={`size-1 xs:size-1.5 sm:size-2.5 md:size-3 ${dotBase(false)}`} />
             </div>
           </div>
         );
       case 6:
         return (
-          <div className="grid grid-cols-2 place-content-between h-full w-full p-1 xs:p-1.5 sm:p-2.5">
-            <span className={`size-1.5 xs:size-2 sm:size-2.5 md:size-3 ${dotBase(false)}`} />
-            <span className={`size-1.5 xs:size-2 sm:size-2.5 md:size-3 justify-self-end ${dotBase(false)}`} />
-            <span className={`size-1.5 xs:size-2 sm:size-2.5 md:size-3 ${dotBase(false)}`} />
-            <span className={`size-1.5 xs:size-2 sm:size-2.5 md:size-3 justify-self-end ${dotBase(false)}`} />
-            <span className={`size-1.5 xs:size-2 sm:size-2.5 md:size-3 ${dotBase(false)}`} />
-            <span className={`size-1.5 xs:size-2 sm:size-2.5 md:size-3 justify-self-end ${dotBase(false)}`} />
+          <div className="grid grid-cols-2 place-content-between h-full w-full p-0.5 xs:p-1 sm:p-2.5">
+            <span className={`size-1 xs:size-1.5 sm:size-2.5 md:size-3 ${dotBase(false)}`} />
+            <span className={`size-1 xs:size-1.5 sm:size-2.5 md:size-3 justify-self-end ${dotBase(false)}`} />
+            <span className={`size-1 xs:size-1.5 sm:size-2.5 md:size-3 ${dotBase(false)}`} />
+            <span className={`size-1 xs:size-1.5 sm:size-2.5 md:size-3 justify-self-end ${dotBase(false)}`} />
+            <span className={`size-1 xs:size-1.5 sm:size-2.5 md:size-3 ${dotBase(false)}`} />
+            <span className={`size-1 xs:size-1.5 sm:size-2.5 md:size-3 justify-self-end ${dotBase(false)}`} />
           </div>
         );
       default:
@@ -86,9 +86,9 @@ function HeritageDiceFace({ value }) {
 
   return (
     <div
-      className="size-8 xs:size-9 sm:size-12 md:size-14 rounded-lg xs:rounded-xl sm:rounded-2xl border border-[#D5B46B]/40 bg-gradient-to-br from-[#FFFFFF] via-[#F8F2E4] to-[#E3D4BA] shadow-[0_6px_14px_rgba(0,0,0,0.5),inset_0_2px_3px_rgba(255,255,255,0.95),inset_-1.5px_-1.5px_3px_rgba(180,150,110,0.35)] relative overflow-hidden flex items-center justify-center select-none transform transition-transform"
+      className="size-7 xs:size-8 sm:size-12 md:size-14 rounded-lg xs:rounded-xl sm:rounded-2xl border border-[#D5B46B]/40 bg-gradient-to-br from-[#FFFFFF] via-[#F8F2E4] to-[#E3D4BA] shadow-[0_4px_10px_rgba(0,0,0,0.5),inset_0_1.5px_2px_rgba(255,255,255,0.95),inset_-1px_-1px_2px_rgba(180,150,110,0.35)] relative overflow-hidden flex items-center justify-center select-none transform transition-transform"
     >
-      <div className="pointer-events-none absolute inset-x-1 top-0.5 h-0.5 sm:h-1 bg-white/60 rounded-t-lg blur-[0.5px]" />
+      <div className="pointer-events-none absolute inset-x-0.5 top-0.5 h-0.5 sm:h-1 bg-white/60 rounded-t-lg blur-[0.5px]" />
       {renderDots()}
     </div>
   );
@@ -100,6 +100,8 @@ export default function DicePlate({
   total = 6,
   outcome = 'XIU',
   isTriple = false,
+  dramaticType = 'NORMAL',
+  dramaticMessage = '',
   roundEndTime,
   onReveal
 }) {
@@ -187,13 +189,13 @@ export default function DicePlate({
   return (
     <section
       aria-label="Khu vực khay xúc xắc và bát nặn Tài Xỉu"
-      className="relative flex flex-col items-center justify-center overflow-hidden rounded-2xl sm:rounded-3xl border border-[#A87932]/45 bg-gradient-to-b from-[#251812] via-[#171411] to-[#100c09] p-2 xs:p-2.5 sm:p-5 text-[#E8DDC8] shadow-[0_8px_24px_rgba(0,0,0,0.65)] w-full"
+      className="relative flex flex-col items-center justify-center overflow-hidden rounded-2xl sm:rounded-3xl border border-[#A87932]/45 bg-gradient-to-b from-[#251812] via-[#171411] to-[#100c09] p-1.5 xs:p-2 sm:p-5 text-[#E8DDC8] shadow-[0_8px_24px_rgba(0,0,0,0.65)] w-full flex-1 min-h-0"
     >
       {/* Background hoa văn Đông Sơn tinh tế */}
       <div className="pointer-events-none absolute inset-0 opacity-10 [background-image:radial-gradient(#D5B46B_1px,transparent_1px)] [background-size:16px_16px]" />
 
       {/* THANH TRẠNG THÁI & ĐỒNG HỒ ĐẾM NGƯỢC */}
-      <div className="relative z-10 mb-1 flex items-center justify-between w-full max-w-sm px-1">
+      <div className="relative z-10 mb-0.5 xs:mb-1 flex items-center justify-between w-full max-w-sm px-1 shrink-0">
         <div className="flex items-center gap-1.5">
           <span
             className={`size-2 sm:size-2.5 rounded-full ${state === 'WAITING'
@@ -221,7 +223,7 @@ export default function DicePlate({
       </div>
 
       {/* KHU VỰC KHAY ĐỒNG SƠN MÀI & BÁT ÚP NẶN (DICE STAGE) */}
-      <div className="relative z-10 my-0.5 sm:my-2 flex size-38 xs:size-42 sm:size-60 md:size-68 items-center justify-center select-none">
+      <div className="relative z-10 my-0 sm:my-1.5 flex size-28 xs:size-32 sm:size-60 md:size-68 items-center justify-center select-none shrink-0">
         {/* KHAY ĐỒNG / ĐĨA SƠN MÀI */}
         <div className="absolute inset-0 rounded-full border-5 sm:border-8 border-[#78531F] bg-gradient-to-br from-[#35251C] via-[#241812] to-[#171411] shadow-[0_10px_24px_rgba(0,0,0,0.8),inset_0_2px_5px_rgba(213,180,107,0.35)] flex items-center justify-center pointer-events-none">
           <div className="absolute inset-1 sm:inset-1.5 rounded-full border border-dashed border-[#D5B46B]/40 pointer-events-none" />
@@ -269,11 +271,11 @@ export default function DicePlate({
         )}
 
         {/* BÁT SƠN MÀI THẾP VÀNG ÚP TRÊN ĐĨA (LID) */}
-        {/* CƠ CHẾ NẶN BÁT: Người chơi kéo nặn tự do 360 độ. Khi kéo hé thấy cả 3 xúc xắc (cự ly >= 110px) thì game TỰ GIẬT RA LUÔN! */}
+        {/* CƠ CHẾ NẶN BÁT: Người chơi kéo nặn tự do 360 độ. Cự ly nặn thoải mái (MAX_DIST: 180px, buông tay >= 115px mới mở hẳn) */}
         <motion.div
           key={state === 'RESULT' ? 'bowl-result' : 'bowl-waiting'}
           drag={canDrag}
-          dragConstraints={{ left: -220, right: 220, top: -220, bottom: 220 }}
+          dragConstraints={{ left: -280, right: 280, top: -280, bottom: 280 }}
           dragElastic={0.25}
           dragSnapToOrigin={true}
           dragMomentum={false}
@@ -283,11 +285,11 @@ export default function DicePlate({
             const currentY = info.offset.y;
             setDragOffset({ x: currentX, y: currentY });
             const dist = Math.hypot(currentX, currentY);
-            const MAX_DIST = 130;
+            const MAX_DIST = 180;
             const pct = Math.min(100, Math.round((dist / MAX_DIST) * 100));
             setSqueezeProgress(pct);
 
-            // KHI KÉO HÉ ĐỦ NHÌN THẤY CẢ 3 VIÊN XÚC XẮC (CỰ LY >= 110PX) -> TỰ GIẬT RA LUÔN!
+            // Kéo hé thật xa (>= 180px) thì mới tự động giật mở hẳn bát
             if (dist >= MAX_DIST) {
               setIsAutoRevealed(true);
             }
@@ -295,10 +297,10 @@ export default function DicePlate({
           onDragEnd={(_, info) => {
             const dist = Math.hypot(info.offset.x, info.offset.y);
             const speed = Math.hypot(info.velocity.x, info.velocity.y);
-            const isFling = speed > 600 && dist > 30;
+            const isFling = speed > 900 && dist > 50;
 
-            // Đủ cự ly hé cả 3 viên (>= 65px) hoặc vuốt nhanh khi buông tay -> tự giật mở bát luôn
-            if (dist >= 65 || isFling) {
+            // Đủ cự ly hé cả 3 viên (>= 115px) hoặc vuốt mạnh khi buông tay -> tự giật mở bát luôn
+            if (dist >= 115 || isFling) {
               setIsAutoRevealed(true);
             } else {
               // Chưa hé đủ cả 3 quân -> Bát tự động bật úp lại tâm đĩa để người chơi nặn tiếp
@@ -424,6 +426,17 @@ export default function DicePlate({
               <p className="text-[9px] xs:text-[10px] sm:text-[11px] font-semibold text-[#D5B46B]">
                 3 Xúc xắc: {dice[0]} - {dice[1]} - {dice[2]}
               </p>
+              {dramaticMessage && (
+                <div className={`mt-1 text-[9px] xs:text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full inline-flex items-center justify-center gap-1 border shadow-xs ${
+                  dramaticType === 'TRIPLE_JACKPOT'
+                    ? 'bg-amber-500/25 text-amber-300 border-amber-400/60 animate-bounce'
+                    : dramaticType === 'STREAK_BREAKER'
+                      ? 'bg-rose-500/25 text-rose-300 border-rose-400/60 animate-pulse'
+                      : 'bg-cyan-500/25 text-cyan-300 border-cyan-400/60'
+                }`}>
+                  <span>{dramaticMessage}</span>
+                </div>
+              )}
             </div>
           </motion.div>
         )}
