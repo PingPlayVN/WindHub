@@ -39,100 +39,98 @@ export default function RoomSwitchHeader({
   return (
     <header className="w-full select-none shrink-0">
       {/* =========================================================================
-          1. HEADER TỐI GIẢN GÓI GỌN 1 HÀNG DÀNH RIÊNG CHO MOBILE (< 1024PX)
+          1. HEADER GỌN HAI HÀNG DÀNH RIÊNG CHO MOBILE (< 1024PX)
           ========================================================================= */}
-      <div className="flex lg:hidden items-center justify-between gap-1 rounded-xl border border-[#A87932]/45 bg-gradient-to-r from-[#241712] via-[#1a120e] to-[#241712] p-1 text-[#E8DDC8] shadow-md h-9 xs:h-10">
-        {/* Nhóm bên trái: Thoát bàn về sảnh & Đổi bàn trực tiếp */}
-        <div className="flex items-center gap-1 min-w-0 shrink-0">
-          <Link
-            to="/entertainment"
-            onClick={handleExit}
-            title="Rời bàn về sảnh giải trí"
-            aria-label="Rời bàn về sảnh giải trí"
-            className="flex size-7 shrink-0 items-center justify-center rounded-lg border border-[#A87932]/50 bg-[#2b1c15] text-[#D5B46B] active:scale-95 transition-all shadow-inner"
-          >
-            <ArrowLeft size={14} />
-          </Link>
+      <div className="flex lg:hidden flex-col gap-1 rounded-xl border border-[#A87932]/45 bg-gradient-to-r from-[#241712] via-[#1a120e] to-[#241712] p-1.5 text-[#E8DDC8] shadow-md">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1 min-w-0">
+            <Link
+              to="/entertainment"
+              onClick={handleExit}
+              title="Rời bàn về sảnh giải trí"
+              aria-label="Rời bàn về sảnh giải trí"
+              className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-[#A87932]/50 bg-[#2b1c15] text-[#D5B46B] active:scale-95 transition-all shadow-inner"
+            >
+              <ArrowLeft size={14} />
+            </Link>
 
-          {/* Nút Đổi Bàn Chơi Siêu Gọn Ngay Trên Header */}
-          <button
-            type="button"
-            onClick={onOpenRoomSelector}
-            title="Đổi bàn chơi (50s / 25s)"
-            className="flex items-center gap-1 rounded-lg border border-[#D5B46B]/50 bg-[#2b1c15] px-1.5 py-1 text-[10px] font-black text-[#FAF5EB] active:scale-95 transition-all shadow-inner shrink-0"
-          >
-            <span>{currentRoomId === 'tai-xiu-15s' ? '⚡ 25s' : '🏛️ 50s'}</span>
-            <ChevronDown size={11} className="text-[#D5B46B]" />
-          </button>
-        </div>
+            <button
+              type="button"
+              onClick={onOpenRoomSelector}
+              title="Đổi bàn chơi (50s / 25s)"
+              className="flex min-h-10 items-center gap-1 rounded-lg border border-[#D5B46B]/50 bg-[#2b1c15] px-2 py-1.5 text-[11px] font-black text-[#FAF5EB] active:scale-95 transition-all shadow-inner shrink-0"
+            >
+              <span>{currentRoomId === 'tai-xiu-15s' ? '⚡ 25s' : '🏛️ 50s'}</span>
+              <ChevronDown size={11} className="text-[#D5B46B]" />
+            </button>
+          </div>
 
-        {/* Nhóm trung tâm: VÍ XU & NÚT ĐIỂM DANH */}
-        <div className="flex items-center gap-1 shrink-0">
           <button
             type="button"
             onClick={onOpenProfile}
             title="Nhấn để xem Ví & Sổ cái giao dịch"
-            className="flex items-center gap-1 rounded-lg border border-[#D5B46B]/40 bg-gradient-to-r from-[#2a1c15] to-[#171411] px-1.5 py-0.5 text-xs shadow-inner active:scale-95 transition-all"
+            aria-label="Xem ví và sổ cái giao dịch"
+            className="flex min-h-10 items-center gap-1 rounded-lg border border-[#D5B46B]/40 bg-gradient-to-r from-[#2a1c15] to-[#171411] px-2.5 py-1.5 text-xs shadow-inner active:scale-95 transition-all shrink-0"
           >
-            <HeritageCoinIcon size={12} className="text-[#D5B46B] shrink-0" />
+            <HeritageCoinIcon size={13} className="text-[#D5B46B] shrink-0" />
             <span className="font-mono text-[11px] xs:text-xs font-black text-[#D5B46B]">
               {myPoints.toLocaleString()}
             </span>
           </button>
+        </div>
 
-          {/* Nút Hộp Quà Điểm Danh 7 Ngày */}
+        <div className="flex w-full items-center justify-between gap-1 overflow-x-auto border-t border-[#A87932]/25 pt-1 touch-pan-x max-[375px]:grid max-[375px]:grid-cols-4 max-[375px]:justify-items-center max-[375px]:overflow-visible">
+          {/* Nhóm nút thao tác phụ trên mobile */}
           <button
             type="button"
             onClick={onOpenDailyReward}
-            title={canClaimReward ? '🎁 Có quà điểm danh hôm nay!' : 'Đã điểm danh hôm nay'}
-            className={`flex size-6 xs:size-7 items-center justify-center rounded-lg border transition-all active:scale-95 relative ${
+            title={canClaimReward ? 'Có quà điểm danh hôm nay!' : 'Đã điểm danh hôm nay'}
+            aria-label={canClaimReward ? 'Nhận quà điểm danh' : 'Đã điểm danh hôm nay'}
+            className={`relative flex size-10 shrink-0 items-center justify-center rounded-lg border transition-all active:scale-95 ${
               canClaimReward
                 ? 'border-[#D5B46B] bg-gradient-to-br from-[#8E2926] to-[#A87932] text-[#FAF5EB] shadow-[0_0_8px_rgba(213,180,107,0.5)] animate-pulse'
                 : 'border-[#A87932]/40 bg-[#2b1c15] text-[#D5B46B]/60'
             }`}
           >
-            <Gift size={12} />
+            <Gift size={16} />
             {canClaimReward && (
               <span className="absolute -top-0.5 -right-0.5 size-1.5 rounded-full bg-amber-400 shadow-[0_0_4px_#f59e0b]" />
             )}
           </button>
 
-          {/* Nút Nhập Giftcode Quà Tặng */}
           <button
             type="button"
             onClick={onOpenGiftCode}
             title="Nhập Giftcode nhận xu"
-            className="flex size-6 xs:size-7 items-center justify-center rounded-lg border border-[#A87932]/50 bg-[#2b1c15] text-[#D5B46B] hover:text-[#FAF5EB] active:scale-95 transition-all"
+            aria-label="Nhập Giftcode nhận xu"
+            className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-[#A87932]/50 bg-[#2b1c15] text-[#D5B46B] hover:text-[#FAF5EB] active:scale-95 transition-all"
           >
-            <Ticket size={12} />
+            <Ticket size={16} />
           </button>
 
-          {/* Nút Ủng hộ Server (Donate) */}
           <button
             type="button"
             onClick={onOpenDonate}
             title="Ủng hộ duy trì server • Tặng xu tri ân"
-            className="flex size-6 xs:size-7 items-center justify-center rounded-lg border border-amber-500/60 bg-gradient-to-br from-[#8E2926] to-[#A87932] text-[#FAF5EB] shadow-[0_0_6px_rgba(213,180,107,0.4)] active:scale-95 transition-all"
+            aria-label="Ủng hộ duy trì server"
+            className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-amber-500/60 bg-gradient-to-br from-[#8E2926] to-[#A87932] text-[#FAF5EB] shadow-[0_0_6px_rgba(213,180,107,0.4)] active:scale-95 transition-all"
           >
-            <Coffee size={12} className="text-amber-200" />
+            <Coffee size={16} className="text-amber-200" />
           </button>
-        </div>
 
-        {/* Nhóm bên phải: CÁC NÚT MỞ POPUP PHỤ TRỢ (ICON GỌN) */}
-        <div className="flex items-center gap-1 shrink-0">
           {/* Nút Soi Cầu (Popup) */}
           <button
             type="button"
             onClick={onToggleSoiCau}
             title="Mở Bảng Soi Cầu"
             aria-label="Mở Bảng Soi Cầu"
-            className={`flex size-7 items-center justify-center rounded-lg border transition-all active:scale-95 relative ${
+            className={`flex size-10 shrink-0 items-center justify-center rounded-lg border transition-all active:scale-95 relative ${
               isSoiCauOpen
                 ? 'border-[#D5B46B] bg-[#D5B46B] text-[#171411] shadow-[0_0_10px_rgba(213,180,107,0.5)]'
                 : 'border-[#A87932]/50 bg-[#2b1c15] text-[#D5B46B] hover:text-[#FAF5EB]'
             }`}
           >
-            <TrendingUp size={13} />
+            <TrendingUp size={16} />
             <span className="absolute -top-0.5 -right-0.5 size-1.5 rounded-full bg-amber-400 shadow-[0_0_4px_#f59e0b]" />
           </button>
 
@@ -142,9 +140,9 @@ export default function RoomSwitchHeader({
             onClick={onOpenMyBets}
             title="Xem Vé Cược Của Bạn"
             aria-label="Xem Vé Cược Của Bạn"
-            className="flex size-7 items-center justify-center rounded-lg border border-[#A87932]/50 bg-[#2b1c15] text-[#D5B46B] hover:text-[#FAF5EB] active:scale-95 transition-all relative"
+            className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-[#A87932]/50 bg-[#2b1c15] text-[#D5B46B] hover:text-[#FAF5EB] active:scale-95 transition-all relative"
           >
-            <Ticket size={13} />
+            <Ticket size={16} />
             {myBetsCount > 0 && (
               <span className="absolute -top-1 -right-1 flex size-3.5 items-center justify-center rounded-full bg-[#8E2926] text-[8px] font-black text-[#FAF5EB] border border-[#D5B46B]">
                 {myBetsCount}
@@ -158,9 +156,9 @@ export default function RoomSwitchHeader({
             onClick={onOpenShare}
             title="Chia sẻ liên kết bàn chơi cho bạn bè"
             aria-label="Chia sẻ liên kết bàn chơi cho bạn bè"
-            className="flex size-7 items-center justify-center rounded-lg border border-[#A87932]/50 bg-[#2b1c15] text-[#D5B46B] hover:text-[#FAF5EB] active:scale-95 transition-all"
+            className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-[#A87932]/50 bg-[#2b1c15] text-[#D5B46B] hover:text-[#FAF5EB] active:scale-95 transition-all"
           >
-            <Share2 size={13} />
+            <Share2 size={16} />
           </button>
 
           {/* Nút Âm Thanh (Popup) */}
@@ -169,34 +167,24 @@ export default function RoomSwitchHeader({
             onClick={onOpenSoundSettings}
             title="Cài đặt âm thanh & Lofi"
             aria-label="Cài đặt âm thanh & Lofi"
-            className="flex size-7 items-center justify-center rounded-lg border border-[#A87932]/50 bg-[#2b1c15] text-[#D5B46B] hover:text-[#FAF5EB] active:scale-95 transition-all relative"
+            className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-[#A87932]/50 bg-[#2b1c15] text-[#D5B46B] hover:text-[#FAF5EB] active:scale-95 transition-all relative"
           >
-            {sfxEnabled || bgmEnabled ? <Volume2 size={13} /> : <VolumeX size={13} className="text-[#E8DDC8]/40" />}
+            {sfxEnabled || bgmEnabled ? <Volume2 size={16} /> : <VolumeX size={16} className="text-[#E8DDC8]/40" />}
             {bgmEnabled && (
               <span className="absolute top-0.5 right-0.5 size-1 rounded-full bg-emerald-400 shadow-[0_0_4px_#34d399]" />
             )}
           </button>
 
           {/* Nút Hồ Sơ & Ví Xu */}
-          <button
-            type="button"
-            onClick={onOpenProfile}
-            title="Hồ sơ tài khoản & Ví Xu"
-            aria-label="Hồ sơ tài khoản & Ví Xu"
-            className="flex size-7 items-center justify-center rounded-lg border border-[#A87932]/50 bg-[#2b1c15] text-[#D5B46B] hover:text-[#FAF5EB] active:scale-95 transition-all"
-          >
-            <User size={13} />
-          </button>
-
           {/* Nút Thông Tin & Luật (Popup) */}
           <button
             type="button"
             onClick={onOpenGameInfo}
             title="Xem Luật Chơi & Giải Thích"
             aria-label="Xem Luật Chơi & Giải Thích"
-            className="flex size-7 items-center justify-center rounded-lg border border-[#A87932]/50 bg-[#2b1c15] text-[#D5B46B] hover:text-[#FAF5EB] active:scale-95 transition-all"
+            className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-[#A87932]/50 bg-[#2b1c15] text-[#D5B46B] hover:text-[#FAF5EB] active:scale-95 transition-all"
           >
-            <ShieldAlert size={13} />
+            <ShieldAlert size={16} />
           </button>
         </div>
       </div>

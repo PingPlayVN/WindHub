@@ -98,7 +98,7 @@ export default function BetBoard({
           type="button"
           disabled={isLocked}
           onClick={() => handleSelectSide('XIU')}
-          className={`relative group flex flex-col items-center justify-between min-h-[88px] xs:min-h-[98px] sm:min-h-[150px] md:min-h-[165px] p-1.5 xs:p-2 sm:p-3.5 rounded-xl sm:rounded-2xl border-2 transition-all active:scale-[0.98] ${
+          className={`relative group flex flex-col items-center justify-between min-h-[100px] xs:min-h-[108px] sm:min-h-[150px] md:min-h-[165px] p-2 xs:p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl border-2 transition-all active:scale-[0.98] ${
             isSelectingXiu
               ? 'border-[#D5B46B] bg-gradient-to-b from-[#1f2e3d]/95 via-[#15232e]/95 to-[#0e171f] ring-3 ring-[#D5B46B]/60 shadow-[0_0_20px_rgba(213,180,107,0.35)]'
               : myXiuBet
@@ -112,7 +112,7 @@ export default function BetBoard({
           </div>
 
           <div className="text-center w-full">
-            <span className="font-mono text-[7.5px] xs:text-[8.5px] sm:text-xs uppercase tracking-widest text-[#D5B46B] font-bold block">
+            <span className="font-mono text-[9px] xs:text-[10px] sm:text-xs uppercase tracking-wide text-[#D5B46B] font-bold block">
               TỔNG 4 - 10 • ĂN 1:1
             </span>
             <h2 className="text-xl xs:text-2xl sm:text-4xl font-black text-[#FAF5EB] tracking-wider mt-0.5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
@@ -121,24 +121,24 @@ export default function BetBoard({
           </div>
 
           <div className="mt-0.5 xs:mt-1 sm:mt-2.5 flex flex-col items-center gap-0.5 w-full">
-            <div className="flex items-center gap-1 text-[9px] xs:text-[10px] sm:text-xs text-[#E8DDC8]/80 font-medium">
+            <div className="flex items-center gap-1 text-[10px] xs:text-[11px] sm:text-xs text-[#E8DDC8]/80 font-medium">
               <span>Tổng:</span>
               <strong className="font-mono text-[#D5B46B]">
                 {(betSummary.xiuTotal || 0).toLocaleString()}
               </strong>
-              <span className="text-[8px] xs:text-[9px]">xu</span>
+              <span className="text-[9px] xs:text-[10px]">xu</span>
             </div>
 
             {isSelectingXiu ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-[#D5B46B] text-[#171411] px-1.5 xs:px-2 py-0.5 font-mono text-[8px] xs:text-[9px] sm:text-xs font-black animate-pulse shadow-sm">
+              <span className="inline-flex items-center gap-1 rounded-full bg-[#D5B46B] text-[#171411] px-1.5 xs:px-2 py-0.5 font-mono text-[9px] xs:text-[10px] sm:text-xs font-black animate-pulse shadow-sm">
                 +{pendingAmount.toLocaleString()}
               </span>
             ) : myXiuBet ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-[#D5B46B]/20 border border-[#D5B46B]/60 text-[#D5B46B] px-1.5 xs:px-2 py-0.5 font-mono text-[8px] xs:text-[9px] sm:text-xs font-bold shadow-xs">
+              <span className="inline-flex items-center gap-1 rounded-full bg-[#D5B46B]/20 border border-[#D5B46B]/60 text-[#D5B46B] px-1.5 xs:px-2 py-0.5 font-mono text-[9px] xs:text-[10px] sm:text-xs font-bold shadow-xs">
                 <Check size={10} strokeWidth={3} /> Đã cược: {myXiuBet.amount.toLocaleString()}
               </span>
             ) : (
-              <span className="text-[8px] xs:text-[9px] sm:text-xs text-[#E8DDC8]/90 font-bold bg-[#171411]/80 px-1.5 xs:px-2 py-0.5 rounded-full border border-[#A87932]/50 group-hover:border-[#D5B46B] group-hover:text-[#FAF5EB] transition-colors">
+              <span className="text-[9px] xs:text-[10px] sm:text-xs text-[#E8DDC8]/90 font-bold bg-[#171411]/80 px-1.5 xs:px-2 py-0.5 rounded-full border border-[#A87932]/50 group-hover:border-[#D5B46B] group-hover:text-[#FAF5EB] transition-colors">
                 + Chọn Xỉu
               </span>
             )}
@@ -150,7 +150,7 @@ export default function BetBoard({
           type="button"
           disabled={isLocked}
           onClick={() => handleSelectSide('TAI')}
-          className={`relative group flex flex-col items-center justify-between min-h-[88px] xs:min-h-[98px] sm:min-h-[150px] md:min-h-[165px] p-1.5 xs:p-2 sm:p-3.5 rounded-xl sm:rounded-2xl border-2 transition-all active:scale-[0.98] ${
+          className={`relative group flex flex-col items-center justify-between min-h-[100px] xs:min-h-[108px] sm:min-h-[150px] md:min-h-[165px] p-2 xs:p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl border-2 transition-all active:scale-[0.98] ${
             isSelectingTai
               ? 'border-[#D5B46B] bg-gradient-to-b from-[#421d1a]/95 via-[#2f1412]/95 to-[#1c0c0b] ring-3 ring-[#D5B46B]/60 shadow-[0_0_20px_rgba(213,180,107,0.35)]'
               : myTaiBet
@@ -164,7 +164,7 @@ export default function BetBoard({
           </div>
 
           <div className="text-center w-full">
-            <span className="font-mono text-[7.5px] xs:text-[8.5px] sm:text-xs uppercase tracking-widest text-[#D5B46B] font-bold block">
+            <span className="font-mono text-[9px] xs:text-[10px] sm:text-xs uppercase tracking-wide text-[#D5B46B] font-bold block">
               TỔNG 11 - 17 • ĂN 1:1
             </span>
             <h2 className="text-xl xs:text-2xl sm:text-4xl font-black text-[#FAF5EB] tracking-wider mt-0.5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
@@ -173,24 +173,24 @@ export default function BetBoard({
           </div>
 
           <div className="mt-0.5 xs:mt-1 sm:mt-2.5 flex flex-col items-center gap-0.5 w-full">
-            <div className="flex items-center gap-1 text-[9px] xs:text-[10px] sm:text-xs text-[#E8DDC8]/80 font-medium">
+            <div className="flex items-center gap-1 text-[10px] xs:text-[11px] sm:text-xs text-[#E8DDC8]/80 font-medium">
               <span>Tổng:</span>
               <strong className="font-mono text-[#D5B46B]">
                 {(betSummary.taiTotal || 0).toLocaleString()}
               </strong>
-              <span className="text-[8px] xs:text-[9px]">xu</span>
+              <span className="text-[9px] xs:text-[10px]">xu</span>
             </div>
 
             {isSelectingTai ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-[#D5B46B] text-[#171411] px-1.5 xs:px-2 py-0.5 font-mono text-[8px] xs:text-[9px] sm:text-xs font-black animate-pulse shadow-sm">
+              <span className="inline-flex items-center gap-1 rounded-full bg-[#D5B46B] text-[#171411] px-1.5 xs:px-2 py-0.5 font-mono text-[9px] xs:text-[10px] sm:text-xs font-black animate-pulse shadow-sm">
                 +{pendingAmount.toLocaleString()}
               </span>
             ) : myTaiBet ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-[#8E2926]/30 border border-[#8E2926] text-[#FAF5EB] px-1.5 xs:px-2 py-0.5 font-mono text-[8px] xs:text-[9px] sm:text-xs font-bold shadow-xs">
+              <span className="inline-flex items-center gap-1 rounded-full bg-[#8E2926]/30 border border-[#8E2926] text-[#FAF5EB] px-1.5 xs:px-2 py-0.5 font-mono text-[9px] xs:text-[10px] sm:text-xs font-bold shadow-xs">
                 <Check size={10} strokeWidth={3} /> Đã cược: {myTaiBet.amount.toLocaleString()}
               </span>
             ) : (
-              <span className="text-[8px] xs:text-[9px] sm:text-xs text-[#E8DDC8]/90 font-bold bg-[#171411]/80 px-1.5 xs:px-2 py-0.5 rounded-full border border-[#A87932]/50 group-hover:border-[#D5B46B] group-hover:text-[#FAF5EB] transition-colors">
+              <span className="text-[9px] xs:text-[10px] sm:text-xs text-[#E8DDC8]/90 font-bold bg-[#171411]/80 px-1.5 xs:px-2 py-0.5 rounded-full border border-[#A87932]/50 group-hover:border-[#D5B46B] group-hover:text-[#FAF5EB] transition-colors">
                 + Chọn Tài
               </span>
             )}
@@ -214,7 +214,7 @@ export default function BetBoard({
                 key={chip.label}
                 type="button"
                 onClick={() => handleSelectChip(chip.value)}
-                className={`min-h-[25px] xs:min-h-[28px] sm:min-h-[34px] px-1.5 xs:px-2 sm:px-3 py-0.5 rounded-lg xs:rounded-xl font-mono text-[9px] xs:text-[10px] sm:text-xs font-black transition-all active:scale-95 shrink-0 ${
+                className={`min-h-[36px] sm:min-h-[40px] px-2 xs:px-2.5 sm:px-3 py-0.5 rounded-lg xs:rounded-xl font-mono text-[9px] xs:text-[10px] sm:text-xs font-black transition-all active:scale-95 shrink-0 ${
                   isSelected
                     ? 'bg-gradient-to-r from-[#D5B46B] to-[#A87932] text-[#171411] shadow-[0_2px_8px_rgba(213,180,107,0.4)] border border-[#FAF5EB]/60 scale-105'
                     : 'bg-[#241712]/90 text-[#E8DDC8] border border-[#A87932]/40 hover:border-[#D5B46B]/70 hover:text-[#FAF5EB]'
@@ -230,7 +230,7 @@ export default function BetBoard({
             type="button"
             disabled={isLocked || myPoints <= 0}
             onClick={handleAllIn}
-            className="min-h-[25px] xs:min-h-[28px] sm:min-h-[34px] px-1.5 xs:px-2 sm:px-3 py-0.5 rounded-lg xs:rounded-xl border border-[#D5B46B]/60 bg-[#2b1b14] text-[9px] xs:text-[10px] sm:text-xs font-black text-[#D5B46B] hover:bg-[#3d271c] hover:border-[#D5B46B] hover:text-[#FAF5EB] disabled:opacity-40 transition-all active:scale-95 shrink-0"
+            className="min-h-[36px] sm:min-h-[40px] px-2 xs:px-2.5 sm:px-3 py-0.5 rounded-lg xs:rounded-xl border border-[#D5B46B]/60 bg-[#2b1b14] text-[9px] xs:text-[10px] sm:text-xs font-black text-[#D5B46B] hover:bg-[#3d271c] hover:border-[#D5B46B] hover:text-[#FAF5EB] disabled:opacity-40 transition-all active:scale-95 shrink-0"
             title="Đặt cược toàn bộ số xu hiện có"
           >
             Tất tay
@@ -245,7 +245,7 @@ export default function BetBoard({
           type="button"
           disabled={isLocked || !selectedSide || pendingAmount <= 0 || pendingAmount > myPoints}
           onClick={handleConfirmBet}
-          className="flex-1 flex items-center justify-center gap-1 xs:gap-1.5 min-h-[32px] xs:min-h-[36px] sm:min-h-[44px] px-2 xs:px-3 py-1 rounded-xl font-mono text-[10px] xs:text-xs sm:text-sm font-black transition-all active:scale-[0.98] shadow-md bg-gradient-to-r from-[#D5B46B] via-[#E8CD8C] to-[#A87932] text-[#171411] hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed disabled:grayscale"
+          className="flex-1 flex items-center justify-center gap-1 xs:gap-1.5 min-h-[40px] sm:min-h-[44px] px-2 xs:px-3 py-1 rounded-xl font-mono text-[10px] xs:text-xs sm:text-sm font-black transition-all active:scale-[0.98] shadow-md bg-gradient-to-r from-[#D5B46B] via-[#E8CD8C] to-[#A87932] text-[#171411] hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed disabled:grayscale"
         >
           <Check size={14} strokeWidth={3} />
           <span>
@@ -260,7 +260,7 @@ export default function BetBoard({
           type="button"
           disabled={!selectedSide && pendingAmount === 0}
           onClick={handleCancelBet}
-          className="flex items-center justify-center gap-1 min-h-[32px] xs:min-h-[36px] sm:min-h-[44px] px-2.5 xs:px-3 py-1 rounded-xl font-mono text-[10px] xs:text-xs sm:text-sm font-black transition-all active:scale-95 shadow-md border border-[#8E2926]/70 bg-gradient-to-b from-[#2a1413] to-[#1a0c0b] text-[#FAF5EB] hover:bg-[#3d1917] hover:border-[#8E2926] disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
+          className="flex items-center justify-center gap-1 min-h-[40px] sm:min-h-[44px] px-2.5 xs:px-3 py-1 rounded-xl font-mono text-[10px] xs:text-xs sm:text-sm font-black transition-all active:scale-95 shadow-md border border-[#8E2926]/70 bg-gradient-to-b from-[#2a1413] to-[#1a0c0b] text-[#FAF5EB] hover:bg-[#3d1917] hover:border-[#8E2926] disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
           title="Hủy mức cược và cửa vừa chọn"
         >
           <X size={14} strokeWidth={2.5} />

@@ -536,16 +536,16 @@ export default function TaiXiuGame() {
         <button
           type="button"
           onClick={() => setIsSoiCauOpen(true)}
-          className="shrink-0 flex items-center gap-0.5 rounded-md bg-[#2b1c15] border border-[#D5B46B]/40 px-1.5 py-0.5 text-[9px] font-bold text-[#D5B46B] hover:text-[#FAF5EB] active:scale-95 transition-all shadow-xs"
+          className="shrink-0 flex min-h-8 items-center gap-0.5 rounded-md bg-[#2b1c15] border border-[#D5B46B]/40 px-2 py-0.5 text-[10px] font-bold text-[#D5B46B] hover:text-[#FAF5EB] active:scale-95 transition-all shadow-xs"
         >
           <span>Chi tiết</span>
         </button>
       </div>
 
       {/* 3. LAYOUT CHÍNH: BÀN CHƠI TÀI XỈU (TỰ ĐỘNG THÍCH ỨNG MOBILE / DESKTOP) */}
-      <div className="flex flex-col lg:grid lg:grid-cols-12 gap-1 xs:gap-1.5 sm:gap-4 lg:gap-5 items-stretch lg:items-start flex-1 min-h-0 overflow-hidden lg:overflow-visible">
+      <div className="flex flex-col lg:grid lg:grid-cols-12 gap-1 xs:gap-1.5 sm:gap-4 lg:gap-5 items-stretch lg:items-start flex-1 min-h-0 overflow-x-hidden overflow-y-auto lg:overflow-visible">
         {/* CỘT TRÁI (Mobile: Trên / Desktop: 5 phần): Khay xúc xắc + Vé cược cá nhân */}
-        <div className="lg:col-span-5 flex flex-col gap-2 sm:gap-4 flex-1 lg:flex-initial min-h-0">
+        <div className="lg:col-span-5 flex flex-col gap-2 sm:gap-4 flex-1 lg:flex-initial min-h-[260px] lg:min-h-0">
           <DicePlate
             state={roomState}
             dice={dice}

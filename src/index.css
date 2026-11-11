@@ -116,6 +116,15 @@
   @apply bg-primary-500/50 rounded-full;
 }
 
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 .dark .custom-scrollbar::-webkit-scrollbar-thumb {
   @apply bg-primary-600/70;
 }
