@@ -187,14 +187,24 @@ export default function DicePlate({
   }, [dragOffset.x, dragOffset.y]);
 
   // Cự ly nặn thích ứng theo thiết bị:
-  // Trên mobile: ngón tay vuốt 40-70px, nên maxDrag=75px, buông tay >=45px là mở bát ngay
-  // Trên desktop: chuột kéo xa hơn, maxDrag=160px, buông tay >=100px mở
-  const isMobileScreen = typeof window !== 'undefined' && window.innerWidth < 768;
-  const maxDragDist = isMobileScreen ? 75 : 160;
-  const releaseDist = isMobileScreen ? 45 : 100;
-  const dragBounds = isMobileScreen ? 110 : 260;
+  // Trên mobile (<1024px): tăng biên độ nặn lên 1 tí (maxDrag: 75->100px, releaseDist: 45->60px, dragBounds: 110->140px)
+  // Trên desktop (>=1024px): giữ nguyên chuẩn PC (maxDrag=160px, releaseDist=100px, dragBounds=260px)
+  const [isMobileScreen, setIsMobileScreen] = useState(() => (typeof window !== 'undefined' ? window.innerWidth < 1024 : false));
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleResize = () => {
+      setIsMobileScreen(window.innerWidth < 1024);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const maxDragDist = isMobileScreen ? 100 : 160;
+  const releaseDist = isMobileScreen ? 60 : 100;
+  const dragBounds = isMobileScreen ? 140 : 260;
   const flingSpeedThresh = isMobileScreen ? 380 : 800;
-  const flingDistThresh = isMobileScreen ? 18 : 45;
+  const flingDistThresh = isMobileScreen ? 24 : 45;
 
   return (
     <section
