@@ -15,8 +15,8 @@ export default class ManualPairingAdapter {
     return this.core.acceptAnswer(answer);
   }
 
-  addIceCandidate(candidate) {
-    return this.core.addIceCandidate(candidate);
+  addIceCandidate(candidate, usernameFragment) {
+    return this.core.addIceCandidate(candidate, usernameFragment);
   }
 
   close() {

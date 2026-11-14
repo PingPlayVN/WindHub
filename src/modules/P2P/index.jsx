@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import WebRTCCore from './core/WebRTCCore.js';
 import ManualPairingAdapter from './pairing/ManualPairingAdapter.js';
+import { canTransitionPairing } from './pairing/PairingState.js';
 import SignalingClient from './pairing/SignalingClient.js';
 import TextTransfer from './transfers/TextTransfer.js';
 import FileTransfer from './transfers/FileTransfer.js';
@@ -68,14 +69,44 @@ function formatRemainingTime(seconds) {
   return `Còn khoảng ${Math.ceil(seconds / 3600)} giờ`;
 }
 
-function logP2PTiming(label, startedAt = null) {
+function logP2PTiming(sessionId, event, durationMs = null) {
   if (!import.meta.env.DEV) return;
-  const elapsed = startedAt === null ? '' : `: ${Math.round(performance.now() - startedAt)} ms`;
-  console.info(`[P2P] ${label}${elapsed}`);
+  console.info('[P2P timing]', {
+    sessionId: sessionId || null,
+    event,
+    durationMs: Number.isFinite(durationMs) ? Math.round(durationMs) : null,
+  });
 }
 
 function getP2PTimestamp() {
   return performance.now();
+}
+
+function getStableDeviceId() {
+  const key = 'windhub-p2p-device-id';
+  try {
+    const storedId = window.localStorage.getItem(key);
+    if (storedId) return storedId;
+  } catch {
+    // Continue with session storage when persistent storage is unavailable.
+  }
+  try {
+    const storedId = window.sessionStorage.getItem(key);
+    if (storedId) return storedId;
+  } catch {
+    // Use an in-memory identity when browser storage is disabled.
+  }
+  const nextId = crypto.randomUUID();
+  try {
+    window.localStorage.setItem(key, nextId);
+  } catch {
+    try {
+      window.sessionStorage.setItem(key, nextId);
+    } catch {
+      return nextId;
+    }
+  }
+  return nextId;
 }
 
 export default function P2P() {
@@ -85,18 +116,23 @@ export default function P2P() {
   const signalingRef = useRef(null);
   const activePeerIdRef = useRef(null);
   const sessionIdRef = useRef(null);
+  const requestIdRef = useRef(null);
+  const initiatorIdRef = useRef(null);
   const queuedLocalCandidatesRef = useRef([]);
   const pairingStartedAtRef = useRef(null);
   const requestSentAtRef = useRef(null);
+  const incomingRequestRef = useRef(null);
+  const pairingStateRef = useRef('IDLE');
+  const pairingTimerRef = useRef(null);
+  const pairingTimeoutHandlerRef = useRef(() => {});
+  const sessionGenerationRef = useRef(0);
+  const timingRef = useRef({});
+  const discoveryStartedAtRef = useRef(null);
+  const discoveryLoggedRef = useRef(false);
   const [status, setStatus] = useState('idle');
+  const [pairingState, setPairingState] = useState('IDLE');
   const [busy, setBusy] = useState(false);
-  const [deviceId] = useState(() => {
-    const existingDeviceId = window.sessionStorage.getItem('windhub-p2p-device-id');
-    if (existingDeviceId) return existingDeviceId;
-    const nextDeviceId = crypto.randomUUID();
-    window.sessionStorage.setItem('windhub-p2p-device-id', nextDeviceId);
-    return nextDeviceId;
-  });
+  const [deviceId] = useState(getStableDeviceId);
   const [deviceName, setDeviceName] = useState(() => window.localStorage.getItem('windhub-p2p-device-name') || '');
   const [deviceNameInput, setDeviceNameInput] = useState(() => window.localStorage.getItem('windhub-p2p-device-name') || '');
   const [editingDeviceName, setEditingDeviceName] = useState(!window.localStorage.getItem('windhub-p2p-device-name'));
@@ -115,6 +151,30 @@ export default function P2P() {
   const [isDragging, setIsDragging] = useState(false);
   const [transfers, setTransfers] = useState([]);
   const [receivedFiles, setReceivedFiles] = useState([]);
+
+  const clearPairingTimer = useCallback(() => {
+    clearTimeout(pairingTimerRef.current);
+    pairingTimerRef.current = null;
+  }, []);
+
+  const setPairingStage = useCallback((nextState, { timeoutMs = 0, onTimeout = null } = {}) => {
+    const currentState = pairingStateRef.current;
+    if (currentState !== nextState && !canTransitionPairing(currentState, nextState)) {
+      if (import.meta.env.DEV) console.warn('[P2P pairing] Invalid state transition', { currentState, nextState });
+      return false;
+    }
+    clearPairingTimer();
+    pairingStateRef.current = nextState;
+    setPairingState(nextState);
+    if (timeoutMs > 0 && onTimeout) {
+      const sessionId = sessionIdRef.current;
+      pairingTimerRef.current = setTimeout(() => {
+        pairingTimerRef.current = null;
+        if (pairingStateRef.current === nextState && sessionIdRef.current === sessionId) onTimeout();
+      }, timeoutMs);
+    }
+    return true;
+  }, [clearPairingTimer]);
 
   const flushQueuedLocalCandidates = useCallback(() => {
     const targetId = activePeerIdRef.current;
@@ -135,6 +195,7 @@ export default function P2P() {
           targetId,
           sessionId: currentSessionId,
           candidate: queuedCandidate.candidate,
+          usernameFragment: queuedCandidate.usernameFragment,
         });
       } catch (signalError) {
         setError(signalError.message || 'Không thể gửi ICE candidate qua signaling.');
@@ -144,17 +205,19 @@ export default function P2P() {
     }
   }, []);
 
-  const queueLocalIceCandidate = useCallback((candidate) => {
+  const queueLocalIceCandidate = useCallback((candidate, usernameFragment) => {
     const nextSessionId = sessionIdRef.current;
-    if (candidate === undefined || candidate === null) {
-      queuedLocalCandidatesRef.current.push({ sessionId: nextSessionId, candidate: null });
-    } else {
-      queuedLocalCandidatesRef.current.push({ sessionId: nextSessionId, candidate });
-    }
+    queuedLocalCandidatesRef.current.push({
+      sessionId: nextSessionId,
+      candidate: candidate ?? null,
+      usernameFragment: usernameFragment || null,
+    });
     flushQueuedLocalCandidates();
   }, [flushQueuedLocalCandidates]);
 
   const createSession = useCallback(() => {
+    sessionGenerationRef.current += 1;
+    const generation = sessionGenerationRef.current;
     sessionRef.current?.fileTransfer.close();
     sessionRef.current?.textTransfer.close();
     sessionRef.current?.pairing.close();
@@ -163,29 +226,79 @@ export default function P2P() {
 
     const core = new WebRTCCore({
       onStateChange: (nextStatus) => {
+        if (generation !== sessionGenerationRef.current) return;
         setStatus(nextStatus);
         if (nextStatus !== 'connected') setConnectionStats(null);
-        if (['disconnected', 'failed', 'closed'].includes(nextStatus)) {
-          activePeerIdRef.current = null;
-          setActivePeer(null);
+        if (nextStatus === 'connected' && pairingStateRef.current === 'NEGOTIATING') {
+          setPairingStage('CONNECTED');
+          const startedAt = pairingStartedAtRef.current;
+          if (startedAt !== null && !timingRef.current.totalLogged) {
+            timingRef.current.totalLogged = true;
+            logP2PTiming(sessionIdRef.current, 'total-pairing', getP2PTimestamp() - startedAt);
+          }
         }
       },
       onMessage: () => { },
-      onSignal: (candidate) => {
+      onSignal: (candidate, usernameFragment) => {
+        if (generation !== sessionGenerationRef.current) return;
         const targetId = activePeerIdRef.current;
         if (!sessionIdRef.current || !targetId || !signalingRef.current) {
-          queueLocalIceCandidate(candidate);
+          queueLocalIceCandidate(candidate, usernameFragment);
           return;
         }
         try {
-          signalingRef.current.send({ type: 'ice-candidate', targetId, sessionId: sessionIdRef.current, candidate });
+          signalingRef.current.send({
+            type: 'ice-candidate',
+            targetId,
+            sessionId: sessionIdRef.current,
+            candidate,
+            usernameFragment,
+          });
         } catch (signalError) {
-          queueLocalIceCandidate(candidate);
+          queueLocalIceCandidate(candidate, usernameFragment);
           setError(signalError.message || 'Không thể gửi ICE candidate qua signaling.');
         }
       },
-      onError: (connectionError) => setError(connectionError.message || 'Không thể áp dụng ICE candidate.'),
-      onTiming: (label) => logP2PTiming(label, pairingStartedAtRef.current),
+      onError: (connectionError) => {
+        if (generation === sessionGenerationRef.current) setError(connectionError.message || 'Không thể áp dụng ICE candidate.');
+      },
+      onTiming: (event, durationMs) => {
+        if (generation === sessionGenerationRef.current) logP2PTiming(sessionIdRef.current, event, durationMs);
+      },
+      onIceRestartRequest: async () => {
+        if (generation !== sessionGenerationRef.current) return;
+        const targetId = activePeerIdRef.current;
+        const currentSessionId = sessionIdRef.current;
+        const client = signalingRef.current;
+        if (!targetId || !currentSessionId || !client || !initiatorIdRef.current) {
+          core.iceRestartInProgress = false;
+          return;
+        }
+        try {
+          if (pairingStateRef.current === 'CONNECTED') {
+            setPairingStage('NEGOTIATING', {
+              timeoutMs: 45_000,
+              onTimeout: () => pairingTimeoutHandlerRef.current('FAILED', 'ICE restart mất quá nhiều thời gian.'),
+            });
+          }
+          if (initiatorIdRef.current === deviceId) {
+            const signal = await core.createIceRestartOffer();
+            if (generation !== sessionGenerationRef.current || sessionIdRef.current !== currentSessionId) return;
+            client.send({ type: 'offer', targetId, sessionId: currentSessionId, signal });
+          } else {
+            client.send({
+              type: 'ice-restart-request',
+              targetId: initiatorIdRef.current,
+              sessionId: currentSessionId,
+            });
+          }
+        } catch (restartError) {
+          if (generation === sessionGenerationRef.current) {
+            setError(restartError.message || 'Không thể khởi động lại kết nối ICE.');
+          }
+          throw restartError;
+        }
+      },
     });
     const pairing = new ManualPairingAdapter(core);
     const textTransfer = new TextTransfer(core, {
@@ -206,18 +319,85 @@ export default function P2P() {
       onError: (transferError) => setError(transferError.message),
     });
     sessionRef.current = { pairing, textTransfer, fileTransfer };
-  }, [queueLocalIceCandidate]);
+  }, [deviceId, queueLocalIceCandidate, setPairingStage]);
+
+  const clearPairingRefs = useCallback(() => {
+    clearPairingTimer();
+    requestIdRef.current = null;
+    sessionIdRef.current = null;
+    activePeerIdRef.current = null;
+    initiatorIdRef.current = null;
+    queuedLocalCandidatesRef.current = [];
+    pairingStartedAtRef.current = null;
+    requestSentAtRef.current = null;
+    incomingRequestRef.current = null;
+    timingRef.current = {};
+  }, [clearPairingTimer]);
+
+  const terminatePairing = useCallback((nextState, message = '', { notify = true } = {}) => {
+    const client = signalingRef.current;
+    const currentStage = pairingStateRef.current;
+    try {
+      if (notify && client && currentStage === 'REQUESTED' && requestIdRef.current && sessionIdRef.current) {
+        if (timingRef.current.requestDirection === 'incoming') {
+          client.send({
+            type: 'respond',
+            requestId: requestIdRef.current,
+            sessionId: sessionIdRef.current,
+            accepted: false,
+          });
+        } else {
+          client.send({
+            type: 'cancel',
+            requestId: requestIdRef.current,
+            sessionId: sessionIdRef.current,
+          });
+          if (incomingRequestRef.current && incomingRequestRef.current.requestId !== requestIdRef.current) {
+            client.send({
+              type: 'respond',
+              requestId: incomingRequestRef.current.requestId,
+              sessionId: incomingRequestRef.current.sessionId,
+              accepted: false,
+            });
+          }
+        }
+      } else if (notify && client && activePeerIdRef.current && sessionIdRef.current) {
+        client.send({
+          type: 'disconnect',
+          targetId: activePeerIdRef.current,
+          sessionId: sessionIdRef.current,
+        });
+      }
+    } catch (signalError) {
+      if (notify) setError(signalError.message || 'Không thể hủy phiên ghép nối qua signaling.');
+    }
+
+    clearPairingRefs();
+    createSession();
+    setStatus('idle');
+    setBusy(false);
+    setIncomingRequest(null);
+    setOutgoingRequest(null);
+    setActivePeer(null);
+    setPairingStage(nextState);
+    if (message) setError(message);
+  }, [clearPairingRefs, createSession, setPairingStage]);
+
+  useEffect(() => {
+    pairingTimeoutHandlerRef.current = terminatePairing;
+  }, [terminatePairing]);
 
   useEffect(() => {
     createSession();
     const objectUrls = objectUrlsRef.current;
     return () => {
+      clearPairingTimer();
       sessionRef.current?.fileTransfer.close();
       sessionRef.current?.textTransfer.close();
       sessionRef.current?.pairing.close();
       objectUrls.forEach((url) => URL.revokeObjectURL(url));
     };
-  }, [createSession]);
+  }, [clearPairingTimer, createSession]);
 
   useEffect(() => {
     if (status !== 'connected') return undefined;
@@ -250,90 +430,271 @@ export default function P2P() {
         if (message) setError(message);
         if (nextState === 'offline' || nextState === 'error') {
           setDevices((currentDevices) => currentDevices.map((device) => ({ ...device, status: 'RECONNECTING' })));
+          if (nextState === 'offline' && ['REQUESTED', 'ACCEPTED', 'NEGOTIATING'].includes(pairingStateRef.current)) {
+            terminatePairing('INTERRUPTED', 'Signaling đã ngắt trong khi ghép nối. Hãy thử lại.', { notify: false });
+          }
         }
         if (nextState === 'online') {
-          setDevices((currentDevices) => currentDevices.map((device) => ({ ...device, status: 'ACTIVE' })));
+          setDevices([]);
+          discoveryStartedAtRef.current = getP2PTimestamp();
+          discoveryLoggedRef.current = false;
         }
       },
       onMessage: async (message) => {
         if (message.type === 'devices') {
+          if (!discoveryLoggedRef.current && discoveryStartedAtRef.current !== null) {
+            discoveryLoggedRef.current = true;
+            logP2PTiming(null, 'device-discovery', getP2PTimestamp() - discoveryStartedAtRef.current);
+          }
           const uniqueDevices = new Map(
-            message.devices.map((peer) => [peer.id, { ...peer, status: 'ACTIVE' }]),
+            message.devices
+              .filter((peer) => peer.id !== deviceId)
+              .map((peer) => [peer.id, { ...peer, status: 'ACTIVE' }]),
           );
           setDevices([...uniqueDevices.values()]);
+        } else if (message.type === 'device-upsert') {
+          if (message.device?.id === deviceId) return;
+          setDevices((currentDevices) => [
+            ...currentDevices.filter((device) => device.id !== message.device.id),
+            { ...message.device, status: 'ACTIVE' },
+          ]);
+        } else if (message.type === 'device-left') {
+          setDevices((currentDevices) => currentDevices.filter((device) => (
+            device.id !== message.deviceId
+            || device.connectionId !== message.connectionId
+          )));
         } else if (message.type === 'connection-request') {
-          setIncomingRequest(message);
+          if (!message.requestId || !message.sessionId || !message.from?.id) return;
+          if (
+            message.requestId === requestIdRef.current
+            || message.requestId === incomingRequestRef.current?.requestId
+          ) return;
+          const sameOutgoingPeer = timingRef.current.requestDirection === 'outgoing'
+            && activePeerIdRef.current === message.from.id;
+          const coreIsIdle = sessionRef.current?.pairing.core.state === 'idle';
+          const canAcceptRequest = [
+            'IDLE', 'REJECTED', 'EXPIRED', 'CANCELLED', 'FAILED', 'INTERRUPTED',
+          ].includes(pairingStateRef.current) && coreIsIdle;
+          if (canAcceptRequest) {
+            requestIdRef.current = message.requestId;
+            sessionIdRef.current = message.sessionId;
+            activePeerIdRef.current = message.from.id;
+            timingRef.current = {
+              requestDirection: 'incoming',
+              requestReceivedAt: getP2PTimestamp(),
+            };
+            pairingStartedAtRef.current = timingRef.current.requestReceivedAt;
+            incomingRequestRef.current = message;
+            setIncomingRequest(message);
+            setPairingStage('REQUESTED', {
+              timeoutMs: 90_000,
+              onTimeout: () => terminatePairing('EXPIRED', 'Yêu cầu kết nối đã hết hạn.'),
+            });
+          } else if (sameOutgoingPeer && pairingStateRef.current === 'REQUESTED') {
+            incomingRequestRef.current = message;
+            setIncomingRequest(message);
+          } else {
+            client.send({
+              type: 'respond',
+              requestId: message.requestId,
+              sessionId: message.sessionId,
+              accepted: false,
+            });
+          }
         } else if (message.type === 'request-expired') {
-          setIncomingRequest((current) => current?.requestId === message.requestId ? null : current);
-          setOutgoingRequest((current) => current?.requestId === message.requestId ? null : current);
-          setError('Yêu cầu kết nối đã hết hạn hoặc thiết bị kia đã ngoại tuyến.');
+          if (message.requestId !== requestIdRef.current) return;
+          terminatePairing('EXPIRED', 'Yêu cầu kết nối đã hết hạn hoặc thiết bị kia đã ngoại tuyến.', { notify: false });
+        } else if (message.type === 'request-cancelled') {
+          if (message.requestId !== requestIdRef.current) return;
+          terminatePairing('CANCELLED', 'Yêu cầu kết nối đã bị hủy.', { notify: false });
         } else if (message.type === 'request-sent') {
+          if (
+            message.requestId !== requestIdRef.current
+            && pairingStateRef.current === 'REQUESTED'
+            && timingRef.current.requestDirection === 'outgoing'
+            && message.sessionId === sessionIdRef.current
+          ) requestIdRef.current = message.requestId;
+          if (message.requestId !== requestIdRef.current) return;
+          if (message.sessionId) sessionIdRef.current = message.sessionId;
           setOutgoingRequest({ requestId: message.requestId, peer: message.to });
+          if (requestSentAtRef.current !== null) {
+            logP2PTiming(sessionIdRef.current, 'request-delivery', getP2PTimestamp() - requestSentAtRef.current);
+          }
         } else if (message.type === 'connection-response') {
+          if (message.requestId !== requestIdRef.current) return;
+          if (message.sessionId) sessionIdRef.current = message.sessionId;
+          incomingRequestRef.current = null;
+          setIncomingRequest(null);
           setOutgoingRequest(null);
           if (!message.accepted) {
-            activePeerIdRef.current = null;
-            sessionIdRef.current = null;
-            setError(`${message.from.name} đã từ chối yêu cầu kết nối.`);
+            terminatePairing('REJECTED', `${message.from?.name || 'Thiết bị'} đã từ chối yêu cầu kết nối.`, { notify: false });
             return;
           }
-          logP2PTiming('Connection accepted', requestSentAtRef.current);
+          const acceptedAt = getP2PTimestamp();
+          const acceptanceBase = requestSentAtRef.current ?? timingRef.current.requestReceivedAt;
+          if (acceptanceBase !== undefined && acceptanceBase !== null) {
+            logP2PTiming(sessionIdRef.current, 'user-acceptance', acceptedAt - acceptanceBase);
+          }
           requestSentAtRef.current = null;
-          pairingStartedAtRef.current = getP2PTimestamp();
-          logP2PTiming('Pairing setup start', pairingStartedAtRef.current);
-          sessionIdRef.current = message.sessionId || sessionIdRef.current || crypto.randomUUID();
+          pairingStartedAtRef.current ??= acceptedAt;
+          timingRef.current.initiatorId = message.initiatorId || deviceId;
+          initiatorIdRef.current = timingRef.current.initiatorId;
+          if (!setPairingStage('ACCEPTED', {
+            timeoutMs: 10_000,
+            onTimeout: () => terminatePairing('FAILED', 'Ghép nối không được xác nhận kịp thời.'),
+          })) return;
           activePeerIdRef.current = message.from.id;
           setActivePeer(message.from);
-          setBusy(true);
-          try {
-            const signal = await sessionRef.current.pairing.createOffer();
-            client.send({ type: 'offer', targetId: message.from.id, sessionId: sessionIdRef.current, signal });
-            flushQueuedLocalCandidates();
-            logP2PTiming('Offer sent', pairingStartedAtRef.current);
-          } catch (connectionError) {
-            setError(connectionError.message || 'Không thể tạo kết nối WebRTC.');
-          } finally {
-            setBusy(false);
+          if (!setPairingStage('NEGOTIATING', {
+            timeoutMs: 45_000,
+            onTimeout: () => terminatePairing('FAILED', 'Kết nối WebRTC mất quá nhiều thời gian.'),
+          })) return;
+          if (initiatorIdRef.current === deviceId) {
+            setBusy(true);
+            try {
+              const signal = await sessionRef.current.pairing.createOffer();
+              if (pairingStateRef.current !== 'NEGOTIATING' || sessionIdRef.current !== message.sessionId) return;
+              client.send({
+                type: 'offer',
+                targetId: message.from.id,
+                sessionId: sessionIdRef.current,
+                signal,
+              });
+              timingRef.current.offerSentAt = getP2PTimestamp();
+              flushQueuedLocalCandidates();
+            } catch (connectionError) {
+              if (sessionIdRef.current === message.sessionId && pairingStateRef.current === 'NEGOTIATING') {
+                terminatePairing('FAILED', connectionError.message || 'Không thể tạo kết nối WebRTC.');
+              }
+            } finally {
+              if (sessionIdRef.current === message.sessionId) setBusy(false);
+            }
           }
-        } else if (message.type === 'offer') {
-          if (message.sessionId && sessionIdRef.current && message.sessionId !== sessionIdRef.current) return;
+        } else if (message.type === 'response-sent') {
+          if (message.requestId !== requestIdRef.current) return;
           if (message.sessionId) sessionIdRef.current = message.sessionId;
-          else if (!sessionIdRef.current) sessionIdRef.current = crypto.randomUUID();
-          if (pairingStartedAtRef.current === null) pairingStartedAtRef.current = getP2PTimestamp();
-          logP2PTiming('Offer received', pairingStartedAtRef.current);
+          if (!message.accepted) {
+            terminatePairing('REJECTED', '', { notify: false });
+            return;
+          }
+          const acceptedAt = getP2PTimestamp();
+          const requestReceivedAt = timingRef.current.requestReceivedAt;
+          if (requestReceivedAt !== undefined) {
+            logP2PTiming(sessionIdRef.current, 'user-acceptance', acceptedAt - requestReceivedAt);
+          }
+          initiatorIdRef.current = message.initiatorId || message.from?.id;
+          timingRef.current.initiatorId = initiatorIdRef.current;
+          if (!setPairingStage('ACCEPTED', {
+            timeoutMs: 10_000,
+            onTimeout: () => terminatePairing('FAILED', 'Ghép nối không được xác nhận kịp thời.'),
+          })) return;
+          if (!setPairingStage('NEGOTIATING', {
+            timeoutMs: 45_000,
+            onTimeout: () => terminatePairing('FAILED', 'Kết nối WebRTC mất quá nhiều thời gian.'),
+          })) return;
+          activePeerIdRef.current = message.from.id;
+          setActivePeer(message.from);
+        } else if (message.type === 'offer') {
+          if (
+            message.sessionId !== sessionIdRef.current
+            || message.from?.id !== activePeerIdRef.current
+            || !['NEGOTIATING', 'CONNECTED'].includes(pairingStateRef.current)
+            || initiatorIdRef.current !== message.from.id
+          ) return;
+          const offerKey = `${message.sessionId}:${message.signal}`;
+          if (timingRef.current.remoteOfferKey === offerKey) return;
+          timingRef.current.remoteOfferKey = offerKey;
+          if (pairingStateRef.current === 'CONNECTED') {
+            setPairingStage('NEGOTIATING', {
+              timeoutMs: 45_000,
+              onTimeout: () => terminatePairing('FAILED', 'ICE restart mất quá nhiều thời gian.'),
+            });
+          }
           activePeerIdRef.current = message.from.id;
           setActivePeer(message.from);
           setBusy(true);
           try {
             const signal = await sessionRef.current.pairing.createAnswer(message.signal);
-            client.send({ type: 'answer', targetId: message.from.id, sessionId: sessionIdRef.current, signal });
+            if (!['NEGOTIATING', 'CONNECTED'].includes(pairingStateRef.current) || message.sessionId !== sessionIdRef.current) return;
+            client.send({
+              type: 'answer',
+              targetId: message.from.id,
+              sessionId: sessionIdRef.current,
+              signal,
+            });
+            timingRef.current.answerSentAt = getP2PTimestamp();
             flushQueuedLocalCandidates();
-            logP2PTiming('Answer sent', pairingStartedAtRef.current);
           } catch (connectionError) {
-            setError(connectionError.message || 'Không thể trả lời yêu cầu kết nối.');
+            if (sessionIdRef.current === message.sessionId && pairingStateRef.current === 'NEGOTIATING') {
+              terminatePairing('FAILED', connectionError.message || 'Không thể trả lời yêu cầu kết nối.');
+            }
           } finally {
-            setBusy(false);
+            if (sessionIdRef.current === message.sessionId) setBusy(false);
           }
         } else if (message.type === 'answer') {
-          if (message.sessionId && sessionIdRef.current && message.sessionId !== sessionIdRef.current) return;
-          if (message.sessionId) sessionIdRef.current = message.sessionId;
-          else if (!sessionIdRef.current) sessionIdRef.current = crypto.randomUUID();
-          logP2PTiming('Answer received', pairingStartedAtRef.current);
+          if (
+            message.sessionId !== sessionIdRef.current
+            || message.from?.id !== activePeerIdRef.current
+            || !['NEGOTIATING', 'CONNECTED'].includes(pairingStateRef.current)
+            || initiatorIdRef.current !== deviceId
+          ) return;
+          if (timingRef.current.offerSentAt !== undefined) {
+            logP2PTiming(sessionIdRef.current, 'answer-delivery', getP2PTimestamp() - timingRef.current.offerSentAt);
+          }
           try {
             await sessionRef.current.pairing.acceptAnswer(message.signal);
             flushQueuedLocalCandidates();
           } catch (connectionError) {
-            setError(connectionError.message || 'Không thể hoàn tất kết nối.');
+            if (sessionIdRef.current === message.sessionId && pairingStateRef.current === 'NEGOTIATING') {
+              terminatePairing('FAILED', connectionError.message || 'Không thể hoàn tất kết nối.');
+            }
           }
         } else if (message.type === 'ice-candidate') {
-          if (message.sessionId && sessionIdRef.current && message.sessionId !== sessionIdRef.current) return;
-          if (message.sessionId) sessionIdRef.current = message.sessionId;
-          if (activePeerIdRef.current && activePeerIdRef.current !== message.from.id) return;
+          if (
+            message.sessionId !== sessionIdRef.current
+            || message.from?.id !== activePeerIdRef.current
+            || !['NEGOTIATING', 'CONNECTED'].includes(pairingStateRef.current)
+          ) return;
           try {
-            await sessionRef.current.pairing.addIceCandidate(message.candidate);
+            await sessionRef.current.pairing.addIceCandidate(message.candidate, message.usernameFragment);
           } catch (connectionError) {
-            setError(connectionError.message || 'Không thể áp dụng ICE candidate.');
+            if (sessionIdRef.current === message.sessionId) {
+              setError(connectionError.message || 'Không thể áp dụng ICE candidate.');
+            }
           }
+        } else if (message.type === 'ice-restart-request') {
+          if (
+            message.sessionId !== sessionIdRef.current
+            || message.from?.id !== activePeerIdRef.current
+            || initiatorIdRef.current !== deviceId
+            || pairingStateRef.current !== 'CONNECTED'
+          ) return;
+          setPairingStage('NEGOTIATING', {
+            timeoutMs: 45_000,
+            onTimeout: () => terminatePairing('FAILED', 'ICE restart mất quá nhiều thời gian.'),
+          });
+          try {
+            const signal = await sessionRef.current.pairing.core.createIceRestartOffer();
+            if (message.sessionId !== sessionIdRef.current || pairingStateRef.current !== 'NEGOTIATING') return;
+            client.send({
+              type: 'offer',
+              targetId: activePeerIdRef.current,
+              sessionId: sessionIdRef.current,
+              signal,
+            });
+            timingRef.current.offerSentAt = getP2PTimestamp();
+          } catch (restartError) {
+            if (sessionIdRef.current === message.sessionId && pairingStateRef.current === 'NEGOTIATING') {
+              terminatePairing('FAILED', restartError.message || 'Không thể khởi động lại kết nối ICE.');
+            }
+          }
+        } else if (message.type === 'disconnect' || message.type === 'session-interrupted') {
+          if (message.sessionId !== sessionIdRef.current) return;
+          terminatePairing(
+            'INTERRUPTED',
+            message.reason === 'disconnected' ? 'Thiết bị kia đã ngắt kết nối.' : '',
+            { notify: false },
+          );
         } else if (message.type === 'error') {
           setError(message.message);
         }
@@ -345,7 +706,7 @@ export default function P2P() {
       client.close();
       if (signalingRef.current === client) signalingRef.current = null;
     };
-  }, [deviceId, deviceName, flushQueuedLocalCandidates]);
+  }, [deviceId, deviceName, flushQueuedLocalCandidates, setPairingStage, terminatePairing]);
 
   const runAction = async (action) => {
     setError('');
@@ -377,71 +738,103 @@ export default function P2P() {
 
   const handleRequestConnection = (peer) => {
     setError('');
-    sessionIdRef.current = crypto.randomUUID();
+    if (
+      signalingState !== 'online'
+      || !['IDLE', 'REJECTED', 'EXPIRED', 'CANCELLED', 'FAILED', 'INTERRUPTED'].includes(pairingStateRef.current)
+    ) return;
+    if (sessionRef.current?.pairing.core.state !== 'idle') {
+      setError('Hãy tạo phiên mới trước khi bắt đầu ghép nối khác.');
+      return;
+    }
+    const requestId = crypto.randomUUID();
+    const sessionId = crypto.randomUUID();
+    requestIdRef.current = requestId;
+    sessionIdRef.current = sessionId;
+    activePeerIdRef.current = peer.id;
+    pairingStartedAtRef.current = getP2PTimestamp();
+    requestSentAtRef.current = pairingStartedAtRef.current;
+    timingRef.current = { requestDirection: 'outgoing', requestStartedAt: requestSentAtRef.current };
+    setOutgoingRequest({ requestId, peer });
+    setPairingStage('REQUESTED', {
+      timeoutMs: 90_000,
+      onTimeout: () => terminatePairing('EXPIRED', 'Yêu cầu kết nối đã hết hạn.'),
+    });
     try {
-      signalingRef.current.send({ type: 'request', targetId: peer.id, sessionId: sessionIdRef.current });
-      requestSentAtRef.current = getP2PTimestamp();
-      logP2PTiming('Request sent', requestSentAtRef.current);
+      signalingRef.current.send({ type: 'request', targetId: peer.id, requestId, sessionId });
     } catch (requestError) {
-      sessionIdRef.current = null;
-      setError(requestError.message);
+      terminatePairing('FAILED', requestError.message || 'Không thể gửi yêu cầu kết nối.');
     }
   };
 
   const handleRespondToRequest = (accepted) => {
-    if (!incomingRequest) return;
+    const request = incomingRequestRef.current || incomingRequest;
+    if (!request) return;
     try {
       if (accepted) {
-        pairingStartedAtRef.current = getP2PTimestamp();
+        const outgoingRequestId = requestIdRef.current;
+        if (
+          timingRef.current.requestDirection === 'outgoing'
+          && outgoingRequestId
+          && outgoingRequestId !== request.requestId
+        ) {
+          signalingRef.current.send({
+            type: 'cancel',
+            requestId: outgoingRequestId,
+            sessionId: sessionIdRef.current,
+          });
+        }
+        requestIdRef.current = request.requestId;
+        sessionIdRef.current = request.sessionId;
+        timingRef.current = {
+          requestDirection: 'incoming',
+          requestReceivedAt: timingRef.current.requestReceivedAt ?? getP2PTimestamp(),
+        };
+        pairingStartedAtRef.current ??= timingRef.current.requestReceivedAt;
         requestSentAtRef.current = null;
-        logP2PTiming('Connection accepted', pairingStartedAtRef.current);
-        sessionIdRef.current = incomingRequest.sessionId || sessionIdRef.current || crypto.randomUUID();
-        activePeerIdRef.current = incomingRequest.from.id;
+        activePeerIdRef.current = request.from.id;
+        setActivePeer(request.from);
+        setOutgoingRequest(null);
+        if (!setPairingStage('ACCEPTED', {
+          timeoutMs: 10_000,
+          onTimeout: () => terminatePairing('FAILED', 'Ghép nối không được xác nhận kịp thời.'),
+        })) return;
       } else {
-        activePeerIdRef.current = null;
-        sessionIdRef.current = null;
-        pairingStartedAtRef.current = null;
-        requestSentAtRef.current = null;
+        const hasOutgoingRequest = timingRef.current.requestDirection === 'outgoing'
+          && requestIdRef.current !== request.requestId;
+        if (!hasOutgoingRequest) {
+          requestIdRef.current = request.requestId;
+          sessionIdRef.current = request.sessionId;
+          timingRef.current = { requestDirection: 'incoming' };
+        }
       }
       signalingRef.current.send({
         type: 'respond',
-        requestId: incomingRequest.requestId,
+        requestId: request.requestId,
         accepted,
-        sessionId: sessionIdRef.current,
+        sessionId: request.sessionId,
       });
-      if (accepted) setActivePeer(incomingRequest.from);
+      incomingRequestRef.current = null;
       setIncomingRequest(null);
-      flushQueuedLocalCandidates();
+      if (!accepted && timingRef.current.requestDirection !== 'outgoing') {
+        activePeerIdRef.current = null;
+        requestIdRef.current = null;
+        sessionIdRef.current = null;
+        pairingStartedAtRef.current = null;
+        requestSentAtRef.current = null;
+        setActivePeer(null);
+        setPairingStage('REJECTED');
+      }
     } catch (requestError) {
-      activePeerIdRef.current = null;
-      sessionIdRef.current = null;
-      pairingStartedAtRef.current = null;
-      requestSentAtRef.current = null;
-      setError(requestError.message);
+      terminatePairing('FAILED', requestError.message || 'Không thể phản hồi yêu cầu kết nối.');
     }
   };
 
+  const handleCancelPairing = () => {
+    terminatePairing('CANCELLED', 'Đã hủy ghép nối.');
+  };
+
   const handleReset = () => {
-    let resetWarning = '';
-    if (activePeer) {
-      try {
-        signalingRef.current?.send({ type: 'disconnect', targetId: activePeer.id, sessionId: sessionIdRef.current });
-      } catch {
-        resetWarning = 'Đã tạo phiên mới; signaling server hiện không khả dụng.';
-      }
-    }
-    createSession();
-    activePeerIdRef.current = null;
-    sessionIdRef.current = null;
-    queuedLocalCandidatesRef.current = [];
-    pairingStartedAtRef.current = null;
-    requestSentAtRef.current = null;
-    setStatus('idle');
-    setBusy(false);
-    setError(resetWarning);
-    setIncomingRequest(null);
-    setOutgoingRequest(null);
-    setActivePeer(null);
+    terminatePairing('IDLE', '');
     setMessages([]);
     setText('');
     setSelectedFile(null);
@@ -597,15 +990,17 @@ export default function P2P() {
             )}
 
             {outgoingRequest && (
-              <p role="status" className="rounded-lg bg-slate-100 p-3 text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                Đang chờ {outgoingRequest.peer.name} chấp nhận yêu cầu…
-              </p>
+              <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-slate-100 p-3 text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                <span>Đang chờ {outgoingRequest.peer.name} chấp nhận yêu cầu…</span>
+                <button type="button" onClick={handleCancelPairing} className="rounded-md border border-slate-300 px-2.5 py-1.5 text-xs font-semibold dark:border-slate-700">Hủy</button>
+              </div>
             )}
 
             {activePeer && status !== 'connected' && (
-              <p role="status" className="rounded-lg bg-slate-100 p-3 text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                Đang thiết lập kết nối bảo mật với {activePeer.name}…
-              </p>
+              <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-slate-100 p-3 text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                <span>Đang thiết lập kết nối bảo mật với {activePeer.name}…</span>
+                <button type="button" onClick={handleCancelPairing} className="rounded-md border border-slate-300 px-2.5 py-1.5 text-xs font-semibold dark:border-slate-700">Hủy</button>
+              </div>
             )}
 
             <div className="space-y-2">
@@ -621,7 +1016,7 @@ export default function P2P() {
                   </div>
                   <button
                     type="button"
-                    disabled={signalingState !== 'online' || busy || Boolean(outgoingRequest) || Boolean(activePeer)}
+                    disabled={signalingState !== 'online' || busy || Boolean(outgoingRequest) || Boolean(activePeer) || !['IDLE', 'REJECTED', 'EXPIRED', 'CANCELLED', 'FAILED', 'INTERRUPTED'].includes(pairingState)}
                     onClick={() => handleRequestConnection(peer)}
                     className="rounded-lg bg-amber-400 px-3 py-2 text-sm font-bold text-black disabled:cursor-not-allowed disabled:opacity-50"
                   >

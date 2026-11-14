@@ -109,7 +109,10 @@ Bộ công cụ tự động đăng ký dạng plugin (`src/modules/Tools/`):
 - **Facebook Profile Tool**: Công cụ bóc tách metadata tài khoản / trang Facebook công khai qua Cloudflare Worker Edge Proxy mà không lộ thông tin cá nhân và không bị chặn CORS.
 
 ### 5. Truyền tệp ngang hàng P2P (WebRTC DataChannel) (`/p2p`)
-- Kết nối trực tiếp giữa 2 trình duyệt không qua máy chủ lưu trữ trung gian.
+- WebSocket signaling trên Render chỉ hỗ trợ khám phá và trao đổi lời mời/SDP/ICE; dữ liệu tệp và văn bản luôn đi trực tiếp qua WebRTC DataChannel, không đi qua Render.
+- Dùng Trickle ICE với STUN miễn phí để gửi Offer/Answer và ICE Candidate ngay khi sẵn sàng; các candidate đến trước SDP được xếp hàng theo ICE generation. Ghép nối được gắn `requestId`/`sessionId`, có hủy, timeout và chống tin nhắn phiên cũ.
+- Hai DataChannel tin cậy riêng cho điều khiển và tệp; trạng thái kết nối chỉ thành công khi cả hai kênh đã mở.
+- Không cấu hình TURN: một số mạng NAT/firewall có thể không thiết lập được kết nối trực tiếp.
 - **Giao thức chuyển dữ liệu (Data Transfer)**:
   - Chia nhỏ chunk dữ liệu tối đa 256 KiB (đàm phán phù hợp giới hạn SCTP).
   - Cơ chế ACK tích lũy (Cumulative ACK) theo chu kỳ tối đa 4 chunk / 1 MiB / 100 ms.

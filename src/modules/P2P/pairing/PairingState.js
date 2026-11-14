@@ -1,0 +1,29 @@
+export const PAIRING_STATES = Object.freeze([
+  'IDLE',
+  'REQUESTED',
+  'ACCEPTED',
+  'NEGOTIATING',
+  'CONNECTED',
+  'REJECTED',
+  'EXPIRED',
+  'CANCELLED',
+  'FAILED',
+  'INTERRUPTED',
+]);
+
+const transitions = {
+  IDLE: ['REQUESTED'],
+  REQUESTED: ['IDLE', 'ACCEPTED', 'REJECTED', 'EXPIRED', 'CANCELLED', 'FAILED', 'INTERRUPTED'],
+  ACCEPTED: ['IDLE', 'NEGOTIATING', 'REJECTED', 'EXPIRED', 'CANCELLED', 'FAILED', 'INTERRUPTED'],
+  NEGOTIATING: ['IDLE', 'CONNECTED', 'CANCELLED', 'FAILED', 'INTERRUPTED'],
+  CONNECTED: ['IDLE', 'NEGOTIATING', 'CANCELLED', 'FAILED', 'INTERRUPTED'],
+  REJECTED: ['IDLE', 'REQUESTED'],
+  EXPIRED: ['IDLE', 'REQUESTED'],
+  CANCELLED: ['IDLE', 'REQUESTED'],
+  FAILED: ['IDLE', 'REQUESTED'],
+  INTERRUPTED: ['IDLE', 'REQUESTED'],
+};
+
+export function canTransitionPairing(current, next) {
+  return transitions[current]?.includes(next) || false;
+}
