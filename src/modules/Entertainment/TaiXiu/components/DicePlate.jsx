@@ -200,9 +200,9 @@ export default function DicePlate({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const maxDragDist = isMobileScreen ? 100 : 160;
-  const releaseDist = isMobileScreen ? 60 : 100;
-  const dragBounds = isMobileScreen ? 140 : 260;
+  const maxDragDist = isMobileScreen ? 170 : 190;
+  const releaseDist = isMobileScreen ? 120 : 130;
+  const dragBounds = isMobileScreen ? 170 : 260;
   const flingSpeedThresh = isMobileScreen ? 380 : 800;
   const flingDistThresh = isMobileScreen ? 24 : 45;
 
@@ -488,13 +488,12 @@ export default function DicePlate({
                 3 Xúc xắc: {dice[0]} - {dice[1]} - {dice[2]}
               </p>
               {dramaticMessage && (
-                <div className={`mt-0.5 text-[9px] xs:text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full inline-flex items-center justify-center gap-1 border shadow-xs ${
-                  dramaticType === 'TRIPLE_JACKPOT'
-                    ? 'bg-amber-500/25 text-amber-300 border-amber-400/60 animate-bounce'
-                    : dramaticType === 'STREAK_BREAKER'
-                      ? 'bg-rose-500/25 text-rose-300 border-rose-400/60 animate-pulse'
-                      : 'bg-cyan-500/25 text-cyan-300 border-cyan-400/60'
-                }`}>
+                <div className={`mt-0.5 text-[9px] xs:text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full inline-flex items-center justify-center gap-1 border shadow-xs ${dramaticType === 'TRIPLE_JACKPOT'
+                  ? 'bg-amber-500/25 text-amber-300 border-amber-400/60 animate-bounce'
+                  : dramaticType === 'STREAK_BREAKER'
+                    ? 'bg-rose-500/25 text-rose-300 border-rose-400/60 animate-pulse'
+                    : 'bg-cyan-500/25 text-cyan-300 border-cyan-400/60'
+                  }`}>
                   <span>{dramaticMessage}</span>
                 </div>
               )}
