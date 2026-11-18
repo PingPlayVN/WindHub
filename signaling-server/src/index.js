@@ -76,6 +76,17 @@ export function createSignalingServer({ allowedOrigins = process.env.ALLOWED_ORI
       response.end(JSON.stringify({ ok: true }));
       return;
     }
+    if (request.url === '/') {
+      response.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+      response.end(JSON.stringify({
+        ok: true,
+        service: 'WindHub P2P WebRTC Signaling Server',
+        status: 'online',
+        websocket: `wss://${request.headers.host || 'windhub-p2p-signaling.onrender.com'}/p2p`,
+        healthCheck: '/health'
+      }));
+      return;
+    }
     response.writeHead(404);
     response.end();
   });

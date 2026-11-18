@@ -179,6 +179,12 @@ test('signaling server exposes a health endpoint', async () => {
     const response = await fetch(`http://127.0.0.1:${address.port}/health`);
     assert.equal(response.status, 200);
     assert.deepEqual(await response.json(), { ok: true });
+
+    const rootResponse = await fetch(`http://127.0.0.1:${address.port}/`);
+    assert.equal(rootResponse.status, 200);
+    const rootData = await rootResponse.json();
+    assert.equal(rootData.ok, true);
+    assert.equal(rootData.status, 'online');
   } finally {
     await service.close();
   }
