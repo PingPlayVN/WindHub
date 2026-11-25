@@ -1,18 +1,28 @@
-// src/components/layout/MainLayout/index.jsx
-import Sidebar from '../Sidebar';
-import Header from '../Header';
+import Sidebar from '@/components/os/Sidebar';
+import TopBar from '@/components/os/TopBar';
+import BottomNavigation from '@/components/os/BottomNavigation';
+import CommandPalette from '@/components/os/CommandPalette';
 
 export default function MainLayout({ children }) {
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-slate-50 dark:bg-black transition-colors duration-300">
+    <div className="os-app-canvas flex h-[100dvh] w-full overflow-hidden">
+      <div className="os-ambient-backdrop" aria-hidden="true" />
+
       <Sidebar />
-      <main className="min-w-0 min-h-0 flex-1 flex flex-col relative">
-        <Header />
-        {/* Khu vực render nội dung các trang */}
-        <div className="relative min-w-0 min-h-0 flex flex-1 flex-col overflow-auto p-4 md:p-6">
+
+      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+        <TopBar />
+
+        <main
+          id="main-content"
+          className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden custom-scrollbar px-3.5 pt-4 pb-24 sm:px-5 sm:pt-5 md:px-6 md:pb-6"
+        >
           {children}
-        </div>
-      </main>
+        </main>
+      </div>
+
+      <BottomNavigation />
+      <CommandPalette />
     </div>
   );
 }

@@ -1,0 +1,434 @@
+/* ============================================================================
+   WINDHUB — WINDOS CENTRALIZED DESIGN TOKENS & MATERIAL ENGINE
+   Inspirations: OPPO ColorOS (Aquamorphic geometry), Huawei HarmonyOS (Spatial
+   service cards & elevation), Apple Liquid Glass (Optional optical depth).
+   ============================================================================ */
+
+:root {
+  color-scheme: light;
+
+  /* 1. TYPOGRAPHY SCALE */
+  --font-sans: 'Be Vietnam Pro', 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: 'Space Grotesk', 'Be Vietnam Pro', ui-sans-serif, system-ui, sans-serif;
+  --font-file: 'Plus Jakarta Sans', 'Be Vietnam Pro', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --text-2xs: 0.6875rem; /* 11px */
+  --text-xs: 0.75rem;    /* 12px */
+  --text-sm: 0.875rem;   /* 14px */
+  --text-base: 1rem;     /* 16px */
+  --text-lg: 1.125rem;   /* 18px */
+  --text-xl: 1.25rem;    /* 20px */
+  --text-2xl: 1.5rem;    /* 24px */
+  --text-3xl: 1.875rem;  /* 30px */
+  --text-4xl: 2.25rem;   /* 36px */
+
+  /* 2. SPACING & CONTROL HEIGHT SCALE (4px base grid) */
+  --space-unit: 0.25rem;
+  --control-xs: 1.875rem; /* 30px */
+  --control-sm: 2.125rem; /* 34px */
+  --control-md: 2.5rem;   /* 40px */
+  --control-lg: 2.875rem; /* 46px */
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  /* 3. BORDER RADIUS SCALE (Aquamorphic OS squircle harmony) */
+  --radius-xs: 0.5rem;    /* 8px  - badges, kbd */
+  --radius-sm: 0.75rem;   /* 12px - compact controls, inner items */
+  --radius-md: 1rem;      /* 16px - standard buttons, inputs */
+  --radius-lg: 1.375rem;  /* 22px - OS cards, widgets */
+  --radius-xl: 1.75rem;   /* 28px - primary panels, modals */
+  --radius-2xl: 2.125rem; /* 34px - hero banners, floating docks */
+  --radius-full: 9999px;
+
+  /* 4. Z-INDEX HIERARCHY */
+  --z-base: 1;
+  --z-sticky: 20;
+  --z-nav: 40;
+  --z-dropdown: 70;
+  --z-command: 140;
+  --z-drawer: 160;
+  --z-action-bar: 180;
+  --z-context: 210;
+  --z-modal: 300;
+  --z-toast: 420;
+
+  /* 5. MOTION TOKENS */
+  --dur-micro: 120ms;
+  --dur-micro-exit: 90ms;
+  --dur-ui: 220ms;
+  --dur-ui-exit: 155ms;
+  --dur-large: 360ms;
+  --dur-large-exit: 250ms;
+
+  --ease-os-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-os-in: cubic-bezier(0.55, 0, 1, 0.45);
+  --ease-os-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-os-sheet: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-os-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  --shift-sm: 4px;
+  --shift-md: 10px;
+  --shift-lg: 20px;
+
+  /* 6. COLOR ROLES — LIGHT MODE (Modern OS UI Default) */
+  --os-bg: #f3f5f8;
+  --os-bg-elevated: #eceff4;
+  --os-surface-1: #ffffff;
+  --os-surface-2: #f8f9fb;
+  --os-surface-3: #eef1f6;
+  --os-surface-sunken: #e9edf3;
+  --os-surface-hover: rgba(15, 23, 42, 0.045);
+  --os-surface-active: rgba(15, 23, 42, 0.08);
+  --os-surface-floating: #ffffff;
+
+  --os-text-primary: #0f131a;
+  --os-text-secondary: #3f4756;
+  --os-text-muted: #5f697a;
+  --os-text-subtle: #7c8698;
+  --os-text-inverse: #ffffff;
+
+  --os-border-subtle: rgba(15, 23, 42, 0.06);
+  --os-border-default: rgba(15, 23, 42, 0.1);
+  --os-border: var(--os-border-default);
+  --os-border-strong: rgba(15, 23, 42, 0.18);
+
+  /* Brand Primary — WindHub Signature Orange (WCAG AA tuned) */
+  --os-accent: #ea580c;
+  --os-accent-hover: #c2410c;
+  --os-accent-active: #9a3412;
+  --os-accent-bright: #f97316;
+  --os-accent-soft: rgba(234, 88, 12, 0.1);
+  --os-accent-soft-hover: rgba(234, 88, 12, 0.16);
+  --os-accent-border: rgba(234, 88, 12, 0.26);
+  --os-accent-fg: #ffffff;
+
+  /* Semantic Status Roles */
+  --os-success: #059669;
+  --os-success-soft: rgba(5, 150, 105, 0.11);
+  --os-success-border: rgba(5, 150, 105, 0.25);
+
+  --os-warning: #d97706;
+  --os-warning-soft: rgba(217, 119, 6, 0.12);
+  --os-warning-border: rgba(217, 119, 6, 0.28);
+
+  --os-danger: #dc2626;
+  --os-danger-hover: #b91c1c;
+  --os-danger-soft: rgba(220, 38, 38, 0.1);
+  --os-danger-border: rgba(220, 38, 38, 0.25);
+
+  --os-info: #0284c7;
+  --os-info-soft: rgba(2, 132, 199, 0.1);
+  --os-info-border: rgba(2, 132, 199, 0.24);
+
+  --os-focus-ring: #ea580c;
+  --os-backdrop: rgba(10, 14, 22, 0.48);
+
+  /* 7. ELEVATION & SHADOW TOKENS — LIGHT */
+  --os-shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --os-shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.05), 0 6px 16px -4px rgba(15, 23, 42, 0.05);
+  --os-shadow-md: 0 4px 12px -2px rgba(15, 23, 42, 0.07), 0 14px 28px -6px rgba(15, 23, 42, 0.07);
+  --os-shadow-lg: 0 12px 28px -6px rgba(15, 23, 42, 0.11), 0 28px 56px -12px rgba(15, 23, 42, 0.13);
+  --os-shadow-accent: 0 6px 20px -4px rgba(234, 88, 12, 0.36);
+
+  /* 8. LIQUID GLASS MATERIAL TOKENS — OFF BY DEFAULT (Solid Modern OS Fallback) */
+  --material-card-bg: var(--os-surface-1);
+  --material-card-border: var(--os-border-subtle);
+  --material-card-shadow: var(--os-shadow-sm);
+  --material-card-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  --material-blur: none;
+
+  --material-shell-bg: rgba(255, 255, 255, 0.92);
+  --material-shell-border: var(--os-border-default);
+  --material-floating-bg: var(--os-surface-floating);
+  --material-floating-border: var(--os-border-default);
+  --material-floating-shadow: var(--os-shadow-lg);
+}
+
+/* ============================================================================
+   DARK MODE TOKENS (Modern OS UI Default)
+   ============================================================================ */
+.dark,
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --os-bg: #090b0f;
+  --os-bg-elevated: #0e1117;
+  --os-surface-1: #13161e;
+  --os-surface-2: #191d27;
+  --os-surface-3: #212633;
+  --os-surface-sunken: #0c0e13;
+  --os-surface-hover: rgba(255, 255, 255, 0.055);
+  --os-surface-active: rgba(255, 255, 255, 0.095);
+  --os-surface-floating: #171b24;
+
+  --os-text-primary: #f4f6fa;
+  --os-text-secondary: #b8c0ce;
+  --os-text-muted: #8a94a6;
+  --os-text-subtle: #646e80;
+  --os-text-inverse: #0b0d12;
+
+  --os-border-subtle: rgba(255, 255, 255, 0.065);
+  --os-border-default: rgba(255, 255, 255, 0.1);
+  --os-border: var(--os-border-default);
+  --os-border-strong: rgba(255, 255, 255, 0.18);
+
+  /* Brand Primary — WindHub Signature Orange (Dark-tuned luminous balance) */
+  --os-accent: #f97316;
+  --os-accent-hover: #fb923c;
+  --os-accent-active: #ea580c;
+  --os-accent-bright: #ff8c38;
+  --os-accent-soft: rgba(249, 115, 22, 0.14);
+  --os-accent-soft-hover: rgba(249, 115, 22, 0.22);
+  --os-accent-border: rgba(249, 115, 22, 0.32);
+  --os-accent-fg: #0b0d12;
+
+  /* Semantic Status Roles — Dark */
+  --os-success: #34d399;
+  --os-success-soft: rgba(52, 211, 153, 0.13);
+  --os-success-border: rgba(52, 211, 153, 0.28);
+
+  --os-warning: #fbbf24;
+  --os-warning-soft: rgba(251, 191, 36, 0.13);
+  --os-warning-border: rgba(251, 191, 36, 0.28);
+
+  --os-danger: #f87171;
+  --os-danger-hover: #ef4444;
+  --os-danger-soft: rgba(248, 113, 113, 0.13);
+  --os-danger-border: rgba(248, 113, 113, 0.28);
+
+  --os-info: #38bdf8;
+  --os-info-soft: rgba(56, 189, 248, 0.13);
+  --os-info-border: rgba(56, 189, 248, 0.28);
+
+  --os-focus-ring: #fb923c;
+  --os-backdrop: rgba(3, 5, 9, 0.72);
+
+  --os-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --os-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.32), 0 10px 24px -6px rgba(0, 0, 0, 0.38);
+  --os-shadow-md: 0 8px 20px -4px rgba(0, 0, 0, 0.45), 0 20px 40px -8px rgba(0, 0, 0, 0.5);
+  --os-shadow-lg: 0 18px 40px -8px rgba(0, 0, 0, 0.62), 0 36px 72px -14px rgba(0, 0, 0, 0.7);
+  --os-shadow-accent: 0 8px 26px -4px rgba(249, 115, 22, 0.38);
+
+  --material-card-bg: var(--os-surface-1);
+  --material-card-border: var(--os-border-subtle);
+  --material-card-shadow: var(--os-shadow-sm);
+  --material-card-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --material-blur: none;
+
+  --material-shell-bg: rgba(15, 18, 25, 0.92);
+  --material-shell-border: var(--os-border-subtle);
+  --material-floating-bg: var(--os-surface-floating);
+  --material-floating-border: var(--os-border-default);
+  --material-floating-shadow: var(--os-shadow-lg);
+}
+
+/* ============================================================================
+   OPTIONAL LIQUID GLASS ENGINE — LIGHT GLASS ([data-glass="true"])
+   Multi-layer translucency, specular rim lighting, context-aware refraction.
+   ============================================================================ */
+:root[data-glass="true"] {
+  --os-bg: #eef2f9;
+  --os-surface-1: rgba(255, 255, 255, 0.62);
+  --os-surface-2: rgba(255, 255, 255, 0.76);
+  --os-surface-3: rgba(255, 255, 255, 0.88);
+  --os-surface-sunken: rgba(226, 232, 244, 0.55);
+  --os-surface-floating: rgba(255, 255, 255, 0.78);
+
+  --os-border-subtle: rgba(255, 255, 255, 0.68);
+  --os-border-default: rgba(255, 255, 255, 0.82);
+  --os-border-strong: rgba(15, 23, 42, 0.14);
+
+  --material-card-bg: linear-gradient(145deg, rgba(255, 255, 255, 0.72) 0%, rgba(255, 255, 255, 0.48) 100%);
+  --material-card-border: rgba(255, 255, 255, 0.78);
+  --material-card-shadow: 0 8px 32px -6px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(15, 23, 42, 0.04);
+  --material-card-highlight: inset 0 1.5px 0 0 rgba(255, 255, 255, 0.92), inset 1px 0 0 0 rgba(255, 255, 255, 0.55), 0 0 0 1px rgba(15, 23, 42, 0.04);
+  --material-blur: blur(20px) saturate(175%);
+
+  --material-shell-bg: linear-gradient(165deg, rgba(255, 255, 255, 0.74) 0%, rgba(248, 250, 255, 0.56) 100%);
+  --material-shell-border: rgba(255, 255, 255, 0.82);
+  --material-floating-bg: linear-gradient(145deg, rgba(255, 255, 255, 0.86) 0%, rgba(248, 250, 255, 0.72) 100%);
+  --material-floating-border: rgba(255, 255, 255, 0.9);
+  --material-floating-shadow: 0 20px 50px -10px rgba(15, 23, 42, 0.16), inset 0 1.5px 0 rgba(255, 255, 255, 0.95);
+}
+
+/* ============================================================================
+   OPTIONAL LIQUID GLASS ENGINE — DARK GLASS (.dark[data-glass="true"])
+   Deep smoked crystal, luminous hairline borders, subtle orange/indigo refraction.
+   ============================================================================ */
+.dark[data-glass="true"],
+[data-theme="dark"][data-glass="true"] {
+  --os-bg: #07090e;
+  --os-surface-1: rgba(22, 26, 36, 0.56);
+  --os-surface-2: rgba(30, 35, 48, 0.66);
+  --os-surface-3: rgba(40, 47, 64, 0.74);
+  --os-surface-sunken: rgba(9, 11, 17, 0.58);
+  --os-surface-floating: rgba(24, 29, 41, 0.74);
+
+  --os-border-subtle: rgba(255, 255, 255, 0.11);
+  --os-border-default: rgba(255, 255, 255, 0.16);
+  --os-border-strong: rgba(255, 255, 255, 0.24);
+
+  --material-card-bg: linear-gradient(145deg, rgba(30, 35, 49, 0.62) 0%, rgba(16, 19, 28, 0.46) 100%);
+  --material-card-border: rgba(255, 255, 255, 0.13);
+  --material-card-shadow: 0 12px 36px -8px rgba(0, 0, 0, 0.58), 0 2px 8px rgba(0, 0, 0, 0.35);
+  --material-card-highlight: inset 0 1px 0 0 rgba(255, 255, 255, 0.22), inset 1px 0 0 0 rgba(255, 255, 255, 0.08);
+  --material-blur: blur(22px) saturate(175%);
+
+  --material-shell-bg: linear-gradient(165deg, rgba(22, 26, 38, 0.68) 0%, rgba(12, 15, 22, 0.52) 100%);
+  --material-shell-border: rgba(255, 255, 255, 0.13);
+  --material-floating-bg: linear-gradient(145deg, rgba(28, 33, 47, 0.82) 0%, rgba(16, 19, 28, 0.72) 100%);
+  --material-floating-border: rgba(255, 255, 255, 0.18);
+  --material-floating-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.24);
+}
+
+/* ============================================================================
+   MOTION INTENSITY & REDUCED MOTION OVERRIDES
+   ============================================================================ */
+:root[data-motion="subtle"] {
+  --dur-micro: 90ms;
+  --dur-ui: 160ms;
+  --dur-ui-exit: 110ms;
+  --dur-large: 240ms;
+  --dur-large-exit: 170ms;
+  --shift-sm: 2px;
+  --shift-md: 5px;
+  --shift-lg: 10px;
+}
+
+:root[data-motion="reduced"] {
+  --dur-micro: 0ms;
+  --dur-micro-exit: 0ms;
+  --dur-ui: 120ms;
+  --dur-ui-exit: 90ms;
+  --dur-large: 140ms;
+  --dur-large-exit: 100ms;
+  --shift-sm: 0px;
+  --shift-md: 0px;
+  --shift-lg: 0px;
+  --ease-os-spring: var(--ease-os-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-micro: 0ms;
+    --dur-micro-exit: 0ms;
+    --dur-ui: 100ms;
+    --dur-ui-exit: 80ms;
+    --dur-large: 120ms;
+    --dur-large-exit: 90ms;
+    --shift-sm: 0px;
+    --shift-md: 0px;
+    --shift-lg: 0px;
+    --ease-os-spring: var(--ease-os-out);
+  }
+}
+
+/* ============================================================================
+   REUSABLE WINDOS MATERIAL & SURFACE PRIMITIVES
+   ============================================================================ */
+.os-app-canvas {
+  background-color: var(--os-bg);
+  color: var(--os-text-primary);
+  position: relative;
+  isolation: isolate;
+}
+
+/* Subtle OS ambient atmosphere in Modern OS mode; rich refracted mesh in Liquid Glass mode */
+.os-ambient-backdrop {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  background:
+    radial-gradient(65% 45% at 12% 0%, rgba(249, 115, 22, 0.045), transparent 70%),
+    radial-gradient(55% 45% at 90% 8%, rgba(56, 189, 248, 0.035), transparent 72%);
+}
+
+.dark .os-ambient-backdrop {
+  background:
+    radial-gradient(60% 42% at 15% 0%, rgba(249, 115, 22, 0.065), transparent 70%),
+    radial-gradient(50% 40% at 88% 10%, rgba(99, 102, 241, 0.05), transparent 72%);
+}
+
+:root[data-glass="true"] .os-ambient-backdrop {
+  background:
+    radial-gradient(52% 46% at 8% 6%, rgba(251, 146, 60, 0.24), transparent 68%),
+    radial-gradient(48% 46% at 88% 12%, rgba(56, 189, 248, 0.2), transparent 70%),
+    radial-gradient(55% 50% at 52% 94%, rgba(168, 85, 247, 0.14), transparent 72%),
+    linear-gradient(180deg, #eef2f9 0%, #e5ecf7 100%);
+}
+
+.dark[data-glass="true"] .os-ambient-backdrop {
+  background:
+    radial-gradient(50% 44% at 10% 6%, rgba(249, 115, 22, 0.22), transparent 66%),
+    radial-gradient(48% 45% at 88% 14%, rgba(56, 189, 248, 0.15), transparent 68%),
+    radial-gradient(54% 48% at 50% 96%, rgba(139, 92, 246, 0.14), transparent 70%),
+    linear-gradient(180deg, #06080d 0%, #0b0f18 100%);
+}
+
+.os-card {
+  background: var(--material-card-bg);
+  border: 1px solid var(--material-card-border);
+  box-shadow: var(--material-card-highlight), var(--material-card-shadow);
+  border-radius: var(--radius-lg);
+  transition:
+    background-color var(--dur-ui) var(--ease-os-out),
+    border-color var(--dur-ui) var(--ease-os-out),
+    box-shadow var(--dur-ui) var(--ease-os-out),
+    transform var(--dur-micro) var(--ease-os-out);
+}
+
+:root[data-glass="true"] .os-card,
+.os-glass-surface {
+  backdrop-filter: var(--material-blur);
+  -webkit-backdrop-filter: var(--material-blur);
+}
+
+@media (hover: hover) {
+  .os-card-interactive:hover {
+    border-color: var(--os-accent-border);
+    box-shadow: var(--material-card-highlight), var(--os-shadow-md);
+    transform: translateY(-2px);
+  }
+}
+
+.os-card-interactive:active {
+  transform: scale(0.99);
+}
+
+.os-shell-surface {
+  background: var(--material-shell-bg);
+  border-color: var(--material-shell-border);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+}
+
+:root[data-glass="true"] .os-shell-surface {
+  box-shadow: var(--material-card-highlight), var(--os-shadow-sm);
+}
+
+.os-floating-surface {
+  background: var(--material-floating-bg);
+  border: 1px solid var(--material-floating-border);
+  box-shadow: var(--material-floating-shadow);
+}
+
+:root[data-glass="true"] .os-floating-surface {
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+}
+
+.os-sunken {
+  background: var(--os-surface-sunken);
+  border: 1px solid var(--os-border-subtle);
+}
+
+.os-focus-ring:focus-visible {
+  outline: 2px solid var(--os-focus-ring);
+  outline-offset: 2px;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}

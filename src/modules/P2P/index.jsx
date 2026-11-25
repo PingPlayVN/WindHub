@@ -1,16 +1,24 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { motion } from 'framer-motion';
 import {
+  Activity,
   Check,
   Copy,
   Download,
+  Edit3,
   FileUp,
   Laptop,
   MessageSquare,
+  Radio,
   RefreshCw,
   Send,
   ShieldCheck,
+  Sparkles,
+  Wifi,
   X,
 } from 'lucide-react';
+import { Button, Card, EmptyState, GlassCard } from '@/components/os';
+import { staggerContainerVariants, staggerItemVariants } from '@/design-system/motion';
 import WebRTCCore from './core/WebRTCCore.js';
 import ManualPairingAdapter from './pairing/ManualPairingAdapter.js';
 import { canTransitionPairing } from './pairing/PairingState.js';
@@ -20,14 +28,14 @@ import FileTransfer from './transfers/FileTransfer.js';
 import { MAX_FILE_SIZE, MAX_TEXT_SIZE } from './transfers/protocol.js';
 
 const connectionLabels = {
-  idle: 'Idle',
-  creating: 'Creating connection',
-  waiting: 'Waiting for answer',
-  connecting: 'Connecting',
-  connected: 'Connected',
-  disconnected: 'Disconnected',
-  failed: 'Failed',
-  closed: 'Closed',
+  idle: 'Sẵn sàng ghép nối',
+  creating: 'Đang khởi tạo kênh',
+  waiting: 'Đang chờ phản hồi',
+  connecting: 'Đang thiết lập P2P',
+  connected: 'Đã kết nối trực tiếp',
+  disconnected: 'Đã ngắt kết nối',
+  failed: 'Kết nối thất bại',
+  closed: 'Đã đóng phiên',
 };
 
 function formatBytes(bytes) {
@@ -391,6 +399,7 @@ export default function P2P() {
     createSession();
     const objectUrls = objectUrlsRef.current;
     return () => {
+      sessionGenerationRef.current += 1;
       clearPairingTimer();
       sessionRef.current?.fileTransfer.close();
       sessionRef.current?.textTransfer.close();
@@ -905,246 +914,649 @@ export default function P2P() {
   };
 
   const connected = status === 'connected';
+  const statusOrbClass = connected
+    ? 'bg-emerald-500 shadow-[0_0_16px_rgba(16,185,129,0.45)]'
+    : status === 'failed'
+      ? 'bg-red-500 shadow-[0_0_16px_rgba(239,68,68,0.45)]'
+      : 'bg-amber-500 shadow-[0_0_14px_rgba(245,158,11,0.4)]';
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-5 pb-6">
-      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 pb-4 dark:border-slate-800">
-        <div>
-          <p className="font-mono text-xs uppercase tracking-[0.2em] text-amber-600 dark:text-amber-400">windhub // direct transfer</p>
-          <h1 className="mt-2 text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100">P2P Share</h1>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Trao đổi văn bản và file trực tiếp qua WebRTC DataChannel.</p>
-        </div>
-        <button type="button" onClick={handleReset} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
-          <RefreshCw size={16} /> Phiên mới
-        </button>
-      </header>
+    <motion.div
+      variants={staggerContainerVariants}
+      initial="hidden"
+      animate="visible"
+      className="mx-auto w-full max-w-5xl space-y-5 pb-6"
+    >
+      {/* Hero Super-Device Header */}
+      <motion.div variants={staggerItemVariants}>
+        <GlassCard className="relative overflow-hidden p-5 sm:p-6">
+          <div className="pointer-events-none absolute -right-16 -top-16 size-56 rounded-full bg-[var(--os-accent)]/10 blur-3xl" />
 
-      <section className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-[#101010]">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <span className={`h-3 w-3 rounded-full ${connected ? 'bg-emerald-500' : status === 'failed' ? 'bg-red-500' : 'bg-amber-400'}`} />
-            <div>
-              <p className="font-semibold text-slate-900 dark:text-white">{connectionLabels[status] || 'Idle'}</p>
-              {connected && <p className="mt-0.5 text-sm text-emerald-700 dark:text-emerald-400">Đã kết nối với {activePeer?.name || 'thiết bị'}.</p>}
-              {connected && connectionStats && (
-                <p className="mt-0.5 text-xs text-slate-500">
-                  {connectionStats.path === 'direct' ? 'P2P trực tiếp' : 'Đang relay'}
-                  {connectionStats.protocol ? ` · ${connectionStats.protocol.toUpperCase()}` : ''}
-                  {connectionStats.roundTripTime ? ` · RTT ${Math.round(connectionStats.roundTripTime * 1000)} ms` : ''}
-                  {connectionStats.availableOutgoingBitrate ? ` · Ước tính tối đa ${formatSpeed(connectionStats.availableOutgoingBitrate / 8)}` : ''}
-                </p>
-              )}
+          <div className="relative flex flex-wrap items-start justify-between gap-4">
+            <div className="space-y-1.5">
+              <div className="inline-flex items-center gap-2 rounded-full border border-[var(--os-accent-border)] bg-[var(--os-accent-soft)] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--os-accent)]">
+                <Radio size={12} />
+                <span>WindDrop // WebRTC Direct</span>
+              </div>
+              <h1 className="font-display text-2xl sm:text-3xl font-extrabold tracking-tight text-[var(--os-text-primary)]">
+                P2P Share
+              </h1>
+              <p className="text-sm text-[var(--os-text-secondary)] max-w-xl">
+                Truyền tệp tin dung lượng lớn và tin nhắn trực tiếp ngang hàng giữa các thiết bị với mã hóa đầu cuối DTLS.
+              </p>
+            </div>
+
+            <Button
+              variant="secondary"
+              size="sm"
+              iconLeft={<RefreshCw size={15} />}
+              onClick={handleReset}
+            >
+              Phiên mới
+            </Button>
+          </div>
+
+          {/* Live Connection Telemetry Strip */}
+          <div className="relative mt-5 flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-lg)] border border-[var(--os-border)] bg-[var(--os-surface-2)]/75 px-4 py-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="relative flex size-3.5 shrink-0 items-center justify-center">
+                {signalingState === 'online' && !connected && (
+                  <span className="absolute inline-flex size-full animate-ping rounded-full bg-amber-400 opacity-55" />
+                )}
+                <span className={`relative inline-flex size-3 rounded-full ${statusOrbClass}`} />
+              </span>
+
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-bold text-[var(--os-text-primary)]">
+                    {connectionLabels[status] || 'Idle'}
+                  </p>
+                  <span className="rounded-full border border-[var(--os-border)] bg-[var(--os-surface-1)] px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-[var(--os-text-muted)]">
+                    {signalingState === 'online' ? 'Radar Online' : signalingState === 'connecting' ? 'Đang kết nối' : 'Radar Offline'}
+                  </span>
+                </div>
+
+                {connected && (
+                  <p className="mt-0.5 text-xs font-medium text-[var(--os-success)]">
+                    Đã ghép nối bảo mật với <strong>{activePeer?.name || 'thiết bị đối tác'}</strong>
+                  </p>
+                )}
+
+                {connected && connectionStats && (
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] font-mono text-[var(--os-text-secondary)]">
+                    <span className="inline-flex items-center gap-1 rounded-md border border-[var(--os-border)] bg-[var(--os-surface-1)] px-2 py-0.5">
+                      <Activity size={11} className="text-[var(--os-accent)]" />
+                      {connectionStats.path === 'direct' ? 'P2P Trực tiếp' : 'Đang Relay'}
+                    </span>
+                    {connectionStats.protocol && (
+                      <span className="rounded-md border border-[var(--os-border)] bg-[var(--os-surface-1)] px-2 py-0.5">
+                        {connectionStats.protocol.toUpperCase()}
+                      </span>
+                    )}
+                    {connectionStats.roundTripTime ? (
+                      <span className="rounded-md border border-[var(--os-border)] bg-[var(--os-surface-1)] px-2 py-0.5">
+                        RTT {Math.round(connectionStats.roundTripTime * 1000)} ms
+                      </span>
+                    ) : null}
+                    {connectionStats.availableOutgoingBitrate ? (
+                      <span className="rounded-md border border-[var(--os-border)] bg-[var(--os-surface-1)] px-2 py-0.5">
+                        Max ~{formatSpeed(connectionStats.availableOutgoingBitrate / 8)}
+                      </span>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 text-xs font-medium text-[var(--os-text-muted)]">
+              <ShieldCheck size={15} className="shrink-0 text-[var(--os-success)]" />
+              <span>Mã hóa DTLS · Server không lưu trữ tệp hay tin nhắn</span>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-xs text-slate-500">
-            <ShieldCheck size={15} />
-            <span>DTLS encryption · Server chỉ dùng ghép nối, không relay file/text</span>
-          </div>
-        </div>
-        {error && (
-          <div role="alert" className="mt-3 flex items-start justify-between gap-3 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
-            <span>{error}</span>
-            <button type="button" aria-label="Đóng thông báo lỗi" onClick={() => setError('')}><X size={16} /></button>
-          </div>
-        )}
-        {!connected && (
-          <div className="mt-4 space-y-4">
-            {editingDeviceName ? (
-              <form onSubmit={handleSaveDeviceName} className="space-y-3 rounded-lg border border-slate-200 p-3 dark:border-slate-800">
-                <h2 className="font-bold text-slate-800 dark:text-slate-100">Đặt tên thiết bị</h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400">Tên được lưu trên thiết bị này và hiển thị cho các thiết bị đang trực tuyến.</p>
-                <div className="flex flex-wrap gap-2">
+
+          {error && (
+            <div
+              role="alert"
+              className="mt-3.5 flex items-start justify-between gap-3 rounded-[var(--radius-md)] border border-red-500/30 bg-[var(--os-danger-soft)] px-3.5 py-2.5 text-sm font-medium text-[var(--os-danger)]"
+            >
+              <span>{error}</span>
+              <button
+                type="button"
+                aria-label="Đóng thông báo lỗi"
+                onClick={() => setError('')}
+                className="os-focus-ring rounded-md p-1 hover:bg-red-500/15 transition-colors"
+              >
+                <X size={15} />
+              </button>
+            </div>
+          )}
+        </GlassCard>
+      </motion.div>
+
+      {/* Discovery & Pairing Radar (when not connected) */}
+      {!connected && (
+        <motion.div variants={staggerItemVariants} className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+          {/* Left Column: Local Device Identity */}
+          <Card className="lg:col-span-5 p-5 flex flex-col justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2.5 mb-3">
+                <span className="flex size-9 items-center justify-center rounded-[var(--radius-sm)] bg-[var(--os-accent-soft)] text-[var(--os-accent)] border border-[var(--os-accent-border)]">
+                  <Laptop size={18} />
+                </span>
+                <div>
+                  <h2 className="text-sm font-bold text-[var(--os-text-primary)]">Danh tính thiết bị này</h2>
+                  <p className="text-xs text-[var(--os-text-muted)]">Hiển thị trên radar ghép nối nội bộ</p>
+                </div>
+              </div>
+
+              {editingDeviceName ? (
+                <form onSubmit={handleSaveDeviceName} className="space-y-3 mt-4">
                   <input
                     autoFocus
                     maxLength={32}
                     value={deviceNameInput}
                     onChange={(event) => setDeviceNameInput(event.target.value)}
-                    placeholder="Ví dụ: Laptop Phong"
+                    placeholder="Ví dụ: MacBook của Phong"
                     aria-label="Tên thiết bị"
-                    className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-black"
+                    className="os-focus-ring h-11 w-full rounded-[var(--radius-md)] border border-[var(--os-border)] bg-[var(--os-surface-2)] px-3.5 text-sm font-medium text-[var(--os-text-primary)] placeholder:text-[var(--os-text-muted)] focus:border-[var(--os-accent)]"
                   />
-                  <button type="submit" className="rounded-lg bg-amber-400 px-4 py-2 text-sm font-bold text-black">Lưu tên</button>
+                  <div className="flex items-center justify-end gap-2">
+                    {deviceName && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setDeviceNameInput(deviceName);
+                          setEditingDeviceName(false);
+                        }}
+                      >
+                        Hủy
+                      </Button>
+                    )}
+                    <Button type="submit" variant="primary" size="sm">
+                      Lưu tên thiết bị
+                    </Button>
+                  </div>
+                </form>
+              ) : (
+                <div className="mt-4 flex items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--os-border)] bg-[var(--os-surface-2)]/70 px-3.5 py-3">
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--os-text-muted)]">
+                      Tên hiển thị
+                    </p>
+                    <p className="truncate text-base font-bold text-[var(--os-text-primary)]">
+                      {deviceName}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    iconLeft={<Edit3 size={14} />}
+                    onClick={() => setEditingDeviceName(true)}
+                  >
+                    Đổi tên
+                  </Button>
                 </div>
-              </form>
-            ) : (
-              <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 p-3 dark:border-slate-800">
-                <p className="text-sm text-slate-600 dark:text-slate-300">Thiết bị này: <strong>{deviceName}</strong></p>
-                <button type="button" onClick={() => setEditingDeviceName(true)} className="text-sm font-semibold text-amber-700 dark:text-amber-400">Đổi tên</button>
+              )}
+            </div>
+
+            {signalingState !== 'online' && deviceName && (
+              <div
+                role="status"
+                className="rounded-[var(--radius-md)] border border-amber-500/25 bg-[var(--os-warning-soft)] px-3.5 py-3 text-xs leading-relaxed text-[var(--os-text-secondary)]"
+              >
+                {signalingState === 'connecting'
+                  ? 'Đang đồng bộ danh sách thiết bị trực tuyến…'
+                  : 'Chưa kết nối được máy chủ ghép nối. Máy chủ có thể đang khởi động lại từ chế độ ngủ (Render Free Tier).'}
               </div>
             )}
+          </Card>
 
-            {signalingState !== 'online' && (
-              <p role="status" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
-                {signalingState === 'connecting' ? 'Đang kết nối danh sách thiết bị…' : 'Chưa kết nối được máy chủ ghép nối. Máy chủ có thể đang khởi động hoặc tạm ngừng do gói miễn phí.'}
-              </p>
-            )}
+          {/* Right Column: Nearby Online Peers & Active Handshakes */}
+          <Card className="lg:col-span-7 p-5 space-y-4">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5">
+                <span className="flex size-9 items-center justify-center rounded-[var(--radius-sm)] bg-sky-500/12 text-sky-500 border border-sky-500/20">
+                  <Wifi size={18} />
+                </span>
+                <div>
+                  <h2 className="text-sm font-bold text-[var(--os-text-primary)]">
+                    Thiết bị đang trực tuyến
+                  </h2>
+                  <p className="text-xs text-[var(--os-text-muted)]">
+                    Chọn một thiết bị để bắt đầu phiên truyền P2P
+                  </p>
+                </div>
+              </div>
+              <span className="shrink-0 whitespace-nowrap rounded-full border border-[var(--os-border)] bg-[var(--os-surface-2)] px-2.5 py-1 font-mono text-xs font-semibold text-[var(--os-text-secondary)]">
+                {devices.length} thiết bị
+              </span>
+            </div>
 
             {incomingRequest && (
-              <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950/30">
-                <p className="text-sm text-slate-800 dark:text-slate-100"><strong>{incomingRequest.from.name}</strong> muốn kết nối với thiết bị này.</p>
-                <div className="flex gap-2">
-                  <button type="button" onClick={() => handleRespondToRequest(false)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold dark:border-slate-700">Từ chối</button>
-                  <button type="button" onClick={() => handleRespondToRequest(true)} className="rounded-lg bg-amber-400 px-3 py-2 text-sm font-bold text-black">Chấp nhận</button>
+              <div
+                role="alert"
+                className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-lg)] border border-[var(--os-accent-border)] bg-[var(--os-accent-soft)] p-4"
+              >
+                <div className="space-y-0.5">
+                  <p className="text-xs font-bold uppercase tracking-wider text-[var(--os-accent)]">
+                    Yêu cầu ghép nối đến
+                  </p>
+                  <p className="text-sm text-[var(--os-text-primary)]">
+                    <strong>{incomingRequest.from.name}</strong> muốn kết nối trực tiếp với thiết bị này.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => handleRespondToRequest(false)}
+                  >
+                    Từ chối
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="sm"
+                    onClick={() => handleRespondToRequest(true)}
+                  >
+                    Chấp nhận
+                  </Button>
                 </div>
               </div>
             )}
 
             {outgoingRequest && (
-              <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-slate-100 p-3 text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                <span>Đang chờ {outgoingRequest.peer.name} chấp nhận yêu cầu…</span>
-                <button type="button" onClick={handleCancelPairing} className="rounded-md border border-slate-300 px-2.5 py-1.5 text-xs font-semibold dark:border-slate-700">Hủy</button>
+              <div
+                role="status"
+                className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--os-border)] bg-[var(--os-surface-2)] px-4 py-3 text-sm text-[var(--os-text-secondary)]"
+              >
+                <span className="flex items-center gap-2">
+                  <Sparkles size={15} className="text-[var(--os-accent)] animate-pulse" />
+                  <span>
+                    Đang chờ <strong>{outgoingRequest.peer.name}</strong> chấp nhận yêu cầu…
+                  </span>
+                </span>
+                <Button type="button" variant="outline" size="xs" onClick={handleCancelPairing}>
+                  Hủy
+                </Button>
               </div>
             )}
 
             {activePeer && status !== 'connected' && (
-              <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-slate-100 p-3 text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                <span>Đang thiết lập kết nối bảo mật với {activePeer.name}…</span>
-                <button type="button" onClick={handleCancelPairing} className="rounded-md border border-slate-300 px-2.5 py-1.5 text-xs font-semibold dark:border-slate-700">Hủy</button>
+              <div
+                role="status"
+                className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--os-border)] bg-[var(--os-surface-2)] px-4 py-3 text-sm text-[var(--os-text-secondary)]"
+              >
+                <span>
+                  Đang thiết lập kênh bảo mật với <strong>{activePeer.name}</strong>…
+                </span>
+                <Button type="button" variant="outline" size="xs" onClick={handleCancelPairing}>
+                  Hủy
+                </Button>
               </div>
             )}
 
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <h2 className="font-bold text-slate-800 dark:text-slate-100">Thiết bị đang trực tuyến</h2>
-                <span className="text-xs text-slate-500">{devices.length} thiết bị</span>
-              </div>
-              {devices.length ? devices.map((peer) => (
-                <div key={peer.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 p-3 dark:border-slate-800">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <Laptop size={19} className="shrink-0 text-slate-400" />
-                    <span className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">{peer.name}</span>
-                  </div>
-                  <button
-                    type="button"
-                    disabled={signalingState !== 'online' || busy || Boolean(outgoingRequest) || Boolean(activePeer) || !['IDLE', 'REJECTED', 'EXPIRED', 'CANCELLED', 'FAILED', 'INTERRUPTED'].includes(pairingState)}
-                    onClick={() => handleRequestConnection(peer)}
-                    className="rounded-lg bg-amber-400 px-3 py-2 text-sm font-bold text-black disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    Kết nối
-                  </button>
-                </div>
-              )) : (
-                <p className="rounded-lg border border-dashed border-slate-300 p-5 text-center text-sm text-slate-500 dark:border-slate-700">
-                  {signalingState === 'online' ? 'Chưa có thiết bị nào khác trực tuyến. Mở Share trên thiết bị kia để bắt đầu.' : 'Đang tìm thiết bị…'}
-                </p>
-              )}
-            </div>
-          </div>
-        )}
-      </section>
+            {devices.length > 0 ? (
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                {devices.map((peer) => {
+                  const isConnectDisabled =
+                    signalingState !== 'online'
+                    || busy
+                    || Boolean(outgoingRequest)
+                    || Boolean(activePeer)
+                    || !['IDLE', 'REJECTED', 'EXPIRED', 'CANCELLED', 'FAILED', 'INTERRUPTED'].includes(pairingState);
 
+                  return (
+                    <div
+                      key={peer.id}
+                      className="flex items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--os-border)] bg-[var(--os-surface-2)]/65 p-3.5 transition-colors hover:border-[var(--os-border-strong)]"
+                    >
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span className="flex size-10 shrink-0 items-center justify-center rounded-[var(--radius-sm)] bg-[var(--os-surface-1)] border border-[var(--os-border)] text-[var(--os-accent)]">
+                          <Laptop size={18} />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-bold text-[var(--os-text-primary)]">
+                            {peer.name}
+                          </p>
+                          <p className="text-[11px] text-[var(--os-success)] font-medium">
+                            Sẵn sàng nhận
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="primary"
+                        size="sm"
+                        disabled={isConnectDisabled}
+                        onClick={() => handleRequestConnection(peer)}
+                      >
+                        Kết nối
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <EmptyState
+                compact
+                icon={<Radio size={22} />}
+                title={
+                  signalingState === 'online'
+                    ? 'Chưa phát hiện thiết bị lân cận'
+                    : 'Đang khởi động radar tìm thiết bị…'
+                }
+                description={
+                  signalingState === 'online'
+                    ? 'Mở mục P2P Share trên điện thoại hoặc máy tính thứ hai để xuất hiện tức thì tại đây.'
+                    : 'Đặt tên thiết bị và giữ cửa sổ này mở để sẵn sàng ghép nối.'
+                }
+              />
+            )}
+          </Card>
+        </motion.div>
+      )}
+
+      {/* Active Connected Transfer Workspace */}
       {connected && (
-        <section className="space-y-4">
-          <div className="flex gap-2 border-b border-slate-200 dark:border-slate-800" role="tablist" aria-label="Chức năng truyền P2P">
-            <button type="button" role="tab" aria-selected={activeTab === 'file'} onClick={() => setActiveTab('file')} className={`inline-flex items-center gap-2 border-b-2 px-3 py-2 text-sm font-bold ${activeTab === 'file' ? 'border-amber-500 text-amber-700 dark:text-amber-400' : 'border-transparent text-slate-500'}`}><FileUp size={16} /> File</button>
-            <button type="button" role="tab" aria-selected={activeTab === 'text'} onClick={() => setActiveTab('text')} className={`inline-flex items-center gap-2 border-b-2 px-3 py-2 text-sm font-bold ${activeTab === 'text' ? 'border-amber-500 text-amber-700 dark:text-amber-400' : 'border-transparent text-slate-500'}`}><MessageSquare size={16} /> Text</button>
+        <motion.section variants={staggerItemVariants} className="space-y-4">
+          {/* Accessible Segmented Tablist */}
+          <div
+            role="tablist"
+            aria-label="Chức năng truyền P2P"
+            className="os-sunken inline-flex items-center gap-1 rounded-[var(--radius-lg)] p-1"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'file'}
+              onClick={() => setActiveTab('file')}
+              className={`os-focus-ring inline-flex items-center gap-2 rounded-[var(--radius-md)] px-4 py-2 text-sm font-bold transition-all ${
+                activeTab === 'file'
+                  ? 'bg-[var(--os-surface-1)] text-[var(--os-accent)] shadow-[var(--os-shadow-sm)] border border-[var(--os-border)]'
+                  : 'text-[var(--os-text-secondary)] hover:text-[var(--os-text-primary)]'
+              }`}
+            >
+              <FileUp size={16} />
+              <span>Truyền Tệp</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'text'}
+              onClick={() => setActiveTab('text')}
+              className={`os-focus-ring inline-flex items-center gap-2 rounded-[var(--radius-md)] px-4 py-2 text-sm font-bold transition-all ${
+                activeTab === 'text'
+                  ? 'bg-[var(--os-surface-1)] text-[var(--os-accent)] shadow-[var(--os-shadow-sm)] border border-[var(--os-border)]'
+                  : 'text-[var(--os-text-secondary)] hover:text-[var(--os-text-primary)]'
+              }`}
+            >
+              <MessageSquare size={16} />
+              <span>Văn Bản Nhanh</span>
+            </button>
           </div>
 
           {activeTab === 'text' ? (
-            <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-[#101010]">
-              <div className="max-h-[45vh] min-h-48 space-y-3 overflow-y-auto rounded-lg bg-slate-50 p-3 dark:bg-black">
-                {messages.length ? messages.map((message) => (
-                  <article key={message.id} className={`max-w-[90%] rounded-xl px-3 py-2 ${message.direction === 'sent' ? 'ml-auto bg-amber-100 text-slate-900 dark:bg-amber-950/50 dark:text-amber-100' : 'bg-white text-slate-800 shadow-sm dark:bg-slate-800 dark:text-slate-100'}`}>
-                    <p className="whitespace-pre-wrap break-words text-sm">{message.text}</p>
-                    <div className="mt-1 flex items-center justify-between gap-3">
-                      <button
-                        type="button"
-                        onClick={() => handleCopyMessage(message)}
-                        aria-label={copiedMessageId === message.id ? 'Đã sao chép văn bản' : 'Sao chép văn bản'}
-                        title={copiedMessageId === message.id ? 'Đã sao chép' : 'Sao chép văn bản'}
-                        className="inline-flex items-center gap-1 rounded px-1 py-0.5 text-[11px] opacity-70 transition hover:bg-black/5 hover:opacity-100 dark:hover:bg-white/10"
+            <Card className="p-4 sm:p-5 space-y-4">
+              <div className="os-sunken max-h-[46vh] min-h-56 space-y-3 overflow-y-auto custom-scrollbar rounded-[var(--radius-lg)] p-3.5 sm:p-4">
+                {messages.length > 0 ? (
+                  messages.map((message) => {
+                    const isSent = message.direction === 'sent';
+                    return (
+                      <article
+                        key={message.id}
+                        className={`max-w-[88%] sm:max-w-[78%] rounded-[var(--radius-lg)] px-4 py-2.5 border ${
+                          isSent
+                            ? 'ml-auto border-[var(--os-accent-border)] bg-[var(--os-accent-soft)] text-[var(--os-text-primary)]'
+                            : 'border-[var(--os-border)] bg-[var(--os-surface-1)] text-[var(--os-text-primary)] shadow-[var(--os-shadow-sm)]'
+                        }`}
                       >
-                        {copiedMessageId === message.id ? <Check size={13} /> : <Copy size={13} />}
-                        <span>{copiedMessageId === message.id ? 'Đã sao chép' : 'Sao chép'}</span>
-                      </button>
-                      <p className="text-right text-[11px] opacity-60">{message.direction === 'sent' ? 'Sent' : 'Received'} · {formatTime(message.timestamp)}</p>
-                    </div>
-                  </article>
-                )) : <p className="py-12 text-center text-sm text-slate-500">Chưa có tin nhắn. Gửi lời chào đầu tiên!</p>}
-              </div>
-              <form onSubmit={handleSendText} className="space-y-2">
-                <textarea value={text} onChange={(event) => setText(event.target.value)} placeholder="Nhập tin nhắn…" rows={3} className="w-full resize-y rounded-lg border border-slate-300 bg-white p-3 text-sm dark:border-slate-700 dark:bg-black" />
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-xs text-slate-500">{formatBytes(new TextEncoder().encode(text).byteLength)} / {formatBytes(MAX_TEXT_SIZE)}</span>
-                  <button type="submit" disabled={!text.trim()} className="inline-flex items-center gap-2 rounded-lg bg-amber-400 px-4 py-2 text-sm font-bold text-black disabled:opacity-50"><Send size={15} /> Send</button>
-                </div>
-              </form>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div
-                onDragOver={(event) => { event.preventDefault(); setIsDragging(true); }}
-                onDragLeave={() => setIsDragging(false)}
-                onDrop={handleFileDrop}
-                className={`rounded-xl border-2 border-dashed p-5 text-center transition ${isDragging ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/20' : 'border-slate-300 dark:border-slate-700'}`}
-              >
-                <FileUp className="mx-auto mb-2 text-slate-400" size={25} />
-                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Kéo thả file vào đây hoặc chọn từ thiết bị</p>
-                <p className="mt-1 text-xs text-slate-500">Giới hạn mỗi file: {formatBytes(MAX_FILE_SIZE)}. File chỉ nằm trên thiết bị của bạn.</p>
-                <input ref={fileInputRef} type="file" disabled={busy} className="sr-only" onChange={(event) => setSelectedFile(event.target.files?.[0] || null)} />
-                <button type="button" disabled={busy} onClick={() => fileInputRef.current?.click()} className="mt-3 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold disabled:opacity-50 dark:border-slate-700">Chọn file</button>
-                {selectedFile && (
-                  <div className="mx-auto mt-3 flex max-w-xl flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-100 px-3 py-2 text-left dark:bg-slate-800">
-                    <span className="min-w-0 truncate text-sm">{selectedFile.name} · {formatBytes(selectedFile.size)}</span>
-                    <div className="flex items-center gap-2">
-                      <button type="button" disabled={busy} onClick={handleSendFile} className="inline-flex items-center gap-2 rounded-md bg-amber-400 px-3 py-1.5 text-sm font-bold text-black disabled:opacity-50"><Send size={14} /> Send File</button>
-                      <button type="button" disabled={busy} aria-label="Bỏ chọn file" onClick={() => { setSelectedFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} className="rounded p-1 text-slate-500 disabled:opacity-50"><X size={16} /></button>
-                    </div>
+                        <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+                          {message.text}
+                        </p>
+                        <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-[var(--os-text-muted)]">
+                          <button
+                            type="button"
+                            onClick={() => handleCopyMessage(message)}
+                            aria-label={copiedMessageId === message.id ? 'Đã sao chép văn bản' : 'Sao chép văn bản'}
+                            title={copiedMessageId === message.id ? 'Đã sao chép' : 'Sao chép văn bản'}
+                            className="os-focus-ring inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 font-medium text-[var(--os-text-secondary)] hover:bg-[var(--os-surface-hover)] hover:text-[var(--os-text-primary)] transition-colors"
+                          >
+                            {copiedMessageId === message.id ? <Check size={12} /> : <Copy size={12} />}
+                            <span>{copiedMessageId === message.id ? 'Đã sao chép' : 'Sao chép'}</span>
+                          </button>
+                          <span className="font-mono">
+                            {isSent ? 'Đã gửi' : 'Đã nhận'} · {formatTime(message.timestamp)}
+                          </span>
+                        </div>
+                      </article>
+                    );
+                  })
+                ) : (
+                  <div className="flex h-44 items-center justify-center text-center text-sm text-[var(--os-text-muted)]">
+                    Chưa có tin nhắn nào trong phiên này. Hãy gửi đoạn văn bản hoặc liên kết đầu tiên!
                   </div>
                 )}
               </div>
 
+              <form onSubmit={handleSendText} className="space-y-2.5">
+                <textarea
+                  value={text}
+                  onChange={(event) => setText(event.target.value)}
+                  placeholder="Dán đoạn mã, liên kết hoặc lời nhắn…"
+                  rows={3}
+                  className="os-focus-ring w-full resize-y rounded-[var(--radius-md)] border border-[var(--os-border)] bg-[var(--os-surface-2)] p-3.5 text-sm text-[var(--os-text-primary)] placeholder:text-[var(--os-text-muted)] focus:border-[var(--os-accent)]"
+                />
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-mono text-xs text-[var(--os-text-muted)]">
+                    {formatBytes(new TextEncoder().encode(text).byteLength)} / {formatBytes(MAX_TEXT_SIZE)}
+                  </span>
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    size="sm"
+                    disabled={!text.trim()}
+                    iconLeft={<Send size={15} />}
+                  >
+                    Gửi tin nhắn
+                  </Button>
+                </div>
+              </form>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {/* File Dropzone */}
+              <Card
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  setIsDragging(true);
+                }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={handleFileDrop}
+                className={`border-2 border-dashed p-6 sm:p-8 text-center transition-all ${
+                  isDragging
+                    ? 'border-[var(--os-accent)] bg-[var(--os-accent-soft)]'
+                    : 'border-[var(--os-border-strong)]'
+                }`}
+              >
+                <div className="mx-auto mb-3 flex size-14 items-center justify-center rounded-2xl bg-[var(--os-accent-soft)] text-[var(--os-accent)] border border-[var(--os-accent-border)]">
+                  <FileUp size={26} />
+                </div>
+                <p className="text-base font-bold text-[var(--os-text-primary)]">
+                  Kéo thả tệp vào đây hoặc chọn từ thiết bị
+                </p>
+                <p className="mt-1 text-xs text-[var(--os-text-muted)]">
+                  Giới hạn mỗi tệp: {formatBytes(MAX_FILE_SIZE)} · Truyền trực tiếp từ bộ nhớ thiết bị, không qua đám mây.
+                </p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  disabled={busy}
+                  className="sr-only"
+                  onChange={(event) => setSelectedFile(event.target.files?.[0] || null)}
+                />
+                <div className="mt-4 flex justify-center">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    disabled={busy}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    Chọn tệp từ máy
+                  </Button>
+                </div>
+
+                {selectedFile && (
+                  <div className="mx-auto mt-5 flex max-w-xl flex-wrap items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--os-border)] bg-[var(--os-surface-2)] px-4 py-3 text-left">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-bold text-[var(--os-text-primary)]">
+                        {selectedFile.name}
+                      </p>
+                      <p className="font-mono text-xs text-[var(--os-text-muted)]">
+                        {formatBytes(selectedFile.size)}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="primary"
+                        size="sm"
+                        disabled={busy}
+                        loading={busy}
+                        iconLeft={<Send size={14} />}
+                        onClick={handleSendFile}
+                      >
+                        Gửi tệp ngay
+                      </Button>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        aria-label="Bỏ chọn file"
+                        onClick={() => {
+                          setSelectedFile(null);
+                          if (fileInputRef.current) fileInputRef.current.value = '';
+                        }}
+                        className="os-focus-ring rounded-lg p-1.5 text-[var(--os-text-muted)] hover:bg-[var(--os-surface-hover)] hover:text-[var(--os-text-primary)] disabled:opacity-50"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </Card>
+
+              {/* Live Transfer Progress Cards */}
               {transfers.map((transfer) => {
-                const percentage = transfer.fileSize ? Math.min(100, Math.round((transfer.transferred / transfer.fileSize) * 100)) : 100;
+                const percentage = transfer.fileSize
+                  ? Math.min(100, Math.round((transfer.transferred / transfer.fileSize) * 100))
+                  : 100;
+                const isActive = ['preparing', 'sending', 'receiving'].includes(transfer.status);
+
                 return (
-                  <article key={transfer.fileId} className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-[#101010]">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
+                  <Card key={transfer.fileId} className="p-4 sm:p-5">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-bold text-slate-800 dark:text-slate-100">{transfer.fileName}</p>
-                        <p className="mt-1 text-xs text-slate-500">{transfer.direction === 'send' ? 'Đang gửi' : 'Đang nhận'} · {formatBytes(transfer.transferred)} / {formatBytes(transfer.fileSize)} · {transferStatusLabel(transfer.status)}</p>
-                        {['sending', 'receiving'].includes(transfer.status) && transfer.speed > 0 && (
-                          <p className="mt-1 text-xs text-slate-500">{formatSpeed(transfer.speed)}{transfer.fileSize > transfer.transferred ? ` · ${formatRemainingTime((transfer.fileSize - transfer.transferred) / transfer.speed)}` : ''}</p>
+                        <p className="truncate text-sm font-bold text-[var(--os-text-primary)]">
+                          {transfer.fileName}
+                        </p>
+                        <p className="mt-0.5 text-xs text-[var(--os-text-secondary)]">
+                          {transfer.direction === 'send' ? 'Đang gửi đi' : 'Đang nhận về'} ·{' '}
+                          <span className="font-mono">
+                            {formatBytes(transfer.transferred)} / {formatBytes(transfer.fileSize)}
+                          </span>{' '}
+                          · {transferStatusLabel(transfer.status)}
+                        </p>
+                        {isActive && transfer.speed > 0 && (
+                          <p className="mt-0.5 font-mono text-xs text-[var(--os-accent)]">
+                            {formatSpeed(transfer.speed)}
+                            {transfer.fileSize > transfer.transferred
+                              ? ` · ${formatRemainingTime((transfer.fileSize - transfer.transferred) / transfer.speed)}`
+                              : ''}
+                          </p>
                         )}
                       </div>
-                      {['preparing', 'sending', 'receiving'].includes(transfer.status) ? (
-                        <button type="button" onClick={() => sessionRef.current.fileTransfer.cancelTransfer(transfer.fileId)} className="rounded-md border border-slate-300 px-2.5 py-1.5 text-xs font-semibold dark:border-slate-700">Cancel</button>
-                      ) : <span className="text-xs text-slate-500">{formatSpeed(transfer.speed)}</span>}
+
+                      {isActive ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="xs"
+                          onClick={() => sessionRef.current.fileTransfer.cancelTransfer(transfer.fileId)}
+                        >
+                          Hủy truyền
+                        </Button>
+                      ) : (
+                        <span className="font-mono text-xs text-[var(--os-text-muted)]">
+                          {formatSpeed(transfer.speed)}
+                        </span>
+                      )}
                     </div>
+
                     <div
-                      className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800"
+                      className="mt-3.5 h-2.5 overflow-hidden rounded-full bg-[var(--os-surface-3)]"
                       role="progressbar"
                       aria-label={`Tiến trình ${transfer.fileName}`}
                       aria-valuemin={0}
                       aria-valuemax={100}
                       aria-valuenow={percentage}
                     >
-                      <div className="h-full rounded-full bg-amber-500 transition-[width]" style={{ width: `${percentage}%` }} />
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-[var(--os-accent)] to-amber-400 transition-[width] duration-200"
+                        style={{ width: `${percentage}%` }}
+                      />
                     </div>
-                    <p className="mt-1 text-right text-xs text-slate-500">
-                      {percentage}%{['sending', 'receiving'].includes(transfer.status) && transfer.speed > 0 ? ` · ${formatSpeed(transfer.speed)}` : ''}
+
+                    <p className="mt-1.5 text-right font-mono text-xs text-[var(--os-text-muted)]">
+                      {percentage}%
+                      {isActive && transfer.speed > 0 ? ` · ${formatSpeed(transfer.speed)}` : ''}
                     </p>
-                  </article>
+                  </Card>
                 );
               })}
 
+              {/* Completed Received Files */}
               {receivedFiles.map((file) => (
-                <article key={file.fileId} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-300 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-950/20">
+                <Card
+                  key={file.fileId}
+                  className="flex flex-wrap items-center justify-between gap-3 border-emerald-500/30 bg-[var(--os-success-soft)] p-4"
+                >
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-bold text-slate-800 dark:text-slate-100">{file.fileName}</p>
-                    <p className="mt-1 text-xs text-slate-500">Đã nhận hoàn tất · {formatBytes(file.fileSize)}</p>
+                    <p className="truncate text-sm font-bold text-[var(--os-text-primary)]">
+                      {file.fileName}
+                    </p>
+                    <p className="mt-0.5 text-xs text-[var(--os-text-secondary)]">
+                      Đã nhận hoàn tất · <span className="font-mono">{formatBytes(file.fileSize)}</span>
+                    </p>
                   </div>
-                  <button type="button" onClick={() => handleDownload(file)} className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-3 py-2 text-sm font-bold text-white hover:bg-emerald-600"><Download size={15} /> Download</button>
-                </article>
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="sm"
+                    iconLeft={<Download size={15} />}
+                    onClick={() => handleDownload(file)}
+                  >
+                    Tải xuống máy
+                  </Button>
+                </Card>
               ))}
             </div>
           )}
-        </section>
+        </motion.section>
       )}
 
-      <p className="text-center text-xs leading-5 text-slate-500">
-        Offer/Answer chứa thông tin mạng, chỉ chia sẻ với peer tin cậy. Kết nối cần HTTPS (hoặc localhost); STUN hỗ trợ ICE nhưng không bảo đảm vượt mọi NAT/firewall.
+      <p className="text-center text-xs leading-relaxed text-[var(--os-text-muted)] px-2">
+        Offer/Answer chứa thông tin định tuyến mạng — chỉ ghép nối với thiết bị tin cậy. Kết nối yêu cầu HTTPS (hoặc localhost); STUN hỗ trợ xuyên NAT nhưng một số mạng doanh nghiệp nghiêm ngặt có thể chặn UDP.
       </p>
-      {status === 'connected' && <span className="sr-only"><Check /></span>}
-    </div>
+      {status === 'connected' && (
+        <span className="sr-only">
+          <Check />
+        </span>
+      )}
+    </motion.div>
   );
 }

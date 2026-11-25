@@ -1,0 +1,93 @@
+{
+  "version": 2,
+  "skills": {
+    "brief-to-interface": {
+      "source": "thanhaq/interface-compass-skills",
+      "commit": "5692a7ca5f19ae9a5a0eb8bfb461e60ae2bbd421",
+      "sourceType": "github",
+      "skillPath": "skills/brief-to-interface/SKILL.md",
+      "computedHash": "9ab9941986ef37d10b47c6f5f8aad55f53e2c4ab2053cf8bb8b023223564c2b2",
+      "installMode": "copy"
+    },
+    "data-visualization": {
+      "source": "SvaraNova/skills",
+      "commit": "11500cb05b44fc01eac8537ad656006727146abb",
+      "sourceType": "github",
+      "skillPath": "frontend/data-visualization/SKILL.md",
+      "computedHash": "9adfb83ca90fc4ce21aada3b36ff5b3c2798474435450476e168abbc8fb2676d",
+      "installMode": "copy"
+    },
+    "design-system-starter": {
+      "source": "thanhaq/interface-compass-skills",
+      "commit": "5692a7ca5f19ae9a5a0eb8bfb461e60ae2bbd421",
+      "sourceType": "github",
+      "skillPath": "skills/design-system-starter/SKILL.md",
+      "computedHash": "cc134b6853a1169bc5cf7ce17f2105a5e4f78c879bff9f7b564fcec40db8bef9",
+      "installMode": "copy"
+    },
+    "frontend-ui": {
+      "source": "SvaraNova/skills",
+      "commit": "11500cb05b44fc01eac8537ad656006727146abb",
+      "sourceType": "github",
+      "skillPath": "frontend/frontend-ui/SKILL.md",
+      "computedHash": "ba819d90df6bf0fd99cbca75277529186d9c91dad627d4f613feb1f4dade6e99",
+      "installMode": "copy"
+    },
+    "interface-quality-audit": {
+      "source": "thanhaq/interface-compass-skills",
+      "commit": "5692a7ca5f19ae9a5a0eb8bfb461e60ae2bbd421",
+      "sourceType": "github",
+      "skillPath": "skills/interface-quality-audit/SKILL.md",
+      "computedHash": "159ae82c5938626cbc0760f4286ed043f7cdcba67724bce2f833d0ef2e09a855",
+      "installMode": "copy"
+    },
+    "motion-and-interaction": {
+      "source": "thanhaq/interface-compass-skills",
+      "commit": "5692a7ca5f19ae9a5a0eb8bfb461e60ae2bbd421",
+      "sourceType": "github",
+      "skillPath": "skills/motion-and-interaction/SKILL.md",
+      "computedHash": "c57e9a70141d926ba26fbead9c89ef6814ae9136f48fc7d5edf6d3edf460d3dc",
+      "installMode": "copy"
+    },
+    "motion-ref": {
+      "source": "joepUI/motion-ref-skill",
+      "commit": "55cb00f9b80da3ed904d21c6f4a61a25d54da597",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "da61d28718f7bed61f3624f709e8717219e8fdfa0086b7a774259fa86017d0c2",
+      "installMode": "copy"
+    },
+    "product-surface-copy": {
+      "source": "thanhaq/interface-compass-skills",
+      "commit": "5692a7ca5f19ae9a5a0eb8bfb461e60ae2bbd421",
+      "sourceType": "github",
+      "skillPath": "skills/product-surface-copy/SKILL.md",
+      "computedHash": "ef4e6d1a61ea17550d8e8a75e6a65991bd161c33d2805fa569296bbad794c586",
+      "installMode": "copy"
+    },
+    "reference-to-implementation": {
+      "source": "thanhaq/interface-compass-skills",
+      "commit": "5692a7ca5f19ae9a5a0eb8bfb461e60ae2bbd421",
+      "sourceType": "github",
+      "skillPath": "skills/reference-to-implementation/SKILL.md",
+      "computedHash": "cbc89493064ca90c1096edeac925c428cffe19879d44b053d10bb45c2c33eade",
+      "installMode": "copy"
+    },
+    "shipshape-frontend": {
+      "source": "thanhaq/interface-compass-skills",
+      "commit": "5692a7ca5f19ae9a5a0eb8bfb461e60ae2bbd421",
+      "sourceType": "github",
+      "skillPath": "skills/shipshape-frontend/SKILL.md",
+      "computedHash": "23ab8119d701d6606c070d0817ad35e762a12ec9729242e897270dde9733622a",
+      "installMode": "copy"
+    },
+    "web-motion": {
+      "source": "SvaraNova/skills",
+      "commit": "11500cb05b44fc01eac8537ad656006727146abb",
+      "sourceType": "github",
+      "skillPath": "frontend/web-motion/SKILL.md",
+      "computedHash": "6d18d7ac2ed3808de745016cadb75cb73e614a01a87c28140c971f49bfa33056",
+      "installMode": "copy"
+    }
+  }
+}

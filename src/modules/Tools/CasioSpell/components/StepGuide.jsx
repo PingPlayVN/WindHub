@@ -1,13 +1,7 @@
 import { useState } from 'react';
-import { Copy, Check, Terminal, Sparkles } from 'lucide-react';
+import { Check, Copy, Keyboard, Terminal } from 'lucide-react';
 import { toast } from 'sonner';
 
-/**
- * Tự động tháo gỡ (unroll) toàn bộ các ký hiệu nhân lặp phím:
- * ([←] [9] [DEL])×2 -> [←] [9] [DEL] [←] [9] [DEL]
- * [DEL]×10 -> 10 lần [DEL]
- * [16 số bất kì] -> 16 lần [1]
- */
 export function unrollKeyBadges(text) {
   if (!text) return '';
   let s = text;
@@ -39,7 +33,8 @@ export function unrollKeyBadges(text) {
   });
 
   s = s.replace(/\]\s*\[/g, '] [');
-  s = s.replace(/\[<\]/g, '[←]')
+  s = s
+    .replace(/\[<\]/g, '[←]')
     .replace(/\[>\]/g, '[→]')
     .replace(/\[[\^∧]\]/g, '[↑]')
     .replace(/\[[v∨]\]/g, '[↓]');
@@ -74,34 +69,46 @@ export function KeyBadgeRenderer({ text }) {
       {parts.map((part, index) => {
         if (part.startsWith('[') && part.endsWith(']')) {
           const keyName = part.slice(1, -1);
-          let keyColor = 'bg-slate-200 dark:bg-zinc-800 text-slate-800 dark:text-zinc-200 border-slate-300 dark:border-zinc-700';
+          let keyColor =
+            'bg-[var(--os-surface-1)] text-[var(--os-text-primary)] border-[var(--os-border-strong)]';
 
           if (/shift/i.test(keyName)) {
-            keyColor = 'bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-700 font-bold';
+            keyColor =
+              'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/35 font-bold';
           } else if (/alpha/i.test(keyName)) {
-            keyColor = 'bg-rose-100 dark:bg-rose-950/70 text-rose-800 dark:text-rose-300 border-rose-300 dark:border-rose-700 font-bold';
+            keyColor =
+              'bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/35 font-bold';
           } else if (/optn|menu/i.test(keyName)) {
-            keyColor = 'bg-sky-100 dark:bg-sky-950/70 text-sky-800 dark:text-sky-300 border-sky-300 dark:border-sky-700 font-bold';
+            keyColor =
+              'bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/35 font-bold';
           } else if (/calc|ans|=/i.test(keyName)) {
-            keyColor = 'bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700 font-bold';
+            keyColor =
+              'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/35 font-bold';
           } else if (/ac|del/i.test(keyName)) {
-            keyColor = 'bg-orange-100 dark:bg-orange-950/70 text-orange-800 dark:text-orange-300 border-orange-300 dark:border-orange-700 font-bold';
+            keyColor =
+              'bg-orange-500/15 text-orange-700 dark:text-orange-300 border-orange-500/35 font-bold';
           } else if (/^[↑↓←→><∧∨▲▼◀▶]$/.test(keyName)) {
-            keyColor = 'bg-indigo-100 dark:bg-indigo-950/70 text-indigo-800 dark:text-indigo-300 border-indigo-300 dark:border-indigo-700 font-bold';
+            keyColor =
+              'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border-indigo-500/35 font-bold';
           } else if (/x\^|x²|x⁻¹|°'"|□\/□|√|sin|cos|tan|ln/i.test(keyName)) {
-            keyColor = 'bg-purple-100 dark:bg-purple-950/70 text-purple-800 dark:text-purple-300 border-purple-300 dark:border-purple-700 font-bold';
+            keyColor =
+              'bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-500/35 font-bold';
           }
 
           return (
-            <span
+            <kbd
               key={index}
-              className={`inline-flex items-center justify-center px-1.5 py-0.5 min-w-[24px] text-xs font-mono rounded shadow-xs border transition hover:scale-105 ${keyColor}`}
+              className={`inline-flex min-w-[24px] items-center justify-center rounded-md border border-b-2 px-1.5 py-0.5 font-mono text-xs shadow-2xs ${keyColor}`}
             >
               {keyName}
-            </span>
+            </kbd>
           );
         }
-        return <span key={index} className="text-slate-700 dark:text-slate-300 font-medium px-0.5">{part}</span>;
+        return (
+          <span key={index} className="px-0.5 font-medium text-[var(--os-text-secondary)]">
+            {part}
+          </span>
+        );
       })}
     </span>
   );
@@ -109,31 +116,17 @@ export function KeyBadgeRenderer({ text }) {
 
 export function StepGuideSkeleton({ count = 3 }) {
   return (
-    <div className="space-y-4 animate-pulse">
-      <div className="flex items-center justify-between px-1">
-        <div className="h-4 w-44 rounded-md bg-slate-200 dark:bg-zinc-800" />
-        <div className="h-7 w-48 rounded-xl bg-slate-200 dark:bg-zinc-800" />
-      </div>
+    <div className="space-y-3 animate-pulse">
       {[...Array(count)].map((_, idx) => (
         <div
           key={idx}
-          className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/60 p-4 sm:p-5 shadow-xs space-y-3"
+          className="rounded-[var(--radius-lg)] border border-[var(--os-border-subtle)] bg-[var(--os-surface-1)] p-4 sm:p-5 space-y-3"
         >
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="h-7 w-7 rounded-xl bg-sky-500/20" />
-              <div className="h-5 w-48 sm:w-64 rounded-lg bg-slate-200 dark:bg-zinc-800" />
-            </div>
-            <div className="h-7 w-20 rounded-lg bg-slate-200 dark:bg-zinc-800" />
+          <div className="flex items-center gap-3">
+            <div className="size-7 rounded-lg bg-[var(--os-surface-3)]" />
+            <div className="h-4 w-56 rounded bg-[var(--os-surface-3)]" />
           </div>
-          <div className="ml-10 space-y-2">
-            <div className="h-3.5 w-5/6 rounded bg-slate-200 dark:bg-zinc-800" />
-          </div>
-          <div className="mt-3 ml-10 p-3 rounded-xl bg-slate-100 dark:bg-zinc-950/80 border border-slate-200 dark:border-zinc-800/80 flex flex-wrap gap-1.5">
-            {[14, 16, 12, 18, 14, 16, 20, 12].map((w, i) => (
-              <div key={i} className="h-6 rounded bg-slate-200 dark:bg-zinc-800" style={{ width: `${w * 3}px` }} />
-            ))}
-          </div>
+          <div className="h-12 w-full rounded-lg bg-[var(--os-surface-2)]" />
         </div>
       ))}
     </div>
@@ -142,51 +135,50 @@ export function StepGuideSkeleton({ count = 3 }) {
 
 export default function StepGuide({ steps = [], loading = false }) {
   const [copiedIdx, setCopiedIdx] = useState(null);
-  const [viewMode, setViewMode] = useState('badges'); // 'badges' | 'compact'
+  const [viewMode, setViewMode] = useState('badges');
 
   const handleCopy = (text, idx) => {
     if (!text) return;
     const cleanText = unrollKeyBadges(text);
     navigator.clipboard.writeText(cleanText);
     setCopiedIdx(idx);
-    toast.success('Đã sao chép công thức phím!');
+    toast.success('Đã sao chép chuỗi phím bấm!');
     setTimeout(() => setCopiedIdx(null), 2000);
   };
 
-  if (loading) {
-    return <StepGuideSkeleton count={steps?.length || 3} />;
-  }
-
+  if (loading) return <StepGuideSkeleton count={steps?.length || 3} />;
   if (!steps || steps.length === 0) return null;
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between px-1">
-        <span className="text-xs font-mono text-slate-500 uppercase tracking-wider font-bold">
-          Quy trình bấm phím ({steps.length} bước)
+    <div className="space-y-3.5">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-0.5">
+        <span className="font-mono text-xs font-bold uppercase tracking-wider text-[var(--os-text-muted)]">
+          Quy trình thao tác ({steps.length} bước)
         </span>
-        <div className="flex items-center gap-1 bg-slate-100 dark:bg-zinc-800 p-0.5 rounded-xl border border-slate-200 dark:border-zinc-700 text-xs">
+        <div className="os-sunken inline-flex items-center gap-1 rounded-[var(--radius-sm)] p-0.5 text-xs">
           <button
             type="button"
             onClick={() => setViewMode('badges')}
-            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg font-medium transition ${viewMode === 'badges'
-                ? 'bg-white dark:bg-zinc-900 text-sky-600 dark:text-sky-400 shadow-xs font-bold'
-                : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-              }`}
+            className={`os-focus-ring inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 font-semibold cursor-pointer transition-colors ${
+              viewMode === 'badges'
+                ? 'bg-[var(--os-surface-1)] text-[var(--os-accent)] font-bold shadow-2xs'
+                : 'text-[var(--os-text-muted)] hover:text-[var(--os-text-primary)]'
+            }`}
           >
-            <Sparkles size={12} />
+            <Keyboard size={13} />
             <span>Phím trực quan</span>
           </button>
           <button
             type="button"
             onClick={() => setViewMode('compact')}
-            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg font-medium transition ${viewMode === 'compact'
-                ? 'bg-white dark:bg-zinc-900 text-sky-600 dark:text-sky-400 shadow-xs font-bold'
-                : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-              }`}
+            className={`os-focus-ring inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 font-semibold cursor-pointer transition-colors ${
+              viewMode === 'compact'
+                ? 'bg-[var(--os-surface-1)] text-[var(--os-accent)] font-bold shadow-2xs'
+                : 'text-[var(--os-text-muted)] hover:text-[var(--os-text-primary)]'
+            }`}
           >
-            <Terminal size={12} />
-            <span>Chuỗi một dòng</span>
+            <Terminal size={13} />
+            <span>Chuỗi văn bản</span>
           </button>
         </div>
       </div>
@@ -194,14 +186,14 @@ export default function StepGuide({ steps = [], loading = false }) {
       {steps.map((s, idx) => (
         <div
           key={idx}
-          className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/60 p-4 sm:p-5 shadow-xs transition hover:border-sky-300 dark:hover:border-zinc-700"
+          className="rounded-[var(--radius-lg)] border border-[var(--os-border-default)] bg-[var(--os-surface-1)] p-4 sm:p-5 transition-colors hover:border-[var(--os-border-strong)]"
         >
           <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-sky-500/10 dark:bg-sky-400/10 font-mono text-xs font-bold text-sky-600 dark:text-sky-400 border border-sky-500/20">
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="flex size-7 shrink-0 items-center justify-center rounded-lg border border-[var(--os-info-border)] bg-[var(--os-info-soft)] font-mono text-xs font-bold text-[var(--os-info)]">
                 {s.step || idx + 1}
               </span>
-              <h4 className="font-semibold text-slate-900 dark:text-slate-100 text-sm sm:text-base">
+              <h4 className="text-sm sm:text-base font-bold text-[var(--os-text-primary)]">
                 {s.title}
               </h4>
             </div>
@@ -210,49 +202,59 @@ export default function StepGuide({ steps = [], loading = false }) {
               <button
                 type="button"
                 onClick={() => handleCopy(s.keys, idx)}
-                className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 transition"
+                className="os-focus-ring inline-flex shrink-0 items-center gap-1.5 rounded-[var(--radius-xs)] border border-[var(--os-border-default)] bg-[var(--os-surface-2)] px-2.5 py-1 text-xs font-semibold text-[var(--os-text-secondary)] hover:text-[var(--os-text-primary)] cursor-pointer transition-colors"
               >
-                {copiedIdx === idx ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} />}
+                {copiedIdx === idx ? (
+                  <Check size={13} className="text-[var(--os-success)]" />
+                ) : (
+                  <Copy size={13} />
+                )}
                 <span>{copiedIdx === idx ? 'Đã chép' : 'Sao chép'}</span>
               </button>
             )}
           </div>
 
           {s.desc && (
-            <p className="mt-2 text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed pl-10">
+            <p className="mt-2 text-xs sm:text-sm leading-relaxed text-[var(--os-text-secondary)] sm:pl-10">
               {s.desc}
             </p>
           )}
 
           {s.keys && (
-            <div className="mt-3 ml-10 p-3 rounded-xl bg-slate-50 dark:bg-zinc-950/80 border border-slate-200/80 dark:border-zinc-800/80 font-mono text-xs">
+            <div className="os-sunken mt-3 rounded-[var(--radius-md)] p-3 font-mono text-xs sm:ml-10">
               {viewMode === 'badges' ? (
                 <KeyBadgeRenderer text={s.keys} />
               ) : (
-                <div className="font-mono text-xs text-sky-600 dark:text-sky-400 break-all select-all">
+                <div className="break-all font-mono text-xs text-[var(--os-info)] select-all">
                   {unrollKeyBadges(s.keys)}
                 </div>
               )}
             </div>
           )}
 
-          {/* Display Templates (cho Casio 580 Bước 4 & Bước 6) */}
           {s.displayTemplates && s.displayTemplates.length > 0 && (
-            <div className="mt-3 ml-10 space-y-2">
-              <p className="font-mono text-xs text-sky-500 font-semibold uppercase tracking-wider">
-                Màn hình Casio hiển thị:
+            <div className="mt-3 space-y-2 sm:ml-10">
+              <p className="font-mono text-[11px] font-bold uppercase tracking-wider text-[var(--os-info)]">
+                Màn hình Casio hiển thị
               </p>
               <div className="space-y-1.5 font-mono text-xs">
                 {s.displayTemplates.map((tmpl, tIdx) => (
-                  <div key={tIdx} className="p-2.5 rounded-xl bg-slate-900 text-emerald-400 border border-slate-800 flex items-center justify-between shadow-inner">
+                  <div
+                    key={tIdx}
+                    className="flex items-center justify-between rounded-[var(--radius-sm)] border border-slate-800 bg-[#0d121a] px-3 py-2 text-emerald-400"
+                  >
                     <span className="font-bold tracking-wide">{tmpl}</span>
                     <button
                       type="button"
                       onClick={() => handleCopy(tmpl, `tmpl-${tIdx}`)}
-                      className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition"
+                      className="rounded p-1 text-slate-400 hover:bg-white/10 hover:text-white cursor-pointer transition-colors"
                       title="Sao chép giá trị dòng"
                     >
-                      {copiedIdx === `tmpl-${tIdx}` ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} />}
+                      {copiedIdx === `tmpl-${tIdx}` ? (
+                        <Check size={13} className="text-emerald-400" />
+                      ) : (
+                        <Copy size={13} />
+                      )}
                     </button>
                   </div>
                 ))}
@@ -260,22 +262,21 @@ export default function StepGuide({ steps = [], loading = false }) {
             </div>
           )}
 
-          {/* Ways to input (Cách nhập từng biến / Cách làm) */}
           {s.waysToInput && s.waysToInput.length > 0 && (
-            <div className="mt-3 ml-10 space-y-2">
-              <p className="font-mono text-xs text-amber-500 font-semibold uppercase tracking-wider">
-                {s.waysTitle || 'Cách thực hiện:'}
+            <div className="mt-3 space-y-2 sm:ml-10">
+              <p className="font-mono text-[11px] font-bold uppercase tracking-wider text-[var(--os-warning)]">
+                {s.waysTitle || 'Cách thực hiện'}
               </p>
               <div className="space-y-1.5">
                 {s.waysToInput.map((way, wIdx) => (
                   <div
                     key={wIdx}
-                    className="p-2.5 rounded-xl bg-slate-50 dark:bg-zinc-950/80 border border-slate-200/80 dark:border-zinc-800/80 font-mono text-xs"
+                    className="os-sunken rounded-[var(--radius-md)] p-2.5 font-mono text-xs"
                   >
                     {viewMode === 'badges' ? (
                       <KeyBadgeRenderer text={way} />
                     ) : (
-                      <div className="font-mono text-xs text-sky-600 dark:text-sky-400 break-all select-all">
+                      <div className="break-all font-mono text-xs text-[var(--os-info)] select-all">
                         {unrollKeyBadges(way)}
                       </div>
                     )}
@@ -285,10 +286,9 @@ export default function StepGuide({ steps = [], loading = false }) {
             </div>
           )}
 
-          {/* Calc repeat button indicator */}
           {s.calcRepeat && (
-            <div className="mt-3 ml-10 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs font-mono text-amber-700 dark:text-amber-300 flex items-center gap-2">
-              <span className="font-bold shrink-0">Bấm tiếp:</span>
+            <div className="mt-3 flex flex-wrap items-center gap-2 rounded-[var(--radius-md)] border border-[var(--os-warning-border)] bg-[var(--os-warning-soft)] px-3 py-2 font-mono text-xs text-[var(--os-text-primary)] sm:ml-10">
+              <span className="font-bold text-[var(--os-warning)] shrink-0">Bấm tiếp:</span>
               <KeyBadgeRenderer text={s.calcRepeat} />
             </div>
           )}

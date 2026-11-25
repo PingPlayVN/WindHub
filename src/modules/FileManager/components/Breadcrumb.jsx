@@ -1,37 +1,47 @@
 import React from 'react';
-import { ChevronRight, CornerUpLeft } from 'lucide-react';
+import { ChevronRight, CornerUpLeft, Folder } from 'lucide-react';
 
 export default function Breadcrumb({ path, handleNavigateTo }) {
   return (
-    <div className="flex items-center gap-1.5 sm:gap-2 px-1 text-sm text-slate-600 dark:text-slate-400 overflow-x-auto whitespace-nowrap custom-scrollbar pb-1 touch-pan-x">
+    <nav
+      aria-label="Đường dẫn thư mục"
+      className="flex items-center gap-1.5 overflow-x-auto whitespace-nowrap no-scrollbar py-0.5 touch-pan-x"
+    >
       {path.length > 1 && (
         <button
           type="button"
           onClick={() => handleNavigateTo(path.length - 2)}
-          className="p-1.5 sm:p-2 min-w-[32px] min-h-[32px] flex items-center justify-center bg-slate-100 dark:bg-zinc-800/80 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-700 dark:text-slate-300 rounded-xl transition-all shadow-sm shrink-0 active:scale-95"
           title="Quay lại thư mục cha"
+          aria-label="Quay lại thư mục cha"
+          className="os-focus-ring flex size-8 shrink-0 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--os-border-default)] bg-[var(--os-surface-2)] text-[var(--os-text-secondary)] hover:border-[var(--os-border-strong)] hover:text-[var(--os-text-primary)] cursor-pointer transition-colors"
         >
-          <CornerUpLeft size={16} />
+          <CornerUpLeft size={15} />
         </button>
       )}
-      {path.map((p, idx) => (
-        <React.Fragment key={p.id}>
-          <button
-            type="button"
-            onClick={() => handleNavigateTo(idx)}
-            className={`hover:text-blue-600 px-2.5 py-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition min-h-[32px] flex items-center text-xs sm:text-sm ${
-              idx === path.length - 1
-                ? 'font-bold text-slate-800 dark:text-slate-200 bg-white/70 dark:bg-zinc-800/50 shadow-sm'
-                : 'text-slate-500 dark:text-slate-400'
-            }`}
-          >
-            {p.name}
-          </button>
-          {idx < path.length - 1 && (
-            <ChevronRight size={14} className="text-slate-400 shrink-0" />
-          )}
-        </React.Fragment>
-      ))}
-    </div>
+
+      {path.map((p, idx) => {
+        const isLast = idx === path.length - 1;
+        return (
+          <React.Fragment key={p.id}>
+            <button
+              type="button"
+              onClick={() => handleNavigateTo(idx)}
+              aria-current={isLast ? 'location' : undefined}
+              className={`os-focus-ring inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-sm)] px-2.5 text-xs sm:text-sm cursor-pointer transition-colors ${
+                isLast
+                  ? 'border border-[var(--os-border-default)] bg-[var(--os-surface-1)] font-bold text-[var(--os-text-primary)] shadow-[var(--os-shadow-xs)]'
+                  : 'text-[var(--os-text-muted)] hover:bg-[var(--os-surface-hover)] hover:text-[var(--os-text-primary)] font-medium'
+              }`}
+            >
+              {idx === 0 && <Folder size={13} className="text-[var(--os-accent)] shrink-0" />}
+              <span>{p.name}</span>
+            </button>
+            {!isLast && (
+              <ChevronRight size={14} aria-hidden="true" className="shrink-0 text-[var(--os-text-subtle)]" />
+            )}
+          </React.Fragment>
+        );
+      })}
+    </nav>
   );
 }

@@ -1,39 +1,36 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Folder as FolderIcon } from 'lucide-react';
+import { Folder as FolderIcon, FolderPlus, Link2 } from 'lucide-react';
 import FileItem from './FileItem';
 import { FileCardSkeleton, FileRowSkeleton } from '@/components/ui/AsciiReveal';
+import { Button, EmptyState } from '@/components/os';
 
-// Container variants cho chế độ hiển thị Lưới (Grid) - Kích hoạt hiệu ứng sóng cuộn bung (Cascade Stagger)
 const gridContainerVariants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.055, // Mỗi tệp/thư mục bung cách nhau 55ms tạo hiệu ứng sóng tầng cực rõ
-      delayChildren: 0.02,
+      staggerChildren: 0.035,
+      delayChildren: 0.01,
     },
   },
   exit: {
     opacity: 0,
-    y: -10,
-    transition: { duration: 0.12, ease: 'easeOut' },
+    transition: { duration: 0.12 },
   },
 };
 
-// Container variants cho chế độ hiển thị Danh sách (List) - Thác nước trượt ngang
 const listContainerVariants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.035,
-      delayChildren: 0.02,
+      staggerChildren: 0.025,
+      delayChildren: 0.01,
     },
   },
   exit: {
     opacity: 0,
-    y: -8,
-    transition: { duration: 0.12, ease: 'easeOut' },
+    transition: { duration: 0.12 },
   },
 };
 
@@ -61,35 +58,34 @@ export default function FileGrid({
   handleContextMenu,
   getFileIcon,
   handleBackgroundContextMenu,
+  isAdmin,
+  onCreateFolder,
+  onAddLink,
   onRetry,
 }) {
   const skeletonItems = Array.from({ length: 12 }, (_, index) => index);
 
   return (
     <div
-      className="min-h-0 flex-1 bg-white/70 dark:bg-zinc-950/70 backdrop-blur-sm rounded-2xl shadow-sm border border-slate-200/80 dark:border-zinc-800/80 p-3 sm:p-5 md:p-6 overflow-y-auto overscroll-contain custom-scrollbar"
+      className="os-card min-h-[320px] flex-1 rounded-[var(--radius-xl)] p-3 sm:p-4 md:p-5 overflow-y-auto overscroll-contain custom-scrollbar"
       onClick={() => (onClearSelection ? onClearSelection() : setSelectedItems(new Set()))}
       onContextMenu={handleBackgroundContextMenu}
     >
       {loadError ? (
-        <div className="flex h-full min-h-[220px] items-center justify-center text-center">
-          <div className="max-w-md rounded-2xl border border-red-500/30 bg-red-500/5 p-6 text-red-600 dark:text-red-400">
-            <p className="text-lg font-semibold">Không thể tải dữ liệu</p>
-            <p className="mt-2 text-sm text-red-500/80">{loadError}</p>
-            <button
-              type="button"
-              onClick={onRetry}
-              className="mt-4 rounded-lg border border-red-400/40 bg-red-500/10 px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-500/15 dark:text-red-300"
-            >
-              Thử lại
-            </button>
-          </div>
-        </div>
+        <EmptyState
+          title="Không thể tải danh sách tệp"
+          description={loadError}
+          action={
+            <Button variant="secondary" size="sm" onClick={onRetry}>
+              Thử tải lại
+            </Button>
+          }
+        />
       ) : isLoading ? (
         <div
           className={
             viewMode === 'grid'
-              ? 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 md:gap-5'
+              ? 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4'
               : 'flex flex-col gap-2'
           }
         >
@@ -106,17 +102,48 @@ export default function FileGrid({
           {currentFiles.length === 0 ? (
             <motion.div
               key="empty"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.15 }}
-              className="h-full min-h-[240px] flex flex-col items-center justify-center text-slate-400"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex h-full min-h-[260px] items-center justify-center"
             >
-              <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-zinc-900 flex items-center justify-center mb-3">
-                <FolderIcon size={32} className="text-slate-400 dark:text-zinc-500" />
-              </div>
-              <p className="text-base font-semibold text-slate-700 dark:text-slate-300">Thư mục trống</p>
-              <p className="mt-1 text-xs text-slate-500">Thêm tệp mới hoặc tạo thư mục để bắt đầu.</p>
+              <EmptyState
+                icon={<FolderIcon size={28} />}
+                title="Thư mục này đang trống"
+                description={
+                  isAdmin
+                    ? 'Tạo thư mục con hoặc dán liên kết tài nguyên mới để lưu trữ vào không gian này.'
+                    : 'Chưa có tài nguyên nào được chia sẻ trong thư mục này.'
+                }
+                action={
+                  isAdmin && (
+                    <>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        icon={<FolderPlus size={15} />}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onCreateFolder?.();
+                        }}
+                      >
+                        Tạo thư mục
+                      </Button>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        icon={<Link2 size={15} />}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onAddLink?.();
+                        }}
+                      >
+                        Dán liên kết tệp
+                      </Button>
+                    </>
+                  )
+                }
+              />
             </motion.div>
           ) : (
             <motion.div
@@ -125,10 +152,9 @@ export default function FileGrid({
               initial="hidden"
               animate="visible"
               exit="exit"
-              style={{ perspective: 1200 }}
               className={
                 viewMode === 'grid'
-                  ? 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 md:gap-5'
+                  ? 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4'
                   : 'flex flex-col gap-2'
               }
             >

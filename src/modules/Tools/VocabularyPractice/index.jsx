@@ -1,16 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { BookOpen, Brain, ClipboardPaste } from 'lucide-react';
+import {
+  StudioSegmentedBar,
+  StudioWorkspaceHeader,
+} from '@/components/studio/StudioPrimitives';
 import useVocabulary from './hooks/useVocabulary';
 import PracticePanel from './components/PracticePanel';
 import BoardManager from './components/BoardManager';
 import QuickImportPanel from './components/QuickImportPanel';
-
-const views = [
-  { id: 'words', label: 'Bảng từ', icon: BookOpen },
-  { id: 'import', label: 'Nhập nhanh', icon: ClipboardPaste },
-  { id: 'practice', label: 'Dò bài', icon: Brain },
-];
 
 export default function VocabularyPractice() {
   const {
@@ -25,12 +23,18 @@ export default function VocabularyPractice() {
     addWords,
     removeWord,
   } = useVocabulary();
+
   const [activeView, setActiveView] = useState('words');
   const [activeBoardId, setActiveBoardId] = useState(boards[0]?.id || '');
   const [importBoardId, setImportBoardId] = useState(boards[0]?.id || '');
+
   const importBoard = boards.find((board) => board.id === importBoardId) || boards[0] || null;
   const selectedBoards = boards.filter((board) => selectedBoardIds.includes(board.id));
   const selectedWords = selectedBoards.flatMap((board) => board.words);
+  const totalWords = useMemo(
+    () => boards.reduce((sum, b) => sum + b.words.length, 0),
+    [boards]
+  );
   const practiceKey = selectedBoardIds.slice().sort().join('|') || 'no-selected-boards';
 
   useEffect(() => {
@@ -39,31 +43,44 @@ export default function VocabularyPractice() {
     }
   }, [activeBoardId, boards]);
 
+  const views = useMemo(
+    () => [
+      { id: 'words', label: 'Bảng từ vựng', icon: BookOpen, count: totalWords },
+      { id: 'import', label: 'Nhập hàng loạt', icon: ClipboardPaste },
+      { id: 'practice', label: 'Luyện phản xạ', icon: Brain, count: selectedWords.length },
+    ],
+    [selectedWords.length, totalWords]
+  );
+
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-5 text-slate-100">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-4">
-        <div>
-          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-emerald-400">Vocabulary practice</p>
-          <p className="mt-1 text-sm text-slate-400">Tạo bảng, nhập nhanh và ôn từ theo lựa chọn của bạn.</p>
-        </div>
-        <div className="flex rounded-lg border border-slate-700 bg-black/30 p-1" role="tablist" aria-label="Chế độ từ vựng">
-          {views.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              aria-selected={activeView === id}
-              onClick={() => setActiveView(id)}
-              className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-xs font-semibold transition ${activeView === id ? 'bg-amber-400 text-black' : 'text-slate-400 hover:text-white'}`}
-            >
-              <Icon size={15} /> {label}
-            </button>
-          ))}
-        </div>
-      </div>
+    <div className="mx-auto max-w-5xl space-y-5 pb-6 text-[var(--os-text-primary)]">
+      <StudioWorkspaceHeader
+        eyebrow="ACTIVE RECALL STUDIO"
+        title="Vocabulary Practice"
+        description="Tổ chức từ vựng theo chủ đề, bóc tách tự động danh sách song ngữ và rèn trí nhớ chủ động."
+        emblemVariant="vocab"
+        tone="emerald"
+        badges={[`${boards.length} bảng`, `${totalWords} cặp từ`]}
+        actions={
+          <StudioSegmentedBar
+            items={views}
+            activeId={activeView}
+            onSelect={setActiveView}
+            layoutId="vocab-studio-view-pill"
+            ariaLabel="Chế độ học từ vựng"
+            size="sm"
+          />
+        }
+      />
 
       <AnimatePresence mode="wait" initial={false}>
-        <motion.div key={activeView} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.18 }}>
+        <motion.div
+          key={activeView}
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -4 }}
+          transition={{ duration: 0.16 }}
+        >
           {activeView === 'words' ? (
             <BoardManager
               boards={boards}
@@ -86,10 +103,15 @@ export default function VocabularyPractice() {
               onImport={addWords}
             />
           ) : (
-            <PracticePanel key={practiceKey} words={selectedWords} boards={selectedBoards} onManageWords={() => setActiveView('words')} />
+            <PracticePanel
+              key={practiceKey}
+              words={selectedWords}
+              boards={selectedBoards}
+              onManageWords={() => setActiveView('words')}
+            />
           )}
         </motion.div>
       </AnimatePresence>
-    </motion.div>
+    </div>
   );
 }

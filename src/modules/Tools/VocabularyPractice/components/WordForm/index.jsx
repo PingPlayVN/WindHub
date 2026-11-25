@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
 import { Check, Plus, X } from 'lucide-react';
+import Button from '@/components/os/Button';
 
 const initialValues = { english: '', vietnamese: '' };
 
 function WordField({ id, label, value, onChange, placeholder }) {
   return (
-    <label htmlFor={id} className="block space-y-1.5 text-xs font-medium text-slate-400">
-      {label}
+    <label htmlFor={id} className="block space-y-1.5 text-xs font-semibold text-[var(--os-text-secondary)]">
+      <span>{label}</span>
       <input
         id={id}
         autoComplete="off"
@@ -15,7 +15,7 @@ function WordField({ id, label, value, onChange, placeholder }) {
         value={value}
         onChange={onChange}
         placeholder={placeholder}
-        className="w-full rounded-lg border border-slate-700 bg-black/40 px-3 py-2.5 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-amber-400"
+        className="os-focus-ring h-10 w-full rounded-[var(--radius-sm)] border border-[var(--os-border-default)] bg-[var(--os-surface-2)] px-3 text-sm text-[var(--os-text-primary)] placeholder:text-[var(--os-text-muted)] focus:border-[var(--os-accent)] focus:bg-[var(--os-surface-1)]"
       />
     </label>
   );
@@ -38,24 +38,56 @@ export default function WordForm({ word, onSave, onCancel }) {
   };
 
   return (
-    <motion.form initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} onSubmit={handleSubmit} className="space-y-4 rounded-xl border border-slate-800 bg-[#101319] p-4">
+    <form
+      onSubmit={handleSubmit}
+      className="space-y-3.5 rounded-[var(--radius-md)] border border-[var(--os-border-default)] bg-[var(--os-surface-1)] p-4 self-start"
+    >
       <div>
-        <h3 className="font-semibold text-slate-100">{word ? 'Sửa cặp từ' : 'Thêm từ vựng'}</h3>
-        <p className="mt-1 text-xs text-slate-500">Nhiều nghĩa có thể ngăn cách bằng dấu phẩy.</p>
+        <h4 className="text-sm font-bold text-[var(--os-text-primary)]">
+          {word ? 'Chỉnh sửa cặp từ' : 'Thêm từ mới'}
+        </h4>
+        <p className="mt-0.5 text-[11px] text-[var(--os-text-muted)]">
+          Các từ đồng nghĩa ngăn cách bằng dấu phẩy.
+        </p>
       </div>
-      <WordField id="vocabulary-english" label="Tiếng Anh" value={values.english} onChange={(event) => setValues((current) => ({ ...current, english: event.target.value }))} placeholder="e.g. thoughtful, considerate" />
-      <WordField id="vocabulary-vietnamese" label="Tiếng Việt" value={values.vietnamese} onChange={(event) => setValues((current) => ({ ...current, vietnamese: event.target.value }))} placeholder="chu đáo, ân cần" />
-      <div className="flex gap-2">
-        <button type="submit" className="inline-flex items-center justify-center gap-2 rounded-lg bg-amber-400 px-3 py-2 text-xs font-bold text-black transition hover:bg-amber-300">
-          {word ? <Check size={15} /> : <Plus size={15} />}
-          {word ? 'Lưu thay đổi' : 'Thêm cặp từ'}
-        </button>
+
+      <WordField
+        id="vocabulary-english"
+        label="Tiếng Anh (English)"
+        value={values.english}
+        onChange={(e) => setValues((c) => ({ ...c, english: e.target.value }))}
+        placeholder="e.g. thoughtful, considerate"
+      />
+      <WordField
+        id="vocabulary-vietnamese"
+        label="Nghĩa Tiếng Việt"
+        value={values.vietnamese}
+        onChange={(e) => setValues((c) => ({ ...c, vietnamese: e.target.value }))}
+        placeholder="chu đáo, ân cần"
+      />
+
+      <div className="flex items-center gap-2 pt-1">
+        <Button
+          type="submit"
+          variant="primary"
+          size="sm"
+          icon={word ? <Check size={14} /> : <Plus size={14} />}
+        >
+          {word ? 'Lưu thay đổi' : 'Thêm vào bảng'}
+        </Button>
         {word && (
-          <button type="button" onClick={onCancel} aria-label="Hủy sửa" className="rounded-lg border border-slate-700 p-2 text-slate-400 transition hover:bg-white/5 hover:text-white">
-            <X size={15} />
-          </button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            aria-label="Hủy sửa"
+            icon={<X size={14} />}
+            onClick={onCancel}
+          >
+            Hủy
+          </Button>
         )}
       </div>
-    </motion.form>
+    </form>
   );
 }

@@ -1,19 +1,26 @@
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
-  Calculator,
-  Copy,
-  Check,
-  Terminal,
-  Layers,
-  Sliders,
   BookOpen,
-  Sparkles,
+  Check,
   CheckCircle2,
-  Lock,
-  Share2,
+  Copy,
+  Cpu,
   Gamepad2,
+  Layers,
+  Lock,
+  Plus,
+  Share2,
+  Sliders,
+  Terminal,
+  Trash2,
+  Zap,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import Button from '@/components/os/Button';
+import {
+  StudioSegmentedBar,
+  StudioWorkspaceHeader,
+} from '@/components/studio/StudioPrimitives';
 
 import StepGuide from './components/StepGuide.jsx';
 import HexBreakdown from './components/HexBreakdown.jsx';
@@ -26,37 +33,40 @@ const PRESETS = [
   { label: 'PASS KỲ THI', text: 'PASS KỲ THI', model: 'fx-580VN X' },
   { label: 'HELLO CASIO', text: 'HELLO CASIO', model: 'fx-580VN X' },
   { label: 'I LOVE YOU 3000', text: 'I LOVE YOU 3000', model: 'fx-580VN X' },
-  { label: '🎮 RẮN SĂN MỒI', isAdvanced: true, model: 'fx-580VN X' },
+  { label: 'Rắn săn mồi (Native)', isAdvanced: true, model: 'fx-580VN X' },
+];
+
+const OUTPUT_TABS = [
+  { id: 'steps', label: 'Hướng dẫn bấm phím', icon: Layers },
+  { id: 'raw', label: 'Màn hình Console', icon: Terminal },
+  { id: 'hex', label: 'Giải mã Byte Hex', icon: Sliders },
 ];
 
 function TerminalSkeleton() {
   return (
-    <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-6 shadow-2xl font-mono text-xs space-y-4 animate-pulse">
-      <div className="flex items-center justify-between pb-3 border-b border-zinc-800/80">
+    <div className="rounded-[var(--radius-lg)] border border-slate-800 bg-[#0b0e14] p-6 font-mono text-xs space-y-4 animate-pulse">
+      <div className="flex items-center justify-between pb-3 border-b border-slate-800">
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-red-500/50" />
-          <div className="w-3 h-3 rounded-full bg-amber-500/50" />
-          <div className="w-3 h-3 rounded-full bg-emerald-500/50" />
-          <span className="text-zinc-500 text-xs ml-2">casio-fx580vnx: ~</span>
+          <div className="size-2.5 rounded-full bg-slate-700" />
+          <div className="size-2.5 rounded-full bg-slate-700" />
+          <div className="size-2.5 rounded-full bg-slate-700" />
         </div>
-        <div className="h-4 w-28 rounded bg-zinc-800" />
+        <div className="h-4 w-24 rounded bg-slate-800" />
       </div>
-      <div className="space-y-2 pt-2">
-        <div className="h-4 w-40 rounded bg-zinc-800" />
-        <div className="h-4 w-3/4 rounded bg-zinc-800/80" />
-        <div className="h-4 w-1/2 rounded bg-zinc-800/60" />
-        <div className="h-4 w-5/6 rounded bg-zinc-800/70" />
-        <div className="h-4 w-2/3 rounded bg-zinc-800/60" />
+      <div className="space-y-2.5 pt-1">
+        <div className="h-3.5 w-44 rounded bg-slate-800" />
+        <div className="h-3.5 w-3/4 rounded bg-slate-800/80" />
+        <div className="h-3.5 w-1/2 rounded bg-slate-800/60" />
+        <div className="h-3.5 w-5/6 rounded bg-slate-800/70" />
       </div>
     </div>
   );
 }
 
 export default function CasioSpell() {
-  // Casio fx-580VN X là máy tính chính được chọn mặc định
   const [selectedModel, setSelectedModel] = useState('fx-580VN X');
   const [inputText, setInputText] = useState('PASS KỲ THI');
-  const [method580, setMethod580] = useState('var'); // 'var' (A, B, C) | 'inj' (QuickCPY++)
+  const [method580, setMethod580] = useState('var'); // 'var' | 'inj' | 'advanced'
   const [multiLines580, setMultiLines580] = useState([
     'PASS KY THI',
     'CASIO FX-580VN X',
@@ -64,14 +74,13 @@ export default function CasioSpell() {
     'SUCCESS',
   ]);
 
-  // Tabs: 'steps' (Step-by-step Cards - Mặc định) | 'raw' (Terminal) | 'hex' (Hex Breakdown)
   const [activeTab, setActiveTab] = useState('steps');
   const [isLookupOpen, setIsLookupOpen] = useState(false);
   const [copiedRaw, setCopiedRaw] = useState(false);
   const [copiedAll, setCopiedAll] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [advancedItem, setAdvancedItem] = useState('snake');
 
-  // Chia sẻ nhanh liên kết truy cập công cụ
   const handleShareTool = async () => {
     const shareUrl = `${window.location.origin}/tools?toolId=Casio580Spell`;
     if (navigator.clipboard?.writeText) {
@@ -93,20 +102,18 @@ export default function CasioSpell() {
 
   const triggerLoading = () => {
     setIsLoading(true);
-    setTimeout(() => setIsLoading(false), 200);
+    setTimeout(() => setIsLoading(false), 180);
   };
 
   const handleSelectModel = (model) => {
     if (model.isLocked) {
-      toast.info(`Tính năng cho dòng máy ${model.name} đang được phát triển và sắp ra mắt!`);
+      toast.info(`Tính năng cho dòng máy ${model.name} đang được nghiên cứu và sắp ra mắt!`);
       return;
     }
     if (model.id === selectedModel) return;
     triggerLoading();
     setSelectedModel(model.id);
   };
-
-  const [advancedItem, setAdvancedItem] = useState('snake');
 
   const handleSelectMethod580 = (method) => {
     if (method === method580) return;
@@ -130,7 +137,6 @@ export default function CasioSpell() {
     }
   };
 
-  // Tính toán kết quả cho Casio 580
   const result580 = useMemo(() => {
     if (method580 === 'inj') {
       return generate580Spell(multiLines580.filter(Boolean), 'inj');
@@ -138,7 +144,6 @@ export default function CasioSpell() {
     return generate580Spell(inputText, 'var');
   }, [inputText, method580, multiLines580]);
 
-  // Sao chép raw terminal output
   const handleCopyRawTerminal = () => {
     const textToCopy = result580.rawTerminalOutput || '';
     navigator.clipboard.writeText(textToCopy);
@@ -147,7 +152,6 @@ export default function CasioSpell() {
     setTimeout(() => setCopiedRaw(false), 2000);
   };
 
-  // Sao chép toàn bộ công thức
   const handleCopyAll = () => {
     navigator.clipboard.writeText(result580.rawTerminalOutput || '');
     setCopiedAll(true);
@@ -168,514 +172,464 @@ export default function CasioSpell() {
       setActiveTab('steps');
     }
     setInputText(preset.text);
-    toast.info(`Đã chọn mẫu: "${preset.label}"`);
+    toast.info(`Đã nạp mẫu: "${preset.label}"`);
   };
 
+  const lcdPreviewLines = useMemo(() => {
+    if (method580 === 'advanced') {
+      return ['SNAKE GAME v1.0', 'ADDR: 0xE9E0', '672 BYTES READY'];
+    }
+    if (method580 === 'inj') {
+      return multiLines580.filter(Boolean).slice(0, 4);
+    }
+    return [result580.centeredText || inputText || ' '];
+  }, [inputText, method580, multiLines580, result580.centeredText]);
+
   return (
-    <div className="flex flex-col gap-6 text-slate-800 dark:text-slate-100 max-w-5xl mx-auto pb-12">
-      {/* Header Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 p-5 rounded-2xl bg-gradient-to-r from-sky-500/10 via-orange-500/5 to-transparent border border-sky-500/20">
-        <div>
-          <div className="flex items-center gap-2 font-mono text-xs font-bold text-sky-500 uppercase tracking-widest">
-            <Calculator size={16} />
-            <span>Tool-Casio</span>
-          </div>
-          <h2 className="text-2xl font-black tracking-tight mt-1 text-slate-900 dark:text-white">
-            Tool Spell trên CASIO fx-580VN X
-          </h2>
-          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl leading-relaxed">
-            Tự động căn giữa 17 ký tự, tràn bộ nhớ Basic Overflow và nạp mã hex vào biến A, B, C.
-          </p>
-        </div>
-
-        <div className="flex items-center flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={handleShareTool}
-            className="flex items-center gap-1.5 px-3 py-2 text-xs font-mono font-medium rounded-xl border border-slate-300 dark:border-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-800 transition"
-            title="Sao chép liên kết chia sẻ công cụ"
-          >
-            <Share2 size={14} className="text-sky-500" />
-            <span>Chia sẻ</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setIsLookupOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-2 text-xs font-mono font-medium rounded-xl border border-slate-300 dark:border-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-800 transition"
-          >
-            <BookOpen size={14} className="text-sky-500" />
-            <span>Tra mã Hex</span>
-          </button>
-          <button
-            type="button"
-            onClick={handleCopyAll}
-            className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-xl bg-sky-500 hover:bg-sky-600 text-white font-mono shadow-sm transition"
-          >
-            {copiedAll ? <Check size={14} /> : <Copy size={14} />}
-            <span>Sao chép tất cả</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Model Selection Tabs */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {[
-          {
-            id: 'fx-580VN X',
-            name: 'Casio fx-580VN X',
-            badge: 'Sẵn sàng · 100%',
-            desc: 'Dòng máy phổ biến nhất hiện nay, hỗ trợ tràn bộ nhớ & đổi biến A-B-C.',
-            isLocked: false,
-          },
-          {
-            id: 'fx-880BTG',
-            name: 'Casio fx-880BTG',
-            badge: 'Sắp ra mắt',
-            desc: 'Dòng máy mới ClassWiz fx-880BTG, đang nghiên cứu phương pháp tràn ô nhớ.',
-            isLocked: true,
-          },
-        ].map((m) => {
-          const isSelected = m.id === selectedModel;
-          return (
-            <button
-              key={m.id}
-              type="button"
-              onClick={() => handleSelectModel(m)}
-              className={`flex flex-col text-left p-4 rounded-2xl border-2 transition-all relative ${
-                m.isLocked
-                  ? 'border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/30 opacity-75 cursor-not-allowed hover:border-amber-400/50'
-                  : isSelected
-                    ? 'border-sky-500 bg-sky-50/60 dark:bg-sky-950/20 shadow-md scale-[1.01]'
-                    : 'border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 hover:border-slate-300 dark:hover:border-zinc-700'
-              }`}
+    <div className="mx-auto flex max-w-5xl flex-col gap-6 pb-8 text-[var(--os-text-primary)]">
+      {/* 1. COMMERCIAL WORKBENCH HEADER */}
+      <StudioWorkspaceHeader
+        eyebrow="HARDWARE COMPILER"
+        title="Casio fx-580VN X Spell Workbench"
+        description="Tự động căn giữa 17 ký tự, biên dịch chuỗi tràn bộ nhớ Basic Overflow, QuickCPY++ đa dòng và mã máy nX-U8/100."
+        emblemVariant="casio"
+        tone="sky"
+        badges={['ClassWiz', 'UTF-8 → Hex']}
+        actions={
+          <>
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={<BookOpen size={14} />}
+              onClick={() => setIsLookupOpen(true)}
             >
-              <div className="flex items-center justify-between w-full">
-                <span className="font-bold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                  {m.name}
-                  {m.isLocked && <Lock size={14} className="text-amber-500" />}
-                </span>
-                <span
-                  className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-semibold border ${
-                    m.isLocked
-                      ? 'border-amber-400/40 bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                      : isSelected
-                        ? 'border-sky-500 bg-sky-500/10 text-sky-600 dark:text-sky-400'
-                        : 'border-slate-300 dark:border-zinc-700 text-slate-500'
+              Bảng mã Hex
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={<Share2 size={14} />}
+              onClick={handleShareTool}
+            >
+              Chia sẻ
+            </Button>
+            {method580 !== 'advanced' && (
+              <Button
+                variant="primary"
+                size="sm"
+                icon={copiedAll ? <Check size={14} /> : <Copy size={14} />}
+                onClick={handleCopyAll}
+              >
+                {copiedAll ? 'Đã chép toàn bộ' : 'Sao chép tất cả'}
+              </Button>
+            )}
+          </>
+        }
+      />
+
+      {/* 2. HARDWARE TARGET & METHOD BAR */}
+      <div className="flex flex-col gap-3 rounded-[var(--radius-lg)] border border-[var(--os-border-default)] bg-[var(--os-surface-1)] p-3.5 sm:flex-row sm:items-center sm:justify-between">
+        {/* Hardware Model Selector */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-[var(--os-text-muted)] pr-1">
+            Dòng máy:
+          </span>
+          {[
+            { id: 'fx-580VN X', name: 'Casio fx-580VN X', isLocked: false },
+            { id: 'fx-880BTG', name: 'Casio fx-880BTG', isLocked: true },
+          ].map((m) => {
+            const active = m.id === selectedModel;
+            return (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => handleSelectModel(m)}
+                className={`os-focus-ring inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] border px-3 py-1.5 text-xs font-bold transition-colors ${
+                  m.isLocked
+                    ? 'border-dashed border-[var(--os-border-default)] text-[var(--os-text-muted)] opacity-70 cursor-not-allowed'
+                    : active
+                    ? 'border-[var(--os-info-border)] bg-[var(--os-info-soft)] text-[var(--os-info)]'
+                    : 'border-[var(--os-border-subtle)] bg-[var(--os-surface-2)] text-[var(--os-text-secondary)] hover:text-[var(--os-text-primary)] cursor-pointer'
+                }`}
+              >
+                <span>{m.name}</span>
+                {m.isLocked && <Lock size={12} className="text-[var(--os-warning)]" />}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Overflow Method Switcher */}
+        {selectedModel === 'fx-580VN X' && (
+          <div className="os-sunken inline-flex flex-wrap items-center gap-1 rounded-[var(--radius-md)] p-1">
+            {[
+              { id: 'var', label: 'Biến A, B, C' },
+              { id: 'inj', label: 'QuickCPY++ (8 dòng)' },
+              { id: 'advanced', label: 'Nạp Game Native', icon: Gamepad2 },
+            ].map((m) => {
+              const active = method580 === m.id;
+              const Icon = m.icon;
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => handleSelectMethod580(m.id)}
+                  className={`os-focus-ring inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] px-2.5 py-1.5 text-xs font-semibold cursor-pointer transition-all ${
+                    active
+                      ? 'bg-[var(--os-surface-1)] text-[var(--os-accent)] font-bold shadow-2xs border border-[var(--os-border-default)]'
+                      : 'text-[var(--os-text-muted)] hover:text-[var(--os-text-primary)]'
                   }`}
                 >
-                  {m.badge}
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
-                {m.desc}
-              </p>
-            </button>
-          );
-        })}
+                  {Icon && <Icon size={13} />}
+                  <span>{m.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
-      {/* Input Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-        {/* Left Column: Input Field & Method Selector */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 p-5 shadow-xs space-y-4">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-mono font-bold uppercase tracking-wider text-slate-500">
-                Nội dung cần Spell ({selectedModel})
-              </label>
-
-              {/* Method switch for 580VN X */}
-              {selectedModel === 'fx-580VN X' && (
-                <div className="flex items-center gap-1 bg-slate-100 dark:bg-zinc-800 p-0.5 rounded-lg text-[11px] font-mono">
-                  <button
-                    type="button"
-                    onClick={() => handleSelectMethod580('var')}
-                    className={`px-2.5 py-1 rounded-md font-medium transition ${method580 === 'var'
-                      ? 'bg-white dark:bg-zinc-900 text-sky-600 dark:text-sky-400 shadow-xs font-bold'
-                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                      }`}
-                  >
-                    Biến A, B, C
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSelectMethod580('inj')}
-                    className={`px-2.5 py-1 rounded-md font-medium transition ${method580 === 'inj'
-                      ? 'bg-white dark:bg-zinc-900 text-sky-600 dark:text-sky-400 shadow-xs font-bold'
-                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                      }`}
-                  >
-                    Inject QuickCPY++
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSelectMethod580('advanced')}
-                    className={`px-2.5 py-1 rounded-md font-medium transition flex items-center gap-1 ${method580 === 'advanced'
-                      ? 'bg-emerald-500 text-black shadow-xs font-bold'
-                      : 'text-slate-500 hover:text-emerald-500 dark:hover:text-emerald-400'
-                      }`}
-                  >
-                    <Gamepad2 size={13} />
-                    <span>Nâng cao</span>
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Input Inputs based on model & method */}
-            {selectedModel === 'fx-580VN X' && method580 === 'advanced' ? (
-              <div className="space-y-3">
-                <div className="text-[11px] font-mono text-slate-400">
-                  Chọn công cụ hoặc game nâng cao muốn nạp vào Casio fx-580VN X:
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div
-                    onClick={() => {
-                      setAdvancedItem('snake');
-                      setActiveTab('advanced');
-                    }}
-                    className={`p-3.5 rounded-xl border-2 cursor-pointer transition ${
-                      advancedItem === 'snake'
-                        ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 shadow-xs'
-                        : 'border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-500">
-                          <Gamepad2 size={16} />
-                        </span>
-                        <span className="font-bold text-sm text-slate-900 dark:text-white">
-                          Rắn săn mồi (Snake Game)
-                        </span>
-                      </div>
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-500 font-bold border border-emerald-500/30">
-                        Đang chọn
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
-                      Homebrew game nổi tiếng: Clear vùng e9e0, nạp 7 block Hex và khởi chạy Launcher.
-                    </p>
+      {/* 3. INPUT WORKBENCH + LIVE LCD TELEMETRY */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.35fr_0.65fr] items-start">
+        {/* Left: Input Editor */}
+        <div className="rounded-[var(--radius-lg)] border border-[var(--os-border-default)] bg-[var(--os-surface-1)] p-4 sm:p-5 space-y-4">
+          {method580 === 'advanced' ? (
+            <div className="space-y-3">
+              <p className="font-mono text-xs font-semibold text-[var(--os-text-secondary)]">
+                Chọn chương trình mã máy (Homebrew) nạp vào RAM Casio fx-580VN X:
+              </p>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAdvancedItem('snake');
+                    setActiveTab('advanced');
+                  }}
+                  className={`os-focus-ring rounded-[var(--radius-md)] border p-4 text-left cursor-pointer transition-all ${
+                    advancedItem === 'snake'
+                      ? 'border-[var(--os-success-border)] bg-[var(--os-success-soft)]'
+                      : 'border-[var(--os-border-default)] bg-[var(--os-surface-2)] hover:border-[var(--os-border-strong)]'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="inline-flex items-center gap-2 text-sm font-bold text-[var(--os-text-primary)]">
+                      <Gamepad2 size={16} className="text-[var(--os-success)]" />
+                      <span>Rắn săn mồi (Snake)</span>
+                    </span>
+                    <span className="rounded-md bg-[var(--os-surface-1)] px-2 py-0.5 font-mono text-[10px] font-bold text-[var(--os-success)]">
+                      Đang chọn
+                    </span>
                   </div>
+                  <p className="mt-2 text-xs leading-relaxed text-[var(--os-text-secondary)]">
+                    Xóa vùng 0xE9E0, nạp 7 khối Hex (672 bytes) qua Quickcpymax và khởi chạy trực tiếp.
+                  </p>
+                </button>
 
-                  <div
-                    onClick={() => toast.info('Game Flappy Bird đang được tối ưu hóa mã máy, sẽ ra mắt sớm!')}
-                    className="p-3.5 rounded-xl border-2 border-dashed border-slate-200 dark:border-zinc-800 opacity-60 cursor-not-allowed text-left"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="p-1.5 rounded-lg bg-slate-200 dark:bg-zinc-800 text-slate-400">
-                          <Sparkles size={16} />
-                        </span>
-                        <span className="font-bold text-sm text-slate-600 dark:text-slate-300">
-                          Flappy Bird Casio
-                        </span>
-                      </div>
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-500">
-                        Sắp ra mắt
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-400 mt-2">
-                      Game nhảy qua chướng ngại vật trên màn hình LCD ma trận điểm.
-                    </p>
+                <button
+                  type="button"
+                  onClick={() =>
+                    toast.info('Flappy Bird Casio đang được tối ưu hóa mã máy và sẽ cập nhật sớm.')
+                  }
+                  className="rounded-[var(--radius-md)] border border-dashed border-[var(--os-border-default)] bg-[var(--os-surface-2)]/50 p-4 text-left opacity-65 cursor-not-allowed"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="inline-flex items-center gap-2 text-sm font-bold text-[var(--os-text-secondary)]">
+                      <Cpu size={16} />
+                      <span>Flappy Bird LCD</span>
+                    </span>
+                    <span className="rounded-md bg-[var(--os-surface-3)] px-2 py-0.5 font-mono text-[10px] font-semibold text-[var(--os-text-muted)]">
+                      Sắp ra mắt
+                    </span>
                   </div>
-                </div>
+                  <p className="mt-2 text-xs leading-relaxed text-[var(--os-text-muted)]">
+                    Trò chơi vượt chướng ngại vật trên ma trận điểm LCD 192×63.
+                  </p>
+                </button>
               </div>
-            ) : selectedModel === 'fx-580VN X' && method580 === 'inj' ? (
+            </div>
+          ) : method580 === 'inj' ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="font-mono text-xs font-bold uppercase tracking-wider text-[var(--os-text-secondary)]">
+                  Trình soạn đa dòng QuickCPY++
+                </label>
+                <span className="font-mono text-[11px] text-[var(--os-text-muted)]">
+                  {multiLines580.length}/8 dòng · tối đa 32 ký tự/dòng
+                </span>
+              </div>
+
               <div className="space-y-2">
-                <div className="text-[11px] font-mono text-slate-400 pb-1">
-                  Nhập từ 1 đến 8 dòng (mỗi dòng tối đa 32 ký tự theo chuẩn QuickCPY++):
-                </div>
                 {multiLines580.map((line, lIdx) => (
-                  <div key={lIdx} className="flex items-center gap-2">
-                    <span className="font-mono text-xs font-bold text-sky-500 w-14 shrink-0">
-                      Dòng {lIdx + 1}:
+                  <div key={lIdx} className="flex items-center gap-2.5">
+                    <span className="w-14 shrink-0 font-mono text-xs font-bold text-[var(--os-info)]">
+                      Dòng {lIdx + 1}
                     </span>
                     <input
                       type="text"
                       maxLength={32}
                       value={line}
                       onChange={(e) => {
-                        const newLines = [...multiLines580];
-                        newLines[lIdx] = e.target.value;
-                        setMultiLines580(newLines);
+                        const next = [...multiLines580];
+                        next[lIdx] = e.target.value;
+                        setMultiLines580(next);
                       }}
-                      placeholder={`Nội dung dòng ${lIdx + 1}`}
-                      className="flex-1 px-3 py-2 rounded-xl bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 text-sm font-mono focus:outline-none focus:border-sky-500 transition"
+                      placeholder={`Nội dung dòng ${lIdx + 1}...`}
+                      className="os-focus-ring h-10 flex-1 rounded-[var(--radius-sm)] border border-[var(--os-border-default)] bg-[var(--os-surface-2)] px-3 font-mono text-sm text-[var(--os-text-primary)] placeholder:text-[var(--os-text-muted)] focus:border-[var(--os-accent)]"
                     />
                   </div>
                 ))}
-                <div className="flex gap-3 pt-1 text-xs font-mono">
-                  {multiLines580.length < 8 && (
-                    <button
-                      type="button"
-                      onClick={() => setMultiLines580([...multiLines580, `Dòng ${multiLines580.length + 1}`])}
-                      className="text-sky-500 hover:underline font-semibold"
-                    >
-                      + Thêm dòng (Tối đa 8)
-                    </button>
-                  )}
-                  {multiLines580.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => setMultiLines580(multiLines580.slice(0, -1))}
-                      className="text-slate-400 hover:text-rose-500 hover:underline"
-                    >
-                      - Xóa dòng cuối
-                    </button>
-                  )}
-                </div>
               </div>
-            ) : (
-              <div>
-                <input
-                  type="text"
-                  value={inputText}
-                  maxLength={selectedModel === 'fx-580VN X' ? 17 : 48}
-                  onChange={(e) => {
-                    setInputText(e.target.value);
-                  }}
-                  placeholder="Nhập chữ cần spell trên máy tính..."
-                  className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 text-base font-semibold focus:outline-none focus:border-sky-500 transition font-mono"
-                />
-                <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 mt-1.5 px-1">
-                  <span>Tối đa 17 ký tự (tự động căn giữa)</span>
-                  <span>{inputText.length} / 17 ký tự</span>
-                </div>
-              </div>
-            )}
 
-            {/* Quick Presets */}
-            {method580 !== 'advanced' && (
-              <div>
-                <span className="block text-xs font-mono text-slate-400 mb-2">Mẫu gợi ý nhanh:</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {PRESETS.map((p, pIdx) => (
-                    <button
-                      key={pIdx}
-                      type="button"
-                      onClick={() => applyPreset(p)}
-                      className="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 dark:bg-zinc-800 hover:bg-sky-500 hover:text-white transition"
-                    >
-                      {p.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Right Column: Parameters Info */}
-        <div className="lg:col-span-1 space-y-4">
-          <div className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 p-5 shadow-xs space-y-3">
-            <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-500 pb-1 border-b border-slate-200 dark:border-zinc-800">
-              Thông số cấu hình ({selectedModel})
-            </h4>
-
-            {isLoading ? (
-              <div className="space-y-2.5 animate-pulse py-1">
-                <div className="h-4 w-32 rounded bg-slate-200 dark:bg-zinc-800" />
-                <div className="h-4 w-44 rounded bg-slate-200 dark:bg-zinc-800" />
-                <div className="h-4 w-36 rounded bg-slate-200 dark:bg-zinc-800" />
-              </div>
-            ) : (
-              <div className="text-xs font-mono space-y-2.5">
-                <div className="flex items-center justify-between text-slate-600 dark:text-slate-400">
-                  <span>Model:</span>
-                  <span className="font-bold text-slate-800 dark:text-slate-200">{selectedModel}</span>
-                </div>
-
-                {selectedModel === 'fx-580VN X' && (
-                  <>
-                    <div className="flex items-center justify-between text-slate-600 dark:text-slate-400">
-                      <span>Phương pháp:</span>
-                      <span className="font-bold text-sky-500">
-                        {method580 === 'var'
-                          ? 'Biến A, B, C (Basic Overflow)'
-                          : method580 === 'inj'
-                          ? 'Inject QuickCPY++'
-                          : '⚡ Nâng cao (Hack & Game)'}
-                      </span>
-                    </div>
-
-                    {method580 === 'advanced' ? (
-                      <>
-                        <div className="flex items-center justify-between text-slate-600 dark:text-slate-400">
-                          <span>Mục đang chọn:</span>
-                          <span className="font-bold text-emerald-500">Rắn săn mồi (Snake)</span>
-                        </div>
-                        <div className="flex items-center justify-between text-slate-600 dark:text-slate-400">
-                          <span>Kỹ thuật nạp:</span>
-                          <span className="font-bold text-slate-800 dark:text-slate-200">
-                            Quickcpymax + Hex Inject
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between text-slate-600 dark:text-slate-400">
-                          <span>Số khối Hex:</span>
-                          <span className="font-bold text-emerald-500">7 Khối (672 bytes)</span>
-                        </div>
-                        <div className="flex items-center justify-between text-slate-600 dark:text-slate-400">
-                          <span>Vùng RAM nạp:</span>
-                          <span className="font-bold text-sky-500">0xE9E0</span>
-                        </div>
-                      </>
-                    ) : method580 === 'var' ? (
-                      <>
-                        <div className="flex items-center justify-between text-slate-600 dark:text-slate-400">
-                          <span>Ký tự Hex cần lấy:</span>
-                          <span className="font-bold text-sky-500">
-                            {result580.char1?.join('') || 'C'}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between text-slate-600 dark:text-slate-400">
-                          <span>Số biến sử dụng:</span>
-                          <span className="font-bold text-slate-800 dark:text-slate-200">
-                            {result580.variablesPrinted?.join(', ') || 'A'}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between text-slate-600 dark:text-slate-400">
-                          <span>Chuỗi căn giữa:</span>
-                          <span className="font-bold text-emerald-500">
-                            "{result580.centeredText || ''}"
-                          </span>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="flex items-center justify-between text-slate-600 dark:text-slate-400">
-                        <span>Địa chỉ inject:</span>
-                        <span className="font-bold text-slate-800 dark:text-slate-200">
-                          {result580.address || 'EA30'}
-                        </span>
-                      </div>
-                    )}
-                  </>
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                {multiLines580.length < 8 && (
+                  <Button
+                    variant="secondary"
+                    size="xs"
+                    icon={<Plus size={13} />}
+                    onClick={() =>
+                      setMultiLines580([...multiLines580, `DONG ${multiLines580.length + 1}`])
+                    }
+                  >
+                    Thêm dòng
+                  </Button>
+                )}
+                {multiLines580.length > 1 && (
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    icon={<Trash2 size={13} />}
+                    onClick={() => setMultiLines580(multiLines580.slice(0, -1))}
+                  >
+                    Xóa dòng cuối
+                  </Button>
                 )}
               </div>
-            )}
-
-            <div className="pt-2 border-t border-slate-200 dark:border-zinc-800 text-[11px] text-slate-500 leading-relaxed">
-              {method580 === 'advanced'
-                ? '🎮 Game chạy trực tiếp bằng mã máy native trên CPU Casio fx-580VN X.'
-                : '💡 Thuật toán tự động tính toán byte tràn và chèn mã hex chuẩn xác vào RAM.'}
             </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Content Section: Snake Game Guide if method580 === 'advanced', else Tabs View */}
-      {method580 === 'advanced' ? (
-        <SnakeGameGuide />
-      ) : (
-        <>
-          {/* Tabs Selector */}
-          <div className="flex items-center gap-2 border-b border-slate-200 dark:border-zinc-800 pb-2 overflow-x-auto custom-scrollbar">
-            <button
-              type="button"
-              onClick={() => handleSelectTab('steps')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition shrink-0 ${activeTab === 'steps'
-                ? 'bg-sky-500 text-white shadow-xs font-bold'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-zinc-800'
-                }`}
-            >
-              <Layers size={16} />
-              <span>Hướng dẫn từng bước (Card View)</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleSelectTab('raw')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition shrink-0 ${activeTab === 'raw'
-                ? 'bg-sky-500 text-white shadow-xs font-bold'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-zinc-800'
-                }`}
-            >
-              <Terminal size={16} />
-              <span>Màn hình Console</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleSelectTab('hex')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition shrink-0 ${activeTab === 'hex'
-                ? 'bg-sky-500 text-white shadow-xs font-bold'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-zinc-800'
-                }`}
-            >
-              <Sliders size={16} />
-              <span>Bảng phân tích mã Hex</span>
-            </button>
-          </div>
-
-          {/* TAB 1: STEP BY STEP GUIDE (CARD VIEW) - MẶC ĐỊNH */}
-          {activeTab === 'steps' && (
-            <div className="space-y-6">
-              <StepGuide steps={result580.steps} loading={isLoading} />
+          ) : (
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between">
+                <label
+                  htmlFor="casio-spell-input"
+                  className="font-mono text-xs font-bold uppercase tracking-wider text-[var(--os-text-secondary)]"
+                >
+                  Chuỗi văn bản cần hiển thị
+                </label>
+                <span className="font-mono text-xs font-semibold text-[var(--os-info)]">
+                  {inputText.length} / 17 ký tự
+                </span>
+              </div>
+              <input
+                id="casio-spell-input"
+                type="text"
+                value={inputText}
+                maxLength={17}
+                onChange={(e) => setInputText(e.target.value)}
+                placeholder="Nhập văn bản (hỗ trợ tiếng Việt có dấu)..."
+                className="os-focus-ring h-12 w-full rounded-[var(--radius-md)] border border-[var(--os-border-default)] bg-[var(--os-surface-2)] px-4 font-mono text-base font-bold tracking-wide text-[var(--os-text-primary)] placeholder:text-[var(--os-text-muted)] focus:border-[var(--os-accent)] focus:bg-[var(--os-surface-1)]"
+              />
+              <p className="text-xs text-[var(--os-text-muted)]">
+                Tự động căn giữa màn hình 17 cột và chuyển đổi ký tự tiếng Việt sang mã 2-byte F4xx.
+              </p>
             </div>
           )}
 
-          {/* TAB 2: RAW TERMINAL OUTPUT */}
+          {/* Quick Sample Presets */}
+          <div className="border-t border-[var(--os-border-subtle)] pt-3.5">
+            <span className="mb-2 block font-mono text-[11px] font-bold uppercase tracking-wider text-[var(--os-text-muted)]">
+              Mẫu nạp nhanh
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {PRESETS.map((p) => (
+                <button
+                  key={p.label}
+                  type="button"
+                  onClick={() => applyPreset(p)}
+                  className={`os-focus-ring inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] border px-2.5 py-1.5 text-xs font-semibold cursor-pointer transition-colors ${
+                    p.isAdvanced
+                      ? 'border-[var(--os-success-border)] bg-[var(--os-success-soft)] text-[var(--os-success)] hover:opacity-90'
+                      : 'border-[var(--os-border-default)] bg-[var(--os-surface-2)] text-[var(--os-text-secondary)] hover:border-[var(--os-accent-border)] hover:text-[var(--os-text-primary)]'
+                  }`}
+                >
+                  {p.isAdvanced && <Gamepad2 size={13} />}
+                  <span>{p.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Right: Live LCD Preview + Register Telemetry */}
+        <div className="rounded-[var(--radius-lg)] border border-[var(--os-border-default)] bg-[var(--os-surface-1)] p-4 sm:p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-[var(--os-text-muted)]">
+              Mô phỏng màn hình LCD
+            </span>
+            <span className="font-mono text-[10px] font-bold text-[var(--os-success)]">
+              192 × 63 px
+            </span>
+          </div>
+
+          {/* Authentic ClassWiz LCD Screen */}
+          <div className="rounded-[var(--radius-md)] border-2 border-[#2d3542] bg-[#c7d5c6] p-3 text-[#121a14] shadow-[inset_0_2px_8px_rgba(0,0,0,0.25)]">
+            <div className="flex items-center justify-between border-b border-black/10 pb-1 font-mono text-[9px] font-bold opacity-75">
+              <span>M · D · Math</span>
+              <span>{selectedModel}</span>
+            </div>
+            <div className="my-2.5 flex min-h-12 flex-col justify-center font-mono">
+              {lcdPreviewLines.map((line, i) => (
+                <p
+                  key={i}
+                  className={`truncate font-black tracking-[0.12em] ${
+                    lcdPreviewLines.length > 1 ? 'text-xs leading-snug' : 'text-center text-base sm:text-lg'
+                  }`}
+                >
+                  {line}
+                </p>
+              ))}
+            </div>
+          </div>
+
+          {/* Telemetry Key-Value Rows */}
+          {isLoading ? (
+            <div className="space-y-2 animate-pulse py-1">
+              <div className="h-4 w-full rounded bg-[var(--os-surface-3)]" />
+              <div className="h-4 w-4/5 rounded bg-[var(--os-surface-3)]" />
+              <div className="h-4 w-3/5 rounded bg-[var(--os-surface-3)]" />
+            </div>
+          ) : (
+            <dl className="divide-y divide-[var(--os-border-subtle)] font-mono text-xs">
+              <div className="flex items-center justify-between py-2">
+                <dt className="text-[var(--os-text-muted)]">Chế độ nạp</dt>
+                <dd className="font-bold text-[var(--os-info)]">
+                  {method580 === 'var'
+                    ? 'Basic Overflow'
+                    : method580 === 'inj'
+                    ? 'QuickCPY++'
+                    : 'Quickcpymax Hex'}
+                </dd>
+              </div>
+              {method580 === 'advanced' ? (
+                <>
+                  <div className="flex items-center justify-between py-2">
+                    <dt className="text-[var(--os-text-muted)]">Dung lượng</dt>
+                    <dd className="font-bold text-[var(--os-success)]">7 Khối · 672 bytes</dd>
+                  </div>
+                  <div className="flex items-center justify-between py-2">
+                    <dt className="text-[var(--os-text-muted)]">Địa chỉ RAM</dt>
+                    <dd className="font-bold text-[var(--os-text-primary)]">0xE9E0</dd>
+                  </div>
+                </>
+              ) : method580 === 'var' ? (
+                <>
+                  <div className="flex items-center justify-between py-2">
+                    <dt className="text-[var(--os-text-muted)]">Ký tự mồi Hex</dt>
+                    <dd className="font-bold text-[var(--os-accent)]">
+                      {result580.char1?.join('') || 'C'}
+                    </dd>
+                  </div>
+                  <div className="flex items-center justify-between py-2">
+                    <dt className="text-[var(--os-text-muted)]">Biến thanh ghi</dt>
+                    <dd className="font-bold text-[var(--os-text-primary)]">
+                      {result580.variablesPrinted?.join(', ') || 'A'}
+                    </dd>
+                  </div>
+                </>
+              ) : (
+                <div className="flex items-center justify-between py-2">
+                  <dt className="text-[var(--os-text-muted)]">Địa chỉ nạp</dt>
+                  <dd className="font-bold text-[var(--os-text-primary)]">
+                    0x{result580.address || 'EA30'}
+                  </dd>
+                </div>
+              )}
+            </dl>
+          )}
+
+          <p className="flex items-start gap-2 rounded-[var(--radius-sm)] bg-[var(--os-surface-2)] px-3 py-2 text-[11px] leading-relaxed text-[var(--os-text-muted)]">
+            <Zap size={13} className="mt-0.5 shrink-0 text-[var(--os-accent)]" />
+            <span>
+              {method580 === 'advanced'
+                ? 'Mã máy thực thi trực tiếp trên RAM, tự khôi phục nguyên trạng khi nhấn phím ON.'
+                : 'Thuật toán tự tính byte tràn và căn lề chính xác cho bộ đệm màn hình.'}
+            </span>
+          </p>
+        </div>
+      </div>
+
+      {/* 4. OUTPUT SECTION */}
+      {method580 === 'advanced' ? (
+        <SnakeGameGuide />
+      ) : (
+        <div className="space-y-4">
+          <div className="overflow-x-auto no-scrollbar">
+            <StudioSegmentedBar
+              items={OUTPUT_TABS}
+              activeId={activeTab}
+              onSelect={handleSelectTab}
+              layoutId="casio-output-tab-pill"
+              ariaLabel="Chế độ xem kết quả Casio"
+            />
+          </div>
+
+          {activeTab === 'steps' && (
+            <StepGuide steps={result580.steps} loading={isLoading} />
+          )}
+
           {activeTab === 'raw' && (
-            <div className="space-y-4">
+            <div>
               {isLoading ? (
                 <TerminalSkeleton />
               ) : (
-                <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-5 sm:p-6 shadow-2xl space-y-3 font-mono">
-                  {/* Terminal Window Header Bar */}
-                  <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
+                <div className="overflow-hidden rounded-[var(--radius-lg)] border border-slate-800 bg-[#0b0e14] font-mono shadow-lg">
+                  <div className="flex items-center justify-between border-b border-slate-800 bg-[#111620] px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full bg-red-500" />
-                      <div className="w-3 h-3 rounded-full bg-yellow-500" />
-                      <div className="w-3 h-3 rounded-full bg-green-500" />
-                      <span className="text-zinc-400 text-xs ml-2 font-mono font-medium">
-                        Casio fx-580VN X Spell
+                      <span className="size-2.5 rounded-full bg-rose-500/80" />
+                      <span className="size-2.5 rounded-full bg-amber-500/80" />
+                      <span className="size-2.5 rounded-full bg-emerald-500/80" />
+                      <span className="ml-2 text-xs font-semibold text-slate-300">
+                        casio-fx580vnx // raw-sequence
                       </span>
                     </div>
 
                     <button
                       type="button"
                       onClick={handleCopyRawTerminal}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition font-mono border border-zinc-700"
+                      className="os-focus-ring inline-flex items-center gap-1.5 rounded-md border border-slate-700 bg-slate-800/80 px-2.5 py-1 text-xs font-semibold text-slate-200 hover:bg-slate-700 cursor-pointer transition-colors"
                     >
-                      {copiedRaw ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
-                      <span>{copiedRaw ? 'Đã sao chép' : 'Sao chép Output'}</span>
+                      {copiedRaw ? (
+                        <Check size={13} className="text-emerald-400" />
+                      ) : (
+                        <Copy size={13} />
+                      )}
+                      <span>{copiedRaw ? 'Đã sao chép' : 'Sao chép Console'}</span>
                     </button>
                   </div>
 
-                  {/* Exact Terminal Console Text */}
-                  <div className="pt-2 text-xs sm:text-sm text-emerald-400 font-mono whitespace-pre-wrap leading-relaxed select-all overflow-x-auto selection:bg-emerald-950 selection:text-emerald-300">
+                  <pre className="overflow-x-auto p-5 text-xs sm:text-sm leading-relaxed text-emerald-400 whitespace-pre-wrap select-all">
                     {result580.rawTerminalOutput}
-                  </div>
+                  </pre>
 
-                  {/* Verified Badge */}
-                  <div className="pt-3 border-t border-zinc-900 flex items-center justify-between text-[11px] text-zinc-500">
-                    <span className="flex items-center gap-1 text-emerald-500">
+                  <div className="flex items-center justify-between border-t border-slate-800/80 px-4 py-2.5 text-[11px] text-slate-400">
+                    <span className="inline-flex items-center gap-1.5 text-emerald-400">
                       <CheckCircle2 size={13} />
                       <span>Chuẩn thuật toán Casio ClassWiz fx-580VN X</span>
                     </span>
-                    <span className="text-zinc-600">Encoding: UTF-8</span>
+                    <span>UTF-8 · HEX</span>
                   </div>
                 </div>
               )}
             </div>
           )}
 
-          {/* TAB 3: HEX BREAKDOWN */}
           {activeTab === 'hex' && (
             <HexBreakdown
-              text={
-                method580 === 'inj'
-                  ? multiLines580.join(' ')
-                  : inputText
-              }
-              model={selectedModel}
+              text={method580 === 'inj' ? multiLines580.join(' ') : inputText}
               loading={isLoading}
             />
           )}
-        </>
+        </div>
       )}
 
-      {/* Character Lookup Modal */}
       <CharLookupModal
         isOpen={isLookupOpen}
         onClose={() => setIsLookupOpen(false)}

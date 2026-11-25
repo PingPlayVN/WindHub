@@ -1,6 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowRight, BookOpen, Check, RotateCw, Trophy } from 'lucide-react';
+import {
+  ArrowRight,
+  ArrowRightLeft,
+  BookOpen,
+  Check,
+  Flame,
+  RotateCw,
+  Trophy,
+} from 'lucide-react';
+import Button from '@/components/os/Button';
 import { getAcceptedAnswers, isAnswerCorrect } from '../../utils/answerUtils';
 
 const shuffle = (items) => {
@@ -26,40 +35,49 @@ const makeSession = (words) => ({
   feedback: null,
 });
 
-const uniqueIds = (ids, id) => ids.includes(id) ? ids : [...ids, id];
+const uniqueIds = (ids, id) => (ids.includes(id) ? ids : [...ids, id]);
 
-function getMeme(type, count) {
+function getMilestoneNote(type, count) {
   const milestones = type === 'correct' ? [1, 3, 5, 10] : [1, 3, 6, 10];
   const isMilestone = milestones.includes(count) || (count > 10 && count % 5 === 0);
   if (!isMilestone) return null;
 
-  const messages = type === 'correct'
-    ? [
-      ['Đúng câu đầu. Bộ nhớ đã vào ca.', '✦'],
-      ['Ba câu liền. Não bắt đầu tin vào bản thân.', '✦'],
-      ['Năm câu chuẩn. Flashcard đang mất lợi thế.', '✦'],
-      ['Mười câu liền. Từ điển xin phép nghỉ.', '✦'],
-    ]
-    : [
-      ['Câu này đã được bộ nhớ đánh dấu nổi bật.', '↻'],
-      ['Ba lần thử. Ít nhất từ này sẽ khó quên.', '↻'],
-      ['Đã ghi nhận. Lần ôn sau bạn sẽ nhận ra ngay.', '↻'],
-      ['Sai không mất điểm. Chỉ thêm một lần làm quen.', '↻'],
-    ];
-  const [text, emoji] = messages[milestones.indexOf(count)] || messages.at(-1);
-  return { id: `${type}-${count}`, type, count, text, emoji };
+  const messages =
+    type === 'correct'
+      ? [
+          'Khởi đầu chính xác. Nhịp ghi nhớ đã sẵn sàng.',
+          'Chuỗi 3 câu đúng liên tiếp. Phản xạ rất tốt.',
+          'Chuỗi 5 câu chuẩn xác. Trí nhớ dài hạn đang củng cố.',
+          'Mốc 10 câu liên tiếp hoàn hảo.',
+        ]
+      : [
+          'Từ này đã được đánh dấu để ôn lại ở cuối lượt.',
+          'Ba lần thử giúp não bộ ghi nhận sâu hơn.',
+          'Đã lưu vào danh sách ưu tiên củng cố.',
+          'Mỗi lần nhầm là một bước khắc sâu từ mới.',
+        ];
+  const text = messages[milestones.indexOf(count)] || messages.at(-1);
+  return { id: `${type}-${count}`, type, count, text };
 }
 
 export default function PracticePanel({ words, boards = [], onManageWords }) {
   const [answer, setAnswer] = useState('');
+  const [direction, setDirection] = useState('vietnamese'); // 'vietnamese' (Vi -> En) | 'english' (En -> Vi)
   const [reaction, setReaction] = useState(null);
   const [session, setSession] = useState(() => makeSession(words));
   const advanceButtonRef = useRef(null);
-  const direction = 'vietnamese';
+
   const question = session.queue[session.index] || null;
   const totalQuestions = session.queue.length;
   const expected = question
-    ? direction === 'vietnamese' ? question.english : question.vietnamese
+    ? direction === 'vietnamese'
+      ? question.english
+      : question.vietnamese
+    : '';
+  const prompt = question
+    ? direction === 'vietnamese'
+      ? question.vietnamese
+      : question.english
     : '';
 
   useEffect(() => {
@@ -67,9 +85,6 @@ export default function PracticePanel({ words, boards = [], onManageWords }) {
       advanceButtonRef.current?.focus();
     }
   }, [session.feedback?.type]);
-  const prompt = question
-    ? direction === 'vietnamese' ? question.vietnamese : question.english
-    : '';
 
   const advance = () => {
     setAnswer('');
@@ -106,7 +121,13 @@ export default function PracticePanel({ words, boards = [], onManageWords }) {
 
   const checkAnswer = (event) => {
     event.preventDefault();
-    if (!question || !answer.trim() || session.feedback?.type === 'correct' || session.feedback?.type === 'reveal') return;
+    if (
+      !question ||
+      !answer.trim() ||
+      session.feedback?.type === 'correct' ||
+      session.feedback?.type === 'reveal'
+    )
+      return;
 
     if (isAnswerCorrect(answer, getAcceptedAnswers(expected))) {
       const nextStreak = session.streak + 1;
@@ -116,7 +137,7 @@ export default function PracticePanel({ words, boards = [], onManageWords }) {
         streak: nextStreak,
         feedback: { type: 'correct' },
       }));
-      setReaction(getMeme('correct', nextStreak));
+      setReaction(getMilestoneNote('correct', nextStreak));
       return;
     }
 
@@ -128,11 +149,19 @@ export default function PracticePanel({ words, boards = [], onManageWords }) {
       attempts: nextAttempts,
       wrongCount: nextWrongCount,
       streak: 0,
-      missedIds: revealed && current.phase === 'main' ? uniqueIds(current.missedIds, question.id) : current.missedIds,
-      failedIds: revealed && current.phase === 'retry' ? uniqueIds(current.failedIds, question.id) : current.failedIds,
-      feedback: revealed ? { type: 'reveal', expected } : { type: 'wrong', remaining: 3 - nextAttempts },
+      missedIds:
+        revealed && current.phase === 'main'
+          ? uniqueIds(current.missedIds, question.id)
+          : current.missedIds,
+      failedIds:
+        revealed && current.phase === 'retry'
+          ? uniqueIds(current.failedIds, question.id)
+          : current.failedIds,
+      feedback: revealed
+        ? { type: 'reveal', expected }
+        : { type: 'wrong', remaining: 3 - nextAttempts },
     }));
-    setReaction(getMeme('wrong', nextWrongCount));
+    setReaction(getMilestoneNote('wrong', nextWrongCount));
   };
 
   const startRetry = () => {
@@ -160,12 +189,23 @@ export default function PracticePanel({ words, boards = [], onManageWords }) {
 
   if (!words.length) {
     return (
-      <div className="flex min-h-56 flex-col items-center justify-center rounded-xl border border-dashed border-slate-700 px-4 text-center">
-        <p className="font-semibold text-slate-200">Chưa có từ để dò bài</p>
-        <p className="mt-2 text-sm text-slate-500">Chọn ít nhất một bảng có từ vựng trong mục Bảng từ.</p>
-        <button type="button" onClick={onManageWords} className="mt-4 inline-flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-300 transition hover:border-amber-400/60 hover:text-amber-200">
-          <BookOpen size={15} /> Quay về bảng từ
-        </button>
+      <div className="flex min-h-64 flex-col items-center justify-center rounded-[var(--radius-xl)] border border-dashed border-[var(--os-border-strong)] bg-[var(--os-surface-1)] px-5 py-10 text-center">
+        <BookOpen size={28} className="mb-3 text-[var(--os-text-muted)]" />
+        <p className="text-base font-bold text-[var(--os-text-primary)]">
+          Chưa có cặp từ nào để bắt đầu dò bài
+        </p>
+        <p className="mt-1 max-w-md text-xs sm:text-sm text-[var(--os-text-muted)]">
+          Hãy tích chọn ít nhất một bảng có từ vựng trong mục Bảng từ vựng để khởi tạo phiên luyện tập.
+        </p>
+        <Button
+          variant="secondary"
+          size="sm"
+          icon={<BookOpen size={14} />}
+          onClick={onManageWords}
+          className="mt-4"
+        >
+          Quay về Bảng từ vựng
+        </Button>
       </div>
     );
   }
@@ -173,22 +213,63 @@ export default function PracticePanel({ words, boards = [], onManageWords }) {
   if (session.phase === 'complete' || session.phase === 'summary') {
     const unresolvedWords = words.filter((word) => session.summaryIds.includes(word.id));
     return (
-      <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mx-auto max-w-2xl space-y-5 rounded-xl border border-slate-800 bg-[#101319] p-5 text-center sm:p-7">
-        <Trophy className="mx-auto text-amber-300" size={30} />
-        <div>
-          <h3 className="text-lg font-bold text-slate-100">{session.phase === 'summary' ? 'Đã ôn lại từ sai' : 'Hoàn thành lượt dò'}</h3>
-          <p className="mt-2 text-sm text-slate-400">Đúng {session.solvedIds.length}/{words.length} từ · {session.wrongCount} lượt sai</p>
+      <motion.section
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mx-auto max-w-2xl space-y-5 rounded-[var(--radius-xl)] border border-[var(--os-border-default)] bg-[var(--os-surface-1)] p-6 text-center sm:p-8"
+      >
+        <div className="mx-auto flex size-14 items-center justify-center rounded-2xl border border-[var(--os-warning-border)] bg-[var(--os-warning-soft)] text-[var(--os-warning)]">
+          <Trophy size={26} />
         </div>
+        <div>
+          <h3 className="text-xl font-extrabold text-[var(--os-text-primary)]">
+            {session.phase === 'summary' ? 'Tổng kết ôn tập từ khó' : 'Hoàn thành phiên luyện tập!'}
+          </h3>
+          <p className="mt-1.5 font-mono text-xs sm:text-sm text-[var(--os-text-secondary)]">
+            Chính xác <strong>{session.solvedIds.length}/{words.length}</strong> từ ·{' '}
+            {session.wrongCount} lượt nhầm
+          </p>
+        </div>
+
         {unresolvedWords.length > 0 && (
           <div className="space-y-2 text-left">
-            <p className="text-xs font-semibold text-amber-200">Các từ cần luyện thêm</p>
-            {unresolvedWords.map((word) => <p key={word.id} className="rounded-lg bg-black/30 px-3 py-2 text-sm"><span className="font-semibold text-slate-100">{word.vietnamese}</span><span className="text-slate-500"> → </span><span className="text-slate-300">{word.english}</span></p>)}
+            <p className="font-mono text-xs font-bold uppercase tracking-wider text-[var(--os-warning)]">
+              Cần củng cố thêm
+            </p>
+            {unresolvedWords.map((word) => (
+              <div
+                key={word.id}
+                className="os-sunken flex items-center justify-between rounded-[var(--radius-sm)] px-3.5 py-2 text-xs sm:text-sm"
+              >
+                <span className="font-bold text-[var(--os-text-primary)]">{word.vietnamese}</span>
+                <span className="font-mono text-[var(--os-accent)]">{word.english}</span>
+              </div>
+            ))}
           </div>
         )}
-        <div className="flex flex-wrap justify-center gap-2">
-          {session.phase === 'summary' && <button type="button" onClick={startRetry} className="rounded-lg bg-amber-400 px-4 py-2.5 text-sm font-bold text-black transition hover:bg-amber-300">Luyện lại từ sai</button>}
-          <button type="button" onClick={startNewSession} className="inline-flex items-center gap-2 rounded-lg border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:bg-white/5"><RotateCw size={15} /> Lượt mới</button>
-          <button type="button" onClick={onManageWords} className="inline-flex items-center gap-2 rounded-lg border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-amber-400/60 hover:text-amber-200"><BookOpen size={15} /> Quay về bảng từ</button>
+
+        <div className="flex flex-wrap justify-center gap-2.5 pt-2">
+          {session.phase === 'summary' && (
+            <Button variant="primary" size="md" onClick={startRetry}>
+              Luyện lại từ chưa thuộc
+            </Button>
+          )}
+          <Button
+            variant="secondary"
+            size="md"
+            icon={<RotateCw size={15} />}
+            onClick={startNewSession}
+          >
+            Bắt đầu lượt mới
+          </Button>
+          <Button
+            variant="ghost"
+            size="md"
+            icon={<BookOpen size={15} />}
+            onClick={onManageWords}
+          >
+            Quản lý từ vựng
+          </Button>
         </div>
       </motion.section>
     );
@@ -197,44 +278,119 @@ export default function PracticePanel({ words, boards = [], onManageWords }) {
   const progress = totalQuestions ? Math.round(((session.index + 1) / totalQuestions) * 100) : 0;
 
   return (
-    <motion.section layout className="mx-auto max-w-2xl space-y-5 rounded-xl border border-slate-800 bg-[#101319] p-4 sm:p-6">
+    <motion.section
+      layout
+      className="mx-auto max-w-2xl space-y-5 rounded-[var(--radius-xl)] border border-[var(--os-border-default)] bg-[var(--os-surface-1)] p-5 sm:p-7 shadow-[var(--os-shadow-xs)]"
+    >
+      {/* Session Telemetry Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold text-slate-300">{session.phase === 'retry' ? 'Ôn lại từ sai' : 'Lượt dò mới'}</p>
-          <p className="mt-1 text-[11px] text-slate-500">{boards.map((board) => board.name).join(' · ')}</p>
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-xs font-bold uppercase tracking-wider text-[var(--os-accent)]">
+              {session.phase === 'retry' ? 'Vòng củng cố từ khó' : 'Phiên phản xạ chủ động'}
+            </span>
+            {session.streak >= 2 && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-[var(--os-success-border)] bg-[var(--os-success-soft)] px-2 py-0.5 font-mono text-[10px] font-bold text-[var(--os-success)]">
+                <Flame size={11} /> Chuỗi {session.streak}
+              </span>
+            )}
+          </div>
+          <p className="mt-0.5 text-xs text-[var(--os-text-muted)]">
+            {boards.map((board) => board.name).join(' · ')}
+          </p>
         </div>
-        <div className="text-right">
-          <p className="font-mono text-xs text-slate-400">Đúng {session.solvedIds.length}/{words.length} · Sai {session.wrongCount}</p>
-          <p className="mt-1 font-mono text-[10px] text-slate-600">Câu {session.index + 1}/{totalQuestions}</p>
+
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => {
+              setDirection((d) => (d === 'vietnamese' ? 'english' : 'vietnamese'));
+              setAnswer('');
+            }}
+            title="Đổi chiều dịch câu hỏi"
+            className="os-focus-ring inline-flex items-center gap-1.5 rounded-[var(--radius-xs)] border border-[var(--os-border-default)] bg-[var(--os-surface-2)] px-2.5 py-1 font-mono text-[11px] font-bold text-[var(--os-text-secondary)] hover:text-[var(--os-text-primary)] cursor-pointer transition-colors"
+          >
+            <ArrowRightLeft size={12} className="text-[var(--os-accent)]" />
+            <span>{direction === 'vietnamese' ? 'Việt → Anh' : 'Anh → Việt'}</span>
+          </button>
+
+          <div className="text-right font-mono text-xs">
+            <span className="font-bold text-[var(--os-text-primary)]">
+              {session.index + 1}/{totalQuestions}
+            </span>
+            <span className="block text-[10px] text-[var(--os-text-muted)]">
+              Thuộc {session.solvedIds.length} · Nhầm {session.wrongCount}
+            </span>
+          </div>
         </div>
       </div>
-      <div className="h-1 overflow-hidden rounded-full bg-slate-800"><motion.div className="h-full rounded-full bg-amber-400" animate={{ width: `${progress}%` }} transition={{ duration: 0.3 }} /></div>
 
+      {/* Progress Track */}
+      <div className="h-1.5 overflow-hidden rounded-full bg-[var(--os-surface-3)]">
+        <motion.div
+          className="h-full rounded-full bg-[var(--os-accent)]"
+          animate={{ width: `${progress}%` }}
+          transition={{ duration: 0.25 }}
+        />
+      </div>
+
+      {/* Flashcard Prompt Stage */}
       <AnimatePresence mode="wait">
-        <motion.div key={question.id} initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={{ duration: 0.18 }} className="rounded-lg border border-slate-800 bg-black/30 px-5 py-8 text-center">
-          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-slate-500">{direction === 'vietnamese' ? 'Dịch sang tiếng Anh' : 'Dịch sang tiếng Việt'}</p>
-          <p className="mt-3 break-words text-2xl font-bold text-slate-100">{prompt}</p>
+        <motion.div
+          key={`${question.id}-${direction}`}
+          initial={{ opacity: 0, x: 14 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -14 }}
+          transition={{ duration: 0.16 }}
+          className="os-sunken rounded-[var(--radius-lg)] px-6 py-9 text-center"
+        >
+          <p className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--os-text-muted)]">
+            {direction === 'vietnamese' ? 'Nhập từ Tiếng Anh tương ứng' : 'Nhập nghĩa Tiếng Việt'}
+          </p>
+          <p className="mt-3 break-words text-2xl sm:text-3xl font-extrabold tracking-tight text-[var(--os-text-primary)]">
+            {prompt}
+          </p>
         </motion.div>
       </AnimatePresence>
 
+      {/* Answer Form */}
       <form onSubmit={checkAnswer} className="space-y-4">
-        <label className="block space-y-1.5 text-xs font-medium text-slate-400">
-          Câu trả lời
+        <label className="block space-y-1.5 text-xs font-semibold text-[var(--os-text-secondary)]">
+          <span>Đáp án của bạn</span>
           <input
             autoComplete="off"
             autoFocus
             value={answer}
             onChange={(event) => setAnswer(event.target.value)}
             disabled={['correct', 'reveal'].includes(session.feedback?.type)}
-            placeholder="Nhập nghĩa của từ"
-            className="w-full rounded-lg border border-slate-700 bg-black/40 px-3 py-3 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-amber-400 disabled:opacity-70"
+            placeholder={
+              direction === 'vietnamese' ? 'Gõ từ tiếng Anh...' : 'Gõ nghĩa tiếng Việt...'
+            }
+            className="os-focus-ring h-12 w-full rounded-[var(--radius-md)] border border-[var(--os-border-default)] bg-[var(--os-surface-2)] px-4 text-sm sm:text-base font-semibold text-[var(--os-text-primary)] placeholder:text-[var(--os-text-muted)] focus:border-[var(--os-accent)] focus:bg-[var(--os-surface-1)] disabled:opacity-65"
           />
         </label>
 
         <AnimatePresence mode="wait">
           {session.feedback && (
-            <motion.p key={`${session.feedback.type}-${session.attempts}`} initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }} role="status" className={`rounded-lg border px-3 py-2.5 text-sm ${session.feedback.type === 'correct' ? 'border-emerald-800 bg-emerald-950/30 text-emerald-300' : session.feedback.type === 'reveal' ? 'border-amber-800 bg-amber-950/30 text-amber-200' : 'border-rose-900 bg-rose-950/30 text-rose-300'}`}>
-              {session.feedback.type === 'correct' ? 'Chính xác!' : session.feedback.type === 'reveal' ? `Đã hết 3 lượt. Đáp án: ${session.feedback.expected}` : `Chưa đúng. Còn ${session.feedback.remaining} lượt thử.`}
+            <motion.p
+              key={`${session.feedback.type}-${session.attempts}`}
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              role="status"
+              className={`rounded-[var(--radius-md)] border px-3.5 py-2.5 text-xs sm:text-sm font-semibold ${
+                session.feedback.type === 'correct'
+                  ? 'border-[var(--os-success-border)] bg-[var(--os-success-soft)] text-[var(--os-success)]'
+                  : session.feedback.type === 'reveal'
+                  ? 'border-[var(--os-warning-border)] bg-[var(--os-warning-soft)] text-[var(--os-warning)]'
+                  : 'border-[var(--os-danger-border)] bg-[var(--os-danger-soft)] text-[var(--os-danger)]'
+              }`}
+            >
+              {session.feedback.type === 'correct'
+                ? 'Chính xác! Nhấn Enter để sang câu tiếp theo.'
+                : session.feedback.type === 'reveal'
+                ? `Đã hết 3 lượt thử. Đáp án chuẩn: ${session.feedback.expected}`
+                : `Chưa khớp — còn ${session.feedback.remaining} lượt thử.`}
             </motion.p>
           )}
         </AnimatePresence>
@@ -244,9 +400,24 @@ export default function PracticePanel({ words, boards = [], onManageWords }) {
           type={['correct', 'reveal'].includes(session.feedback?.type) ? 'button' : 'submit'}
           onClick={['correct', 'reveal'].includes(session.feedback?.type) ? advance : undefined}
           disabled={!['correct', 'reveal'].includes(session.feedback?.type) && !answer.trim()}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-amber-400 px-4 py-3 text-sm font-bold text-black transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-40"
+          className="os-focus-ring inline-flex h-11.5 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-[var(--os-accent)] px-4 text-sm font-bold text-[var(--os-accent-fg)] transition-colors hover:bg-[var(--os-accent-hover)] disabled:cursor-not-allowed disabled:opacity-45 cursor-pointer"
         >
-          {session.feedback?.type === 'correct' ? <><Check size={16} /> Từ tiếp theo</> : session.feedback?.type === 'reveal' ? <><ArrowRight size={16} /> Bỏ qua</> : <><Check size={16} /> Kiểm tra</>}
+          {session.feedback?.type === 'correct' ? (
+            <>
+              <Check size={16} />
+              <span>Từ tiếp theo</span>
+            </>
+          ) : session.feedback?.type === 'reveal' ? (
+            <>
+              <ArrowRight size={16} />
+              <span>Tiếp tục</span>
+            </>
+          ) : (
+            <>
+              <Check size={16} />
+              <span>Kiểm tra đáp án</span>
+            </>
+          )}
         </button>
       </form>
 
@@ -254,19 +425,27 @@ export default function PracticePanel({ words, boards = [], onManageWords }) {
         {reaction && (
           <motion.div
             key={reaction.id}
-            initial={{ opacity: 0, y: 14, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -8, scale: 0.98 }}
-            transition={{ type: 'spring', stiffness: 360, damping: 24 }}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
             role="status"
-            className={`relative flex items-center gap-3 overflow-hidden rounded-lg border px-4 py-3 ${reaction.type === 'correct' ? 'border-emerald-700/70 bg-emerald-950/40 text-emerald-100' : 'border-amber-700/70 bg-amber-950/40 text-amber-100'}`}
+            className={`flex items-center gap-3 rounded-[var(--radius-md)] border px-4 py-3 text-xs sm:text-sm ${
+              reaction.type === 'correct'
+                ? 'border-[var(--os-success-border)] bg-[var(--os-success-soft)] text-[var(--os-text-primary)]'
+                : 'border-[var(--os-warning-border)] bg-[var(--os-warning-soft)] text-[var(--os-text-primary)]'
+            }`}
           >
-            <motion.span aria-hidden="true" animate={{ rotate: [0, -10, 10, 0], scale: [1, 1.12, 1] }} transition={{ duration: 0.45 }} className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-black/25 text-xl">{reaction.emoji}</motion.span>
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[var(--os-surface-1)] text-[var(--os-accent)]">
+              {reaction.type === 'correct' ? <Flame size={16} /> : <RotateCw size={15} />}
+            </span>
             <div className="min-w-0 flex-1">
-              <p className="font-mono text-[9px] uppercase tracking-[0.18em] opacity-60">{reaction.type === 'correct' ? `Chuỗi đúng · ${reaction.count}` : `Ghi nhớ · ${reaction.count}`}</p>
-              <p className="mt-1 text-sm font-semibold">{reaction.text}</p>
+              <p className="font-mono text-[10px] font-bold uppercase tracking-wider text-[var(--os-text-muted)]">
+                {reaction.type === 'correct'
+                  ? `Cột mốc chuỗi đúng · ${reaction.count}`
+                  : `Ghi nhận ôn tập · ${reaction.count}`}
+              </p>
+              <p className="font-semibold">{reaction.text}</p>
             </div>
-            <span aria-hidden="true" className="absolute -right-5 -top-8 h-20 w-20 rounded-full border border-current opacity-10" />
           </motion.div>
         )}
       </AnimatePresence>

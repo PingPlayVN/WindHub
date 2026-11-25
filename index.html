@@ -1,23 +1,53 @@
 <!doctype html>
-<!-- Ép class="dark" ngay từ đầu để trình duyệt biết đây là Dark Mode -->
-<html lang="vi" class="dark">
+<html lang="vi" class="dark" data-theme="dark" data-glass="false" data-motion="full">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" sizes="512x512" href="/windhub-512.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <!-- Đổi theme-color thành màu Đen tuyệt đối để chuẩn Dark Hacker -->
-    <meta name="theme-color" content="#000000" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#090b0f" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="WindHub" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" sizes="512x512" href="/windhub-512.png" />
-    <meta name="description" content="WindHub — chia sẽ tài nguyên số tập trung." />
-    <!-- Nhúng Be Vietnam Pro và JetBrains Mono -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <meta name="description" content="WindHub — Không gian lưu trữ, công cụ và truyền tải trực tiếp P2P thế hệ mới." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      (function () {
+        try {
+          var raw = localStorage.getItem('windhub-appearance-v2');
+          var mode = 'dark';
+          var glass = false;
+          var motion = 'full';
+          if (raw) {
+            var parsed = JSON.parse(raw);
+            if (parsed.themeMode) mode = parsed.themeMode;
+            glass = Boolean(parsed.liquidGlass);
+            if (parsed.motionLevel) motion = parsed.motionLevel;
+          } else {
+            var legacy = localStorage.getItem('windhub-theme');
+            if (legacy === 'light' || legacy === 'dark') mode = legacy;
+          }
+          var isDark =
+            mode === 'dark' ||
+            (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          var root = document.documentElement;
+          root.classList.toggle('dark', isDark);
+          root.dataset.theme = isDark ? 'dark' : 'light';
+          root.dataset.glass = glass ? 'true' : 'false';
+          root.dataset.motion = motion;
+          root.style.colorScheme = isDark ? 'dark' : 'light';
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.setAttribute('content', isDark ? '#090b0f' : '#f3f5f8');
+        } catch (e) {}
+      })();
+    </script>
     <title>WindHub</title>
   </head>
   <body>

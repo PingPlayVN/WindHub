@@ -1,19 +1,22 @@
-import { useState, useMemo } from 'react';
-import { X, Search, Copy, Check } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { BookOpen, Check, Copy, Search } from 'lucide-react';
 import { toast } from 'sonner';
-import { CHAR_TO_HEX, CHAR_TO_BUTTON } from '../data/casio580AxesmcData.js';
+import Modal from '@/components/os/Modal';
+import { CHAR_TO_BUTTON, CHAR_TO_HEX } from '../data/casio580AxesmcData.js';
 
 export default function CharLookupModal({ isOpen, onClose }) {
   const [query, setQuery] = useState('');
   const [copiedChar, setCopiedChar] = useState(null);
 
-  const charList = useMemo(() => {
-    return Object.entries(CHAR_TO_HEX).map(([char, hex]) => ({
-      char,
-      hex,
-      button: CHAR_TO_BUTTON[char] || null,
-    }));
-  }, []);
+  const charList = useMemo(
+    () =>
+      Object.entries(CHAR_TO_HEX).map(([char, hex]) => ({
+        char,
+        hex,
+        button: CHAR_TO_BUTTON[char] || null,
+      })),
+    []
+  );
 
   const filtered = useMemo(() => {
     if (!query.trim()) return charList;
@@ -25,8 +28,6 @@ export default function CharLookupModal({ isOpen, onClose }) {
     );
   }, [charList, query]);
 
-  if (!isOpen) return null;
-
   const handleCopy = (hex, char) => {
     navigator.clipboard.writeText(hex);
     setCopiedChar(char);
@@ -35,71 +36,57 @@ export default function CharLookupModal({ isOpen, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-      <div className="relative w-full max-w-2xl max-h-[85vh] flex flex-col rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-2xl overflow-hidden font-mono text-xs">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-zinc-800">
-          <div>
-            <h3 className="text-base font-bold text-slate-900 dark:text-white">
-              Bảng tra cứu mã Hex Casio fx-580VN X
-            </h3>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">
-              {charList.length} ký tự được hỗ trợ theo chuẩn chars.txt
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition"
-          >
-            <X size={18} />
-          </button>
+    <Modal
+      open={Boolean(isOpen)}
+      onClose={onClose}
+      size="lg"
+      subtitle={`${charList.length} KÝ TỰ HỖ TRỢ`}
+      title="Bảng tra cứu mã Hex Casio fx-580VN X"
+      icon={<BookOpen size={18} />}
+    >
+      <div className="space-y-4">
+        <div className="relative">
+          <Search
+            size={15}
+            className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--os-text-muted)]"
+          />
+          <input
+            autoFocus
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Tìm theo ký tự (A, Ơ, Ệ, π...) hoặc mã Hex (F4 1E, 41)..."
+            className="os-focus-ring h-10.5 w-full rounded-[var(--radius-md)] border border-[var(--os-border-default)] bg-[var(--os-surface-2)] pl-9.5 pr-3 text-xs font-mono text-[var(--os-text-primary)] placeholder:text-[var(--os-text-muted)] focus:border-[var(--os-accent)]"
+          />
         </div>
 
-        {/* Search Input */}
-        <div className="p-3 border-b border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950">
-          <div className="relative flex items-center">
-            <Search size={14} className="absolute left-3 text-slate-400" />
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Tìm theo ký tự (ví dụ: A, Ơ, Ệ, π, ...) hoặc mã hex (ví dụ: F4 1E, 41)..."
-              className="w-full pl-9 pr-4 py-2 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-xs focus:outline-none focus:border-sky-500 font-mono transition"
-            />
-          </div>
-        </div>
-
-        {/* List Grid */}
-        <div className="flex-1 overflow-y-auto p-4 grid grid-cols-2 sm:grid-cols-3 gap-2">
+        <div className="grid max-h-[52vh] grid-cols-2 gap-2 overflow-y-auto custom-scrollbar pr-1 sm:grid-cols-3">
           {filtered.map((item, idx) => (
-            <div
+            <button
               key={idx}
+              type="button"
               onClick={() => handleCopy(item.hex, item.char)}
-              className="flex items-center justify-between p-2 rounded-xl border border-slate-200 dark:border-zinc-800 hover:border-sky-500 bg-white dark:bg-zinc-950/60 cursor-pointer transition group"
+              className="os-focus-ring group flex items-center justify-between rounded-[var(--radius-sm)] border border-[var(--os-border-subtle)] bg-[var(--os-surface-2)] p-2 text-left font-mono hover:border-[var(--os-accent-border)] cursor-pointer transition-colors"
             >
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 font-bold text-sm">
+              <span className="flex items-center gap-2 min-w-0">
+                <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-[var(--os-info-soft)] text-sm font-bold text-[var(--os-info)]">
                   {item.char === ' ' ? '␣' : item.char}
                 </span>
-                <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                <span className="truncate text-xs font-bold text-[var(--os-text-primary)]">
                   {item.hex}
                 </span>
-              </div>
-              <button
-                type="button"
-                className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-sky-500 transition"
-              >
+              </span>
+              <span className="text-[var(--os-text-muted)] group-hover:text-[var(--os-accent)]">
                 {copiedChar === item.char ? (
-                  <Check size={13} className="text-emerald-500" />
+                  <Check size={13} className="text-[var(--os-success)]" />
                 ) : (
                   <Copy size={13} />
                 )}
-              </button>
-            </div>
+              </span>
+            </button>
           ))}
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
