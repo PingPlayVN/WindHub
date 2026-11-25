@@ -4,6 +4,7 @@ import { PDFViewer } from '@embedpdf/react-pdf-viewer';
 import mammoth from 'mammoth';
 import * as XLSX from 'xlsx';
 import JSZip from 'jszip';
+import Loader from '@/components/ui/Loader';
 import { generateAndSaveVideoThumbnail } from '@/services/thumbnail';
 import { AsciiSkeleton, AsciiReveal } from '@/components/ui/AsciiReveal';
 
@@ -127,99 +128,22 @@ function LocalDocumentViewer({ url, extension }) {
 function GoogleDriveFrame({ url, isLocked, title = 'Google Drive Preview' }) {
   return (
     <>
-      <iframe
-        src={url}
-        className="windhub-preview-iframe absolute inset-0 h-full w-full border-0 bg-black"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-        allowFullScreen
-        title={title}
-      />
+      <iframe src={url} className="absolute inset-0 h-full w-full border-0 bg-[#f9fafb] dark:bg-black" allow="autoplay; fullscreen" title={title} />
       {isLocked && <div aria-hidden="true" className="absolute right-0 top-0 z-10 h-14 w-14 bg-transparent" />}
     </>
   );
 }
 
-export default function PreviewContent({ previewFile, viewerEngine, setViewerEngine, isImmersive = false }) {
+export default function PreviewContent({ previewFile, viewerEngine, setViewerEngine }) {
   const [mediaError, setMediaError] = useState(false);
   const { type, url, name, isLocked } = previewFile;
   const isGDrive = url.includes('drive.google.com') || url.includes('docs.google.com');
 
   if (type !== 'document' && type !== 'image' && type !== 'video' && type !== 'audio') return <UnavailablePreview url={url} isLocked={isLocked} />;
-  if (isGDrive && (type === 'image' || type === 'video')) {
-    return (
-      <div className={`windhub-gdrive-stage flex h-full w-full flex-col ${isImmersive ? 'p-0' : 'p-0 sm:p-4'}`}>
-        <div
-          className={`windhub-gdrive-frame-box relative min-h-0 w-full flex-1 overflow-hidden bg-black ${
-            isImmersive ? 'rounded-none border-0' : 'sm:rounded-xl sm:border sm:border-white/10'
-          }`}
-        >
-          <GoogleDriveFrame url={url} isLocked={isLocked} title={name || 'Google Drive Preview'} />
-        </div>
-      </div>
-    );
-  }
-  if (type === 'image') {
-    return mediaError ? (
-      <UnavailablePreview url={url} isLocked={isLocked} message="Không thể tải hình ảnh." />
-    ) : (
-      <div className="flex h-full w-full items-center justify-center p-2 sm:p-4">
-        <img
-          key={url}
-          src={url}
-          alt={name}
-          onError={() => setMediaError(true)}
-          className="max-h-full max-w-full rounded-xl object-contain shadow-[0_0_30px_rgba(0,0,0,0.5)]"
-        />
-      </div>
-    );
-  }
-  if (type === 'video') {
-    return mediaError ? (
-      <UnavailablePreview url={url} isLocked={isLocked} message="Không thể tải video." />
-    ) : (
-      <div className={`flex h-full w-full items-center justify-center ${isImmersive ? 'p-0' : 'p-0 sm:p-4'}`}>
-        <video
-          src={url}
-          controls
-          autoPlay
-          playsInline
-          crossOrigin="anonymous"
-          onError={() => setMediaError(true)}
-          onLoadedData={(event) => {
-            if (!previewFile.thumbnailUrl) {
-              const video = event.target;
-              setTimeout(() => {
-                try {
-                  const canvas = document.createElement('canvas');
-                  canvas.width = 320;
-                  canvas.height = (video.videoHeight / video.videoWidth) * 320;
-                  canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-                  canvas.toBlob((blob) => {
-                    if (blob) generateAndSaveVideoThumbnail(previewFile.id, blob);
-                  }, 'image/jpeg', 0.7);
-                } catch {
-                  console.log('Lỗi tạo thumbnail nội bộ');
-                }
-              }, 1000);
-            }
-          }}
-          className={`max-h-full w-full bg-black outline-none ${isImmersive ? 'h-full rounded-none' : 'sm:rounded-xl'}`}
-        />
-      </div>
-    );
-  }
-  if (type === 'audio') {
-    return (
-      <div className="flex h-full w-full items-center justify-center p-4">
-        <div className="flex w-full max-w-md flex-col items-center justify-center rounded-2xl border border-white/10 bg-[#0e0e0e] p-10 sm:p-12 shadow-2xl">
-          <div className="mb-8 flex h-24 w-24 items-center justify-center rounded-full bg-primary-500/20 text-primary-500">
-            <Music size={48} />
-          </div>
-          <audio src={url} controls autoPlay className="w-full" />
-        </div>
-      </div>
-    );
-  }
+  if (isGDrive && (type === 'image' || type === 'video')) return <div className="flex h-full w-full flex-col p-4 sm:p-5"><div className="relative min-h-0 w-full flex-1 overflow-hidden rounded-xl border border-white/10 bg-[#111] shadow-inner"><GoogleDriveFrame url={url} isLocked={isLocked} /></div></div>;
+  if (type === 'image') return mediaError ? <UnavailablePreview url={url} isLocked={isLocked} message="Không thể tải hình ảnh." /> : <img key={url} src={url} alt={name} onError={() => setMediaError(true)} className="max-h-[75vh] max-w-full rounded-xl object-contain shadow-[0_0_30px_rgba(0,0,0,0.5)]" />;
+  if (type === 'video') return mediaError ? <UnavailablePreview url={url} isLocked={isLocked} message="Không thể tải video." /> : <video src={url} controls autoPlay crossOrigin="anonymous" onError={() => setMediaError(true)} onLoadedData={(event) => { if (!previewFile.thumbnailUrl) { const video = event.target; setTimeout(() => { try { const canvas = document.createElement('canvas'); canvas.width = 320; canvas.height = (video.videoHeight / video.videoWidth) * 320; canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height); canvas.toBlob((blob) => { if (blob) generateAndSaveVideoThumbnail(previewFile.id, blob); }, 'image/jpeg', 0.7); } catch { console.log('Lỗi tạo thumbnail nội bộ'); } }, 1000); } }} className="max-h-[75vh] w-full rounded-xl bg-black outline-none" />;
+  if (type === 'audio') return <div className="flex w-full max-w-md flex-col items-center justify-center rounded-2xl border border-white/5 bg-[#111] p-12 shadow-2xl"><div className="mb-8 flex h-24 w-24 items-center justify-center rounded-full bg-primary-500/20 text-primary-500"><Music size={48} /></div><audio src={url} controls autoPlay className="w-full" /></div>;
 
   const extension = url.split('?')[0].split('.').pop()?.toLowerCase() || '';
   const locallySupported = ['pdf', 'txt', 'docx', 'xlsx', 'xls', 'csv', 'pptx'].includes(extension);

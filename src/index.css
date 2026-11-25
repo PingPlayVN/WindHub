@@ -136,7 +136,7 @@
   display: none;
 }
 
-/* Document viewer & mobile landscape / fullscreen media preview */
+/* Document viewer sizing */
 .windhub-doc-viewer,
 .windhub-doc-viewer > div,
 .windhub-doc-viewer iframe {
@@ -145,58 +145,6 @@
 
 .windhub-doc-viewer iframe {
   height: 100% !important;
-}
-
-.windhub-preview-iframe:fullscreen,
-.windhub-preview-iframe:-webkit-full-screen,
-.windhub-preview-stage:fullscreen,
-.windhub-preview-stage:-webkit-full-screen {
-  position: fixed !important;
-  inset: 0 !important;
-  width: 100vw !important;
-  height: 100vh !important;
-  height: 100dvh !important;
-  max-width: none !important;
-  max-height: none !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  transform: none !important;
-  background: #000000 !important;
-}
-
-@media (orientation: landscape) and (max-height: 560px) {
-  .windhub-preview-overlay--media {
-    padding: 0 !important;
-  }
-
-  .windhub-preview-dialog--media {
-    width: 100vw !important;
-    height: 100dvh !important;
-    max-width: none !important;
-    border-radius: 0 !important;
-    border: 0 !important;
-  }
-
-  .windhub-preview-header--media {
-    padding-top: 0.35rem !important;
-    padding-bottom: 0.35rem !important;
-  }
-
-  .windhub-preview-header--media .windhub-preview-kicker,
-  .windhub-preview-header--media .windhub-preview-badge {
-    display: none !important;
-  }
-
-  .windhub-gdrive-stage {
-    padding: 0 !important;
-  }
-
-  .windhub-gdrive-frame-box {
-    border-radius: 0 !important;
-    border: 0 !important;
-  }
 }
 
 .file-name-marquee {
