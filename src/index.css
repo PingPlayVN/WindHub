@@ -23,19 +23,20 @@
 
   /* Surface Compatibility Tokens */
   --color-surface-light: #f3f5f8;
-  --color-surface-dark: #090b0f;
+  --color-surface-dark: #000000;
 
   /* Refined Architectural Monochrome Ramp */
-  --color-slate-50: #f8f9fb;
-  --color-slate-100: #f1f3f7;
-  --color-slate-200: #e2e6ee;
-  --color-slate-300: #cbd2df;
-  --color-slate-400: #8a94a6;
-  --color-slate-500: #5f697a;
-  --color-slate-600: #3f4756;
-  --color-slate-700: #252a36;
-  --color-slate-800: #171b24;
-  --color-slate-900: #0e1117;
+  --color-slate-50: #fafafa;
+  --color-slate-100: #f4f4f5;
+  --color-slate-200: #e4e4e7;
+  --color-slate-300: #d4d4d8;
+  --color-slate-400: #a1a1aa;
+  --color-slate-500: #71717a;
+  --color-slate-600: #3f3f46;
+  --color-slate-700: #27272a;
+  --color-slate-800: #141414;
+  --color-slate-900: #0a0a0a;
+  --color-slate-950: #000000;
 
   /* Vietnamese Heritage Palette (Preserved for Folk Entertainment & TaiXiu) */
   --color-heritage-obsidian: #171411;

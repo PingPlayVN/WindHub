@@ -3,6 +3,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   onSnapshot,
   query,
   setDoc,
@@ -36,20 +37,41 @@ function writeCachedFiles(files) {
 export function subscribeToFiles(onChange, onError) {
   const cachedFiles = readCachedFiles();
   if (cachedFiles.length) {
-    onChange(cachedFiles);
+    onChange(cachedFiles, { fromCache: true });
   }
 
-  return onSnapshot(query(filesCollection), (snapshot) => {
-    const nextFiles = snapshot.docs.map((file) => ({ id: file.id, ...file.data() }));
-    writeCachedFiles(nextFiles);
-    onChange(nextFiles);
-  }, (error) => {
-    if (cachedFiles.length) {
-      onChange(cachedFiles);
-      return;
+  return onSnapshot(
+    query(filesCollection),
+    { includeMetadataChanges: true },
+    (snapshot) => {
+      if (snapshot.metadata.fromCache && snapshot.empty && cachedFiles.length) {
+        return;
+      }
+      const nextFiles = snapshot.docs.map((file) => ({ id: file.id, ...file.data() }));
+      if (!snapshot.metadata.fromCache) {
+        writeCachedFiles(nextFiles);
+      }
+      onChange(nextFiles, { fromCache: snapshot.metadata.fromCache });
+    },
+    (error) => {
+      if (cachedFiles.length) {
+        onChange(cachedFiles, { fromCache: true, hasError: true });
+        return;
+      }
+      onError?.(error);
     }
-    onError?.(error);
-  });
+  );
+}
+
+export async function fetchFileById(itemId) {
+  if (!itemId) return null;
+  try {
+    const snap = await getDoc(doc(filesCollection, itemId));
+    if (!snap.exists()) return null;
+    return { id: snap.id, ...snap.data() };
+  } catch {
+    return null;
+  }
 }
 
 export function subscribeToSortConfig(onChange) {

@@ -145,32 +145,32 @@
 }
 
 /* ============================================================================
-   DARK MODE TOKENS (Modern OS UI Default)
+   DARK MODE TOKENS (Pure OLED Black — Modern OS UI Default)
    ============================================================================ */
 .dark,
 [data-theme="dark"] {
   color-scheme: dark;
 
-  --os-bg: #090b0f;
-  --os-bg-elevated: #0e1117;
-  --os-surface-1: #13161e;
-  --os-surface-2: #191d27;
-  --os-surface-3: #212633;
-  --os-surface-sunken: #0c0e13;
-  --os-surface-hover: rgba(255, 255, 255, 0.055);
-  --os-surface-active: rgba(255, 255, 255, 0.095);
-  --os-surface-floating: #171b24;
+  --os-bg: #000000;
+  --os-bg-elevated: #060606;
+  --os-surface-1: #0a0a0a;
+  --os-surface-2: #121212;
+  --os-surface-3: #1c1c1c;
+  --os-surface-sunken: #050505;
+  --os-surface-hover: rgba(255, 255, 255, 0.06);
+  --os-surface-active: rgba(255, 255, 255, 0.1);
+  --os-surface-floating: #0e0e0e;
 
-  --os-text-primary: #f4f6fa;
-  --os-text-secondary: #b8c0ce;
-  --os-text-muted: #8a94a6;
-  --os-text-subtle: #646e80;
-  --os-text-inverse: #0b0d12;
+  --os-text-primary: #fafafa;
+  --os-text-secondary: #bcbcbc;
+  --os-text-muted: #8a8a8a;
+  --os-text-subtle: #666666;
+  --os-text-inverse: #000000;
 
-  --os-border-subtle: rgba(255, 255, 255, 0.065);
-  --os-border-default: rgba(255, 255, 255, 0.1);
+  --os-border-subtle: rgba(255, 255, 255, 0.08);
+  --os-border-default: rgba(255, 255, 255, 0.12);
   --os-border: var(--os-border-default);
-  --os-border-strong: rgba(255, 255, 255, 0.18);
+  --os-border-strong: rgba(255, 255, 255, 0.2);
 
   /* Brand Primary — WindHub Signature Orange (Dark-tuned luminous balance) */
   --os-accent: #f97316;
@@ -179,8 +179,8 @@
   --os-accent-bright: #ff8c38;
   --os-accent-soft: rgba(249, 115, 22, 0.14);
   --os-accent-soft-hover: rgba(249, 115, 22, 0.22);
-  --os-accent-border: rgba(249, 115, 22, 0.32);
-  --os-accent-fg: #0b0d12;
+  --os-accent-border: rgba(249, 115, 22, 0.34);
+  --os-accent-fg: #000000;
 
   /* Semantic Status Roles — Dark */
   --os-success: #34d399;
@@ -201,13 +201,13 @@
   --os-info-border: rgba(56, 189, 248, 0.28);
 
   --os-focus-ring: #fb923c;
-  --os-backdrop: rgba(3, 5, 9, 0.72);
+  --os-backdrop: rgba(0, 0, 0, 0.78);
 
-  --os-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.35);
-  --os-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.32), 0 10px 24px -6px rgba(0, 0, 0, 0.38);
-  --os-shadow-md: 0 8px 20px -4px rgba(0, 0, 0, 0.45), 0 20px 40px -8px rgba(0, 0, 0, 0.5);
-  --os-shadow-lg: 0 18px 40px -8px rgba(0, 0, 0, 0.62), 0 36px 72px -14px rgba(0, 0, 0, 0.7);
-  --os-shadow-accent: 0 8px 26px -4px rgba(249, 115, 22, 0.38);
+  --os-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --os-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.45), 0 10px 24px -6px rgba(0, 0, 0, 0.55);
+  --os-shadow-md: 0 8px 20px -4px rgba(0, 0, 0, 0.65), 0 20px 40px -8px rgba(0, 0, 0, 0.72);
+  --os-shadow-lg: 0 18px 40px -8px rgba(0, 0, 0, 0.8), 0 36px 72px -14px rgba(0, 0, 0, 0.88);
+  --os-shadow-accent: 0 8px 26px -4px rgba(249, 115, 22, 0.36);
 
   --material-card-bg: var(--os-surface-1);
   --material-card-border: var(--os-border-subtle);
@@ -215,7 +215,7 @@
   --material-card-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.05);
   --material-blur: none;
 
-  --material-shell-bg: rgba(15, 18, 25, 0.92);
+  --material-shell-bg: rgba(0, 0, 0, 0.94);
   --material-shell-border: var(--os-border-subtle);
   --material-floating-bg: var(--os-surface-floating);
   --material-floating-border: var(--os-border-default);
@@ -257,28 +257,28 @@
    ============================================================================ */
 .dark[data-glass="true"],
 [data-theme="dark"][data-glass="true"] {
-  --os-bg: #07090e;
-  --os-surface-1: rgba(22, 26, 36, 0.56);
-  --os-surface-2: rgba(30, 35, 48, 0.66);
-  --os-surface-3: rgba(40, 47, 64, 0.74);
-  --os-surface-sunken: rgba(9, 11, 17, 0.58);
-  --os-surface-floating: rgba(24, 29, 41, 0.74);
+  --os-bg: #000000;
+  --os-surface-1: rgba(16, 16, 16, 0.6);
+  --os-surface-2: rgba(24, 24, 24, 0.7);
+  --os-surface-3: rgba(34, 34, 34, 0.78);
+  --os-surface-sunken: rgba(6, 6, 6, 0.65);
+  --os-surface-floating: rgba(18, 18, 18, 0.8);
 
   --os-border-subtle: rgba(255, 255, 255, 0.11);
   --os-border-default: rgba(255, 255, 255, 0.16);
   --os-border-strong: rgba(255, 255, 255, 0.24);
 
-  --material-card-bg: linear-gradient(145deg, rgba(30, 35, 49, 0.62) 0%, rgba(16, 19, 28, 0.46) 100%);
+  --material-card-bg: linear-gradient(145deg, rgba(24, 24, 24, 0.66) 0%, rgba(10, 10, 10, 0.5) 100%);
   --material-card-border: rgba(255, 255, 255, 0.13);
-  --material-card-shadow: 0 12px 36px -8px rgba(0, 0, 0, 0.58), 0 2px 8px rgba(0, 0, 0, 0.35);
-  --material-card-highlight: inset 0 1px 0 0 rgba(255, 255, 255, 0.22), inset 1px 0 0 0 rgba(255, 255, 255, 0.08);
+  --material-card-shadow: 0 12px 36px -8px rgba(0, 0, 0, 0.72), 0 2px 8px rgba(0, 0, 0, 0.5);
+  --material-card-highlight: inset 0 1px 0 0 rgba(255, 255, 255, 0.2), inset 1px 0 0 0 rgba(255, 255, 255, 0.07);
   --material-blur: blur(22px) saturate(175%);
 
-  --material-shell-bg: linear-gradient(165deg, rgba(22, 26, 38, 0.68) 0%, rgba(12, 15, 22, 0.52) 100%);
-  --material-shell-border: rgba(255, 255, 255, 0.13);
-  --material-floating-bg: linear-gradient(145deg, rgba(28, 33, 47, 0.82) 0%, rgba(16, 19, 28, 0.72) 100%);
+  --material-shell-bg: linear-gradient(165deg, rgba(14, 14, 14, 0.74) 0%, rgba(4, 4, 4, 0.6) 100%);
+  --material-shell-border: rgba(255, 255, 255, 0.12);
+  --material-floating-bg: linear-gradient(145deg, rgba(22, 22, 22, 0.86) 0%, rgba(10, 10, 10, 0.78) 100%);
   --material-floating-border: rgba(255, 255, 255, 0.18);
-  --material-floating-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.24);
+  --material-floating-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.88), inset 0 1px 0 rgba(255, 255, 255, 0.22);
 }
 
 /* ============================================================================
@@ -346,9 +346,7 @@
 }
 
 .dark .os-ambient-backdrop {
-  background:
-    radial-gradient(60% 42% at 15% 0%, rgba(249, 115, 22, 0.065), transparent 70%),
-    radial-gradient(50% 40% at 88% 10%, rgba(99, 102, 241, 0.05), transparent 72%);
+  background: #000000;
 }
 
 :root[data-glass="true"] .os-ambient-backdrop {
@@ -361,10 +359,10 @@
 
 .dark[data-glass="true"] .os-ambient-backdrop {
   background:
-    radial-gradient(50% 44% at 10% 6%, rgba(249, 115, 22, 0.22), transparent 66%),
-    radial-gradient(48% 45% at 88% 14%, rgba(56, 189, 248, 0.15), transparent 68%),
-    radial-gradient(54% 48% at 50% 96%, rgba(139, 92, 246, 0.14), transparent 70%),
-    linear-gradient(180deg, #06080d 0%, #0b0f18 100%);
+    radial-gradient(50% 42% at 10% 6%, rgba(249, 115, 22, 0.2), transparent 66%),
+    radial-gradient(46% 44% at 88% 14%, rgba(255, 255, 255, 0.07), transparent 68%),
+    radial-gradient(54% 46% at 50% 96%, rgba(234, 88, 12, 0.12), transparent 70%),
+    #000000;
 }
 
 .os-card {

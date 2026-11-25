@@ -8,21 +8,28 @@ export function useFileData(currentFolderId, searchTerm) {
   const [localSort, setLocalSort] = useState({});
   const [loadError, setLoadError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isServerSynced, setIsServerSynced] = useState(false);
 
   useEffect(() => {
     return subscribeToSortConfig(setGlobalSort);
   }, []);
 
   useEffect(() => {
-    setIsLoading(true);
-    return subscribeToFiles((files) => {
-      setAllFiles(files);
-      setLoadError('');
-      setIsLoading(false);
-    }, () => {
-      setLoadError('Không thể tải tài nguyên. Vui lòng thử lại sau.');
-      setIsLoading(false);
-    });
+    return subscribeToFiles(
+      (files, meta = {}) => {
+        setAllFiles(files);
+        setLoadError('');
+        setIsLoading(false);
+        if (!meta.fromCache) {
+          setIsServerSynced(true);
+        }
+      },
+      () => {
+        setLoadError('Không thể tải tài nguyên. Vui lòng thử lại sau.');
+        setIsLoading(false);
+        setIsServerSynced(true);
+      }
+    );
   }, []);
 
   const effectiveSort = localSort[currentFolderId] || globalSort[currentFolderId] || 'newest';
@@ -32,15 +39,18 @@ export function useFileData(currentFolderId, searchTerm) {
     return allFiles
       .filter((file) => {
         const matchesFolder = (file.parentId || 'root') === currentFolderId;
-        const matchesSearch = !normalizedSearchTerm || file.name?.toLocaleLowerCase().includes(normalizedSearchTerm);
+        const matchesSearch =
+          !normalizedSearchTerm || file.name?.toLocaleLowerCase().includes(normalizedSearchTerm);
         return matchesFolder && matchesSearch;
       })
       .sort((first, second) => {
         if (first.type === 'folder' && second.type !== 'folder') return -1;
         if (first.type !== 'folder' && second.type === 'folder') return 1;
         if (effectiveSort === 'oldest') return (first.timestamp || 0) - (second.timestamp || 0);
-        if (effectiveSort === 'name-asc') return (first.name || '').localeCompare(second.name || '', 'vi', { numeric: true });
-        if (effectiveSort === 'name-desc') return (second.name || '').localeCompare(first.name || '', 'vi', { numeric: true });
+        if (effectiveSort === 'name-asc')
+          return (first.name || '').localeCompare(second.name || '', 'vi', { numeric: true });
+        if (effectiveSort === 'name-desc')
+          return (second.name || '').localeCompare(first.name || '', 'vi', { numeric: true });
         return (second.timestamp || 0) - (first.timestamp || 0);
       });
   }, [allFiles, currentFolderId, deferredSearchTerm, effectiveSort]);
@@ -66,6 +76,7 @@ export function useFileData(currentFolderId, searchTerm) {
     globalSort,
     loadError,
     isLoading,
+    isServerSynced,
     handleLocalSortChange,
     handleGlobalSortChange,
   };

@@ -50,6 +50,7 @@ export default function FileManager() {
     globalSort,
     loadError,
     isLoading,
+    isServerSynced,
     handleLocalSortChange,
     handleGlobalSortChange: updateGlobalSort,
   } = useFileData(currentFolder.id, searchTerm);
@@ -143,6 +144,7 @@ export default function FileManager() {
   useSharedItemLink({
     allFiles,
     isLoading,
+    isServerSynced,
     loadError,
     searchParams,
     setSearchParams,

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { BookOpen, Brain, ClipboardPaste } from 'lucide-react';
 import {
@@ -28,6 +28,9 @@ export default function VocabularyPractice() {
   const [activeBoardId, setActiveBoardId] = useState(boards[0]?.id || '');
   const [importBoardId, setImportBoardId] = useState(boards[0]?.id || '');
 
+  const resolvedActiveBoardId = boards.some((board) => board.id === activeBoardId)
+    ? activeBoardId
+    : boards[0]?.id || '';
   const importBoard = boards.find((board) => board.id === importBoardId) || boards[0] || null;
   const selectedBoards = boards.filter((board) => selectedBoardIds.includes(board.id));
   const selectedWords = selectedBoards.flatMap((board) => board.words);
@@ -36,12 +39,6 @@ export default function VocabularyPractice() {
     [boards]
   );
   const practiceKey = selectedBoardIds.slice().sort().join('|') || 'no-selected-boards';
-
-  useEffect(() => {
-    if (boards.length && !boards.some((board) => board.id === activeBoardId)) {
-      setActiveBoardId(boards[0].id);
-    }
-  }, [activeBoardId, boards]);
 
   const views = useMemo(
     () => [
@@ -84,7 +81,7 @@ export default function VocabularyPractice() {
           {activeView === 'words' ? (
             <BoardManager
               boards={boards}
-              activeBoardId={activeBoardId}
+              activeBoardId={resolvedActiveBoardId}
               onActiveBoardChange={setActiveBoardId}
               selectedBoardIds={selectedBoardIds}
               onToggleSelection={toggleBoardSelection}

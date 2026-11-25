@@ -15,10 +15,10 @@ const THEME_MODES = [
   {
     id: 'dark',
     label: 'Tối (Dark)',
-    desc: 'Carbon Obsidian sâu, dịu mắt ban đêm',
+    desc: 'Đen tuyền AMOLED, tương phản sắc nét',
     icon: Moon,
-    previewBg: 'bg-[#090b0f]',
-    previewCard: 'bg-[#151923] border-white/10',
+    previewBg: 'bg-black',
+    previewCard: 'bg-[#0e0e0e] border-white/12',
     previewAccent: 'bg-[#f97316]',
   },
   {
@@ -26,8 +26,8 @@ const THEME_MODES = [
     label: 'Theo hệ thống',
     desc: 'Tự động đồng bộ theo cài đặt thiết bị',
     icon: Laptop,
-    previewBg: 'bg-gradient-to-r from-[#f3f5f8] via-[#f3f5f8] to-[#090b0f]',
-    previewCard: 'bg-gradient-to-r from-white to-[#151923] border-slate-400/30',
+    previewBg: 'bg-gradient-to-r from-[#f3f5f8] via-[#f3f5f8] to-black',
+    previewCard: 'bg-gradient-to-r from-white to-[#0e0e0e] border-slate-400/30',
     previewAccent: 'bg-[#f97316]',
   },
 ];

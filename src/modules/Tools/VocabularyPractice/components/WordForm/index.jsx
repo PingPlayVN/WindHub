@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Check, Plus, X } from 'lucide-react';
 import Button from '@/components/os/Button';
 
@@ -22,11 +22,9 @@ function WordField({ id, label, value, onChange, placeholder }) {
 }
 
 export default function WordForm({ word, onSave, onCancel }) {
-  const [values, setValues] = useState(initialValues);
-
-  useEffect(() => {
-    setValues(word ? { english: word.english, vietnamese: word.vietnamese } : initialValues);
-  }, [word]);
+  const [values, setValues] = useState(() =>
+    word ? { english: word.english, vietnamese: word.vietnamese } : initialValues
+  );
 
   const handleSubmit = (event) => {
     event.preventDefault();

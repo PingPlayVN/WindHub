@@ -91,7 +91,7 @@ export function applyAppearance({ theme, liquidGlass = false, motionLevel = 'ful
 
   const metaTheme = document.querySelector('meta[name="theme-color"]');
   if (metaTheme) {
-    metaTheme.setAttribute('content', isDark ? '#090b0f' : '#f3f5f8');
+    metaTheme.setAttribute('content', isDark ? '#000000' : '#f3f5f8');
   }
 }
 

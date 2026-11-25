@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createShareUrl } from '../src/modules/FileManager/utils/shareUtils.js';
+import { createShareUrl, resolveSharedItemState } from '../src/modules/FileManager/utils/shareUtils.js';
 import { getStoredFilesInRoot, isStoredFile, wouldCreateFolderLoop } from '../src/modules/FileManager/utils/fileUtils.js';
 
 test('counts only stored files with a URL', () => {
@@ -50,4 +50,36 @@ test('prevents moving a folder into one of its descendants', () => {
     wouldCreateFolderLoop(files, 'root_image', [files[0]]),
     false,
   );
+});
+
+test('waits for server sync instead of failing when shared file is missing from stale localStorage cache', () => {
+  const staleCache = [{ id: 'old-file', type: 'document', url: 'https://example.com/old.pdf' }];
+
+  const firstPass = resolveSharedItemState({
+    allFiles: staleCache,
+    fileId: 'new-shared-file',
+    folderId: null,
+    isLoading: false,
+    isServerSynced: false,
+  });
+  assert.equal(firstPass.status, 'wait-for-server');
+
+  const serverPass = resolveSharedItemState({
+    allFiles: [...staleCache, { id: 'new-shared-file', type: 'document', url: 'https://example.com/new.pdf' }],
+    fileId: 'new-shared-file',
+    folderId: null,
+    isLoading: false,
+    isServerSynced: true,
+  });
+  assert.equal(serverPass.status, 'found-file');
+  assert.equal(serverPass.item?.id, 'new-shared-file');
+
+  const deletedPass = resolveSharedItemState({
+    allFiles: staleCache,
+    fileId: 'deleted-file',
+    folderId: null,
+    isLoading: false,
+    isServerSynced: true,
+  });
+  assert.equal(deletedPass.status, 'verify-direct');
 });
