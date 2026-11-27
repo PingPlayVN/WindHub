@@ -26,9 +26,9 @@ const BRIDGE_CSS = `
   transition: top 160ms ease, left 160ms ease, opacity 160ms ease, transform 140ms ease;
 }
 #${BRIDGE_ID}[data-combat="true"][data-confirm="false"] {
-  top: 38px;
-  left: 10px;
-  opacity: 0.78;
+  top: max(6px, env(safe-area-inset-top, 0px));
+  left: max(8px, env(safe-area-inset-left, 0px));
+  opacity: 0.88;
 }
 #${BRIDGE_ID}[data-combat="true"][data-confirm="false"]:hover {
   opacity: 1;
@@ -54,10 +54,10 @@ const BRIDGE_CSS = `
   transition: transform 90ms ease, background-color 120ms ease, box-shadow 90ms ease;
 }
 #${BRIDGE_ID}[data-combat="true"][data-confirm="false"] .wh-exit-btn {
-  min-height: 28px;
+  min-height: 27px;
   padding: 0 9px;
-  font-size: 11.5px;
-  background: rgba(255, 255, 255, 0.94);
+  font-size: 11px;
+  background: rgba(255, 255, 255, 0.96);
 }
 #${BRIDGE_ID} .wh-exit-btn:hover {
   background: #FFF8E1;
