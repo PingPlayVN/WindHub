@@ -5,6 +5,8 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
   ArrowRight,
   Calculator,
+  Crosshair,
+  Dices,
   Globe2,
   Languages,
   LogIn,
@@ -92,6 +94,24 @@ export default function CommandPalette() {
         icon: Globe2,
         keywords: 'anime trace facebook analyzer osint extension',
         action: () => navigate('/extensions'),
+      },
+      {
+        id: 'game-windtank',
+        group: 'Giải trí & Trò chơi',
+        label: 'WindTank Trouble (Chơi Offline)',
+        subtitle: 'Đại chiến xe tăng mê cung 2–4 người, đấu AI không cần mạng',
+        icon: Crosshair,
+        keywords: 'windtank tank trouble xe tang game tro choi offline giai tri',
+        action: () => navigate('/entertainment/windtank'),
+      },
+      {
+        id: 'game-taixiu',
+        group: 'Giải trí & Trò chơi',
+        label: 'Tài Xỉu Dân Gian (Sòng bạc dân gian)',
+        subtitle: 'Sòng xúc xắc trực tuyến đồng bộ nhiều người chơi (cần mạng)',
+        icon: Dices,
+        keywords: 'tai xiu bau cua song bac dan gian giai tri',
+        action: () => navigate('/entertainment/tai-xiu'),
       },
     ];
 

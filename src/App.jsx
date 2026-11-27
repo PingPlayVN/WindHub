@@ -21,6 +21,7 @@ const SettingsPage = lazy(() => import('@/pages/Settings'));
 const LoginModal = lazy(() => import('@/modules/Auth/LoginModal'));
 const Entertainment = lazy(() => import('@/modules/Entertainment'));
 const TaiXiu = lazy(() => import('@/modules/Entertainment/TaiXiu'));
+const WindTankGame = lazy(() => import('@/modules/Entertainment/WindTank'));
 
 function App() {
   const navigate = useNavigate();
@@ -31,10 +32,14 @@ function App() {
   const isAdmin = useAuthStore((state) => state.isAdmin);
   const { isLoginOpen, closeLogin } = useUIStore();
 
-  const isFullScreenGame =
+  const isTaiXiuFullScreen =
     location.pathname.startsWith('/entertainment/tai-xiu') ||
     location.pathname === '/tai-xiu' ||
     location.pathname === '/lottery';
+
+  const isWindTankFullScreen =
+    location.pathname.startsWith('/entertainment/windtank') ||
+    location.pathname === '/windtank-game';
 
   useEffect(() => {
     if (checkedPwaLaunch.current) return;
@@ -45,6 +50,17 @@ function App() {
       navigate('/', { replace: true });
     }
   }, [navigate]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (navigator.onLine) {
+        import('@/modules/Entertainment/WindTank/windtankOfflineSync')
+          .then(({ syncWindTankOfflineCache }) => syncWindTankOfflineCache())
+          .catch(() => {});
+      }
+    }, 2200);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     applyAppearance({ theme, liquidGlass, motionLevel });
@@ -94,8 +110,20 @@ function App() {
     };
   }, [isAdmin]);
 
+  // CHẾ ĐỘ CHƠI GAME TOÀN MÀN HÌNH CHO WINDTANK TROUBLE (HỖ TRỢ 100% OFFLINE)
+  if (isWindTankFullScreen) {
+    return (
+      <MotionConfig reducedMotion="never" transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}>
+        <Toaster position="top-right" richColors theme={theme} />
+        <Suspense fallback={<Loader fullScreen text="Đang mở đấu trường WindTank Trouble..." />}>
+          <WindTankGame />
+        </Suspense>
+      </MotionConfig>
+    );
+  }
+
   // CHẾ ĐỘ CHƠI GAME TOÀN MÀN HÌNH CHUYÊN BIỆT CHO TÀI XỈU (GIỮ NGUYÊN 100%)
-  if (isFullScreenGame) {
+  if (isTaiXiuFullScreen) {
     return (
       <MotionConfig reducedMotion="never" transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}>
         <Toaster position="top-right" richColors theme={theme} />
@@ -131,7 +159,9 @@ function App() {
             <Route path="/ai-lab" element={<Navigate to="/" replace />} />
             <Route path="/p2p" element={<P2P />} />
             <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/entertainment" element={<OfflineGate pageTitle="Giải trí dân gian"><Entertainment /></OfflineGate>} />
+            <Route path="/entertainment" element={<Entertainment />} />
+            <Route path="/entertainment/windtank" element={<WindTankGame />} />
+            <Route path="/windtank-game" element={<Navigate to="/entertainment/windtank" replace />} />
             <Route path="/entertainment/tai-xiu" element={<OfflineGate pageTitle="Tài Xỉu Dân Gian"><TaiXiu /></OfflineGate>} />
             <Route path="/lottery" element={<Navigate to="/entertainment/tai-xiu" replace />} />
             <Route path="/tai-xiu" element={<Navigate to="/entertainment/tai-xiu" replace />} />

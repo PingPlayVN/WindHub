@@ -2,11 +2,11 @@ import {
   Blocks,
   Command,
   FolderKanban,
+  Gamepad2,
   LayoutGrid,
   Radio,
   Settings,
 } from 'lucide-react';
-import { TaiXiuDiceIcon } from './customIcons';
 
 export const PRIMARY_NAV_ITEMS = [
   {
@@ -57,10 +57,10 @@ export const PRIMARY_NAV_ITEMS = [
   {
     id: 'entertainment',
     path: '/entertainment',
-    label: 'Giải trí dân gian',
-    shortLabel: 'Tài Xỉu',
-    subtitle: 'Không gian trò chơi mô phỏng truyền thống',
-    icon: TaiXiuDiceIcon,
+    label: 'Giải trí',
+    shortLabel: 'Giải trí',
+    subtitle: 'Trò chơi Offline & Sòng bạc dân gian trực tuyến',
+    icon: Gamepad2,
     mobileDock: false,
     accent: true,
   },

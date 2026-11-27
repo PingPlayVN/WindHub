@@ -1,5 +1,20 @@
 {
+  "redirects": [
+    {
+      "source": "/windtank",
+      "destination": "/windtank/",
+      "permanent": false
+    }
+  ],
   "rewrites": [
+    {
+      "source": "/windtank/",
+      "destination": "https://windtank-trouble.vercel.app/index.html"
+    },
+    {
+      "source": "/windtank/:path*",
+      "destination": "https://windtank-trouble.vercel.app/:path*"
+    },
     {
       "source": "/(.*)",
       "destination": "/"
