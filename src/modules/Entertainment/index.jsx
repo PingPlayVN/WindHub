@@ -3,14 +3,12 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  ArrowRight,
-  CheckCircle2,
-  Crosshair,
+  Clock,
   Dices,
   Gamepad2,
-  Lock,
+  Play,
   Share2,
-  Sparkles,
+  Users,
   Wifi,
   WifiOff,
 } from 'lucide-react';
@@ -25,17 +23,17 @@ const OFFLINE_GAMES = [
   {
     id: 'windtank-trouble',
     title: 'WindTank Trouble',
-    subtitle: 'Đại chiến xe tăng mê cung 2–4 người, đấu AI thông minh Offline hoặc solo Online 1vs1',
-    tag: 'CHƠI ĐƯỢC OFFLINE',
-    icon: <Crosshair size={26} className="text-emerald-400" />,
-    features: [
-      'Chơi Offline 100%: Đấu máy AI 4 cấp độ & 2–4 người chung thiết bị',
-      '10 Kỹ năng chiến thuật, thùng gỗ bí ẩn & chế độ Đêm / Giáp',
-      'Tự động xoay ngang trên điện thoại & hỗ trợ phòng Online 1vs1 khi có mạng',
-    ],
+    genre: 'Hành động · Đấu trường mê cung',
+    playersLabel: '1–4 người chơi',
+    description:
+      'Điều khiển xe tăng luồn lách mê cung, canh góc nảy đạn tiêu diệt đối thủ và nhặt thùng gỗ mở khóa 10 siêu kỹ năng. Chơi mượt với AI hoặc bạn bè ngay cả khi mất mạng.',
+    thumbnail: '/games/windtank-cover.jpg',
+    badge: 'Chơi được Offline',
     link: '/entertainment/windtank',
-    roomTitle: 'Đấu Trường Trò Chơi',
+    roomTitle: 'Trò Chơi Giải Trí',
+    ctaLabel: 'Chơi ngay',
     isLive: true,
+    requiresInternet: false,
   },
 ];
 
@@ -43,26 +41,191 @@ const FOLK_CASINO_GAMES = [
   {
     id: 'tai-xiu',
     title: 'Tài Xỉu Dân Gian',
-    subtitle: 'Lắc 3 xúc xắc, nặn đĩa hồi hộp, trúng lớn cửa Bão',
-    tag: 'ĐANG HOẠT ĐỘNG',
-    icon: <Dices size={26} className="text-amber-400" />,
-    features: ['3 Xúc xắc truyền thống', 'Tính năng nặn bát độc đáo', '2 Bàn chơi đồng bộ: 50s & 25s'],
+    genre: 'Trò chơi dân gian · Xúc xắc',
+    playersLabel: 'Trực tuyến nhiều người',
+    description:
+      'Hòa mình vào không khí lễ hội truyền thống với 3 viên xúc xắc lắc trong bát sứ, tự tay kéo nặn đĩa hồi hộp từng giây cùng bạn bè ở hai bàn chơi nhanh và tiêu chuẩn.',
+    thumbnail: '/games/tai-xiu-cover.jpg',
+    badge: 'Đang mở bàn',
     link: '/entertainment/tai-xiu',
     roomTitle: 'Sòng Bạc Dân Gian',
+    ctaLabel: 'Vào bàn chơi',
     isLive: true,
+    requiresInternet: true,
   },
   {
     id: 'bau-cua',
     title: 'Bầu Cua Tôm Cá',
-    subtitle: '6 Linh vật ngày hội xuân làng quê sum vầy',
-    tag: 'SẮP RA MẮT',
-    icon: <Sparkles size={26} className="text-amber-400" />,
-    features: ['Bầu - Cua - Tôm - Cá - Gà - Nai', 'Âm thanh chợ tết vui nhộn', 'Mở thưởng đồng bộ trực tuyến'],
+    genre: 'Trò chơi dân gian · Ngày Tết',
+    playersLabel: 'Trực tuyến nhiều người',
+    description:
+      'Sáu linh vật quen thuộc Bầu, Cua, Tôm, Cá, Gà, Nai trên bàn gỗ ngày xuân rộn ràng tiếng trống hội. Chế độ mở thưởng đồng bộ nhiều người chơi đang được hoàn thiện.',
+    thumbnail: '/games/bau-cua-cover.jpg',
+    badge: 'Sắp ra mắt',
     link: '#',
     roomTitle: 'Sòng Bạc Dân Gian',
+    ctaLabel: 'Sắp ra mắt',
     isLive: false,
+    requiresInternet: true,
   },
 ];
+
+function GameStoreCard({ game, isOnline, onShare }) {
+  const isOfflineLocked = game.isLive && game.requiresInternet && !isOnline;
+  const canPlay = game.isLive && !isOfflineLocked;
+
+  const handleLockedClick = () => {
+    if (isOfflineLocked) {
+      toast.warning('Trò chơi này cần kết nối mạng Internet để vào bàn chơi trực tuyến.');
+    }
+  };
+
+  const cardContent = (
+    <>
+      {/* 16:9 Game Cover Thumbnail */}
+      <div className="relative aspect-video w-full overflow-hidden bg-[var(--os-surface-2)]">
+        <img
+          src={game.thumbnail}
+          alt={game.title}
+          width={960}
+          height={540}
+          loading="eager"
+          className={`h-full w-full object-cover transition-transform duration-500 ease-out ${
+            canPlay ? 'group-hover:scale-105' : ''
+          } ${!game.isLive ? 'saturate-[0.82]' : ''} ${
+            isOfflineLocked ? 'brightness-75 saturate-75' : ''
+          }`}
+        />
+
+        {/* Subtle bottom gradient for badge contrast */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/55 via-black/15 to-transparent"
+        />
+
+        {/* Top-left Status Pill */}
+        <div className="absolute top-3 left-3 flex items-center gap-1.5">
+          {isOfflineLocked ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-600/90 px-3 py-1 text-xs font-bold text-white shadow-sm backdrop-blur-md">
+              <WifiOff size={12} />
+              <span>Cần mạng</span>
+            </span>
+          ) : !game.isLive ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-900/80 px-3 py-1 text-xs font-bold text-amber-300 shadow-sm backdrop-blur-md">
+              <Clock size={12} />
+              <span>{game.badge}</span>
+            </span>
+          ) : game.requiresInternet ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/95 px-3 py-1 text-xs font-bold text-slate-950 shadow-sm backdrop-blur-md">
+              <Wifi size={12} />
+              <span>{game.badge}</span>
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/95 px-3 py-1 text-xs font-bold text-slate-950 shadow-sm backdrop-blur-md">
+              <span>{game.badge}</span>
+            </span>
+          )}
+        </div>
+
+        {/* Top-right Share Button */}
+        {game.isLive && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onShare(game);
+            }}
+            aria-label={`Chia sẻ ${game.title}`}
+            title="Chia sẻ trò chơi"
+            className="os-focus-ring absolute top-3 right-3 flex size-9 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-md transition-colors hover:bg-black/70 cursor-pointer"
+          >
+            <Share2 size={15} />
+          </button>
+        )}
+
+        {/* Bottom-left Players Pill over Artwork */}
+        <div className="absolute bottom-2.5 left-3 flex items-center gap-1.5 rounded-full bg-black/50 px-2.5 py-1 text-[11px] font-semibold text-white/95 backdrop-blur-xs">
+          <Users size={12} className="shrink-0 opacity-90" />
+          <span>{game.playersLabel}</span>
+        </div>
+      </div>
+
+      {/* Card Content Body */}
+      <div className="flex flex-1 flex-col justify-between gap-4 p-4 sm:p-5">
+        <div>
+          <p className="text-xs font-semibold text-[var(--os-text-muted)]">
+            {game.genre}
+          </p>
+          <h3 className="mt-1 text-lg sm:text-xl font-extrabold tracking-tight text-[var(--os-text-primary)] group-hover:text-[var(--os-accent)] transition-colors">
+            {game.title}
+          </h3>
+          <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-[var(--os-text-secondary)]">
+            {game.description}
+          </p>
+        </div>
+
+        {/* Primary Play Action */}
+        <div className="pt-1">
+          {canPlay ? (
+            <span className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--os-accent)] px-4 py-2.5 text-sm font-bold text-[var(--os-accent-fg)] shadow-xs transition-all group-hover:bg-[var(--os-accent-hover)]">
+              <Play size={16} className="fill-current" />
+              <span>{game.ctaLabel}</span>
+            </span>
+          ) : isOfflineLocked ? (
+            <span className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--os-border-default)] bg-[var(--os-surface-2)] px-4 py-2.5 text-sm font-semibold text-[var(--os-text-muted)]">
+              <WifiOff size={15} />
+              <span>Kết nối mạng để chơi</span>
+            </span>
+          ) : (
+            <span className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--os-border-subtle)] bg-[var(--os-surface-2)] px-4 py-2.5 text-sm font-semibold text-[var(--os-text-muted)]">
+              <Clock size={15} />
+              <span>Sắp ra mắt</span>
+            </span>
+          )}
+        </div>
+      </div>
+    </>
+  );
+
+  const baseCardClasses = `os-focus-ring group relative flex flex-col overflow-hidden rounded-2xl border bg-[var(--os-surface-1)] transition-all duration-200 ${
+    canPlay
+      ? 'border-[var(--os-border-default)] shadow-[var(--os-shadow-xs)] hover:-translate-y-1 hover:border-[var(--os-accent-border)] hover:shadow-xl cursor-pointer'
+      : isOfflineLocked
+      ? 'border-[var(--os-border-default)] opacity-90 cursor-not-allowed'
+      : 'border-[var(--os-border-subtle)] opacity-85'
+  }`;
+
+  if (canPlay) {
+    return (
+      <Link to={game.link} className={baseCardClasses}>
+        {cardContent}
+      </Link>
+    );
+  }
+
+  return (
+    <div
+      role={isOfflineLocked ? 'button' : undefined}
+      tabIndex={isOfflineLocked ? 0 : undefined}
+      aria-disabled="true"
+      onClick={isOfflineLocked ? handleLockedClick : undefined}
+      onKeyDown={
+        isOfflineLocked
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleLockedClick();
+              }
+            }
+          : undefined
+      }
+      className={baseCardClasses}
+    >
+      {cardContent}
+    </div>
+  );
+}
 
 export default function Entertainment() {
   const [shareGame, setShareGame] = useState(null);
@@ -106,130 +269,71 @@ export default function Entertainment() {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       className="mx-auto flex w-full max-w-6xl flex-col gap-8 pb-12"
     >
-      {/* BANNER TRUNG TÂM GIẢI TRÍ */}
-      <section className="relative overflow-hidden rounded-3xl border border-[var(--os-border-default)] bg-gradient-to-br from-[#131924] via-[#121318] to-[#1a110b] p-6 text-slate-50 shadow-2xl md:p-8">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 opacity-20 [background-image:linear-gradient(rgba(148,163,184,.12)_1px,transparent_1px),linear-gradient(90deg,rgba(245,158,11,.1)_1px,transparent_1px)] [background-size:28px_28px]"
-        />
-
-        <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
-          <div className="max-w-3xl">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-300">
-                <Gamepad2 size={14} className="text-emerald-400" />
-                <span>KHÔNG GIAN GIẢI TRÍ WINDHUB</span>
-              </span>
-
-              <span
-                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 font-mono text-[11px] font-bold ${
-                  isOnline
-                    ? 'border-sky-500/30 bg-sky-500/10 text-sky-300'
-                    : 'border-amber-500/40 bg-amber-500/15 text-amber-300'
-                }`}
-              >
-                {isOnline ? <Wifi size={12} /> : <WifiOff size={12} />}
-                <span>{isOnline ? 'Đang trực tuyến' : 'Chế độ Offline'}</span>
-              </span>
-            </div>
-
-            <h1 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">
-              Giải Trí &amp; Trò Chơi
-            </h1>
-            <p className="mt-2 text-sm leading-6 text-slate-300">
-              Thư giãn mọi lúc với mục <strong className="text-emerald-300">Trò chơi</strong> hoạt động ngay cả khi không có mạng, hoặc giao lưu trực tuyến tại <strong className="text-amber-300">Sòng bạc dân gian</strong> bằng điểm xu mô phỏng miễn phí (phi thương mại, không tiền thật).
-            </p>
-          </div>
+      {/* CLEAN GAME HUB HEADER */}
+      <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-[var(--os-border-subtle)] pb-5">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[var(--os-text-primary)]">
+            Giải trí
+          </h1>
+          <p className="mt-1.5 text-sm leading-relaxed text-[var(--os-text-secondary)] max-w-2xl">
+            Khám phá các trò chơi giải trí nhanh ngay trên trình duyệt — hỗ trợ chơi Offline không cần mạng hoặc vào bàn dân gian trực tuyến cùng bạn bè bằng điểm xu mô phỏng miễn phí.
+          </p>
         </div>
-      </section>
+
+        {!isOnline && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="inline-flex w-fit items-center gap-2 rounded-full border border-[var(--os-warning-border)] bg-[var(--os-warning-soft)] px-3.5 py-1.5 text-xs font-bold text-[var(--os-warning)]"
+          >
+            <WifiOff size={14} />
+            <span>Đang ở chế độ Offline</span>
+          </div>
+        )}
+      </header>
 
       {/* =========================================================================
-          MỤC 1: TRÒ CHƠI (CÓ THỂ SỬ DỤNG OFFLINE)
+          MỤC 1: TRÒ CHƠI (CÓ THỂ CHƠI OFFLINE)
           ========================================================================= */}
       <section aria-labelledby="section-offline-games" className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2.5">
-            <h2
-              id="section-offline-games"
-              className="text-lg font-bold text-[var(--os-text-primary)] flex items-center gap-2"
-            >
-              <Gamepad2 size={20} className="text-emerald-500" />
-              <span>Trò chơi</span>
-            </h2>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
-              <CheckCircle2 size={12} />
-              <span>Dùng được Offline</span>
+            <span className="flex size-9 items-center justify-center rounded-xl bg-emerald-500/12 text-emerald-600 dark:text-emerald-400">
+              <Gamepad2 size={20} />
             </span>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2
+                  id="section-offline-games"
+                  className="text-lg sm:text-xl font-extrabold text-[var(--os-text-primary)]"
+                >
+                  Trò chơi
+                </h2>
+                <span className="inline-flex items-center rounded-full bg-emerald-500/12 px-2.5 py-0.5 text-xs font-bold text-emerald-700 dark:text-emerald-300">
+                  Dùng được Offline
+                </span>
+              </div>
+              <p className="text-xs text-[var(--os-text-muted)]">
+                {windtankCached
+                  ? 'Đã lưu sẵn trên thiết bị — mở chơi mượt ngay cả khi không có mạng'
+                  : 'Chơi ngay với AI hoặc bạn bè trên cùng thiết bị'}
+              </p>
+            </div>
           </div>
-
-          <span className="text-xs text-[var(--os-text-muted)] font-mono">
-            {windtankCached ? '✓ Đã sẵn sàng bộ đệm Offline' : '1 trò chơi hoạt động'}
-          </span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {OFFLINE_GAMES.map((game) => (
-            <Link
+            <GameStoreCard
               key={game.id}
-              to={game.link}
-              className="os-focus-ring relative flex flex-col justify-between overflow-hidden rounded-3xl border border-emerald-500/35 bg-gradient-to-br from-white via-emerald-50/20 to-white p-6 transition-all hover:border-emerald-500 hover:shadow-xl dark:from-[#111518] dark:via-[#0f1916] dark:to-[#0d1115] dark:border-emerald-500/30 dark:hover:border-emerald-400 cursor-pointer group"
-            >
-              <div>
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex size-12 items-center justify-center rounded-2xl border border-emerald-500/30 bg-emerald-500/10 shadow-inner">
-                    {game.icon}
-                  </div>
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/15 px-2.5 py-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-300">
-                    <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    <span>{game.tag}</span>
-                  </span>
-                </div>
-
-                <h3 className="mt-4 text-xl font-black text-slate-800 dark:text-slate-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
-                  {game.title}
-                </h3>
-                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                  {game.subtitle}
-                </p>
-
-                <div className="mt-4 space-y-1.5 border-t border-slate-100 pt-3 dark:border-slate-800/80">
-                  {game.features.map((f, i) => (
-                    <div
-                      key={i}
-                      className="flex items-start gap-2 text-xs text-slate-600 dark:text-slate-300"
-                    >
-                      <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-emerald-500/80" />
-                      <span>{f}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="mt-6 pt-3 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between">
-                <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400 group-hover:translate-x-1 transition-transform">
-                  <span>Vào chơi ngay</span>
-                  <ArrowRight size={14} />
-                </span>
-
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setShareGame(game);
-                  }}
-                  title="Chia sẻ liên kết trò chơi"
-                  className="os-focus-ring inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-500 hover:text-emerald-600 hover:bg-emerald-500/10 dark:text-slate-400 dark:hover:text-emerald-400 transition-colors cursor-pointer"
-                >
-                  <Share2 size={13} />
-                  <span>Chia sẻ</span>
-                </button>
-              </div>
-            </Link>
+              game={game}
+              isOnline={isOnline}
+              onShare={setShareGame}
+            />
           ))}
         </div>
       </section>
@@ -240,161 +344,44 @@ export default function Entertainment() {
       <section aria-labelledby="section-folk-casino" className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2.5">
-            <h2
-              id="section-folk-casino"
-              className="text-lg font-bold text-[var(--os-text-primary)] flex items-center gap-2"
-            >
-              <Dices size={20} className="text-amber-500" />
-              <span>Sòng bạc dân gian</span>
-            </h2>
-            <span
-              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${
-                isOnline
-                  ? 'border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                  : 'border-rose-500/35 bg-rose-500/15 text-rose-600 dark:text-rose-300'
-              }`}
-            >
-              {isOnline ? <Wifi size={12} /> : <WifiOff size={12} />}
-              <span>{isOnline ? 'Cần mạng để dùng' : 'Đang Offline · Cần mạng'}</span>
+            <span className="flex size-9 items-center justify-center rounded-xl bg-amber-500/12 text-amber-600 dark:text-amber-400">
+              <Dices size={20} />
             </span>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2
+                  id="section-folk-casino"
+                  className="text-lg sm:text-xl font-extrabold text-[var(--os-text-primary)]"
+                >
+                  Sòng bạc dân gian
+                </h2>
+                <span
+                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                    isOnline
+                      ? 'bg-amber-500/12 text-amber-700 dark:text-amber-300'
+                      : 'bg-rose-500/15 text-rose-600 dark:text-rose-300'
+                  }`}
+                >
+                  {isOnline ? <Wifi size={12} /> : <WifiOff size={12} />}
+                  <span>{isOnline ? 'Cần mạng để dùng' : 'Cần kết nối mạng'}</span>
+                </span>
+              </div>
+              <p className="text-xs text-[var(--os-text-muted)]">
+                Trò chơi mô phỏng lễ hội dân gian sử dụng xu miễn phí (phi thương mại, không tiền thật)
+              </p>
+            </div>
           </div>
-
-          <span className="text-xs text-[var(--os-text-muted)] font-mono">
-            1 đang chạy · 1 sắp ra mắt
-          </span>
         </div>
 
-        {!isOnline && (
-          <div
-            role="status"
-            aria-live="polite"
-            className="flex items-center gap-3 rounded-2xl border border-[var(--os-warning-border)] bg-[var(--os-warning-soft)] px-4 py-3 text-xs sm:text-sm text-[var(--os-text-primary)]"
-          >
-            <WifiOff size={17} className="shrink-0 text-[var(--os-warning)]" />
-            <span>
-              Mục <strong>Sòng bạc dân gian</strong> yêu cầu kết nối mạng Internet để đồng bộ phiên mở thưởng và ví xu. Trong lúc mất mạng, bạn vẫn có thể chơi <strong>WindTank Trouble</strong> ở mục Trò chơi phía trên.
-            </span>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {FOLK_CASINO_GAMES.map((game) => {
-            const canEnter = game.isLive && isOnline;
-            const isOfflineBlocked = game.isLive && !isOnline;
-            const CardWrapper = canEnter ? Link : 'div';
-
-            return (
-              <CardWrapper
-                key={game.id}
-                to={canEnter ? game.link : undefined}
-                onClick={
-                  isOfflineBlocked
-                    ? () =>
-                        toast.warning(
-                          'Sòng bạc dân gian cần kết nối mạng Internet để đồng bộ phiên chơi.'
-                        )
-                    : undefined
-                }
-                role={isOfflineBlocked ? 'button' : undefined}
-                tabIndex={isOfflineBlocked ? 0 : undefined}
-                aria-disabled={isOfflineBlocked || !game.isLive || undefined}
-                onKeyDown={
-                  isOfflineBlocked
-                    ? (e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          toast.warning(
-                            'Sòng bạc dân gian cần kết nối mạng Internet để đồng bộ phiên chơi.'
-                          );
-                        }
-                      }
-                    : undefined
-                }
-                className={`os-focus-ring relative flex flex-col justify-between overflow-hidden rounded-3xl border p-6 transition-all ${
-                  canEnter
-                    ? 'border-amber-500/40 bg-gradient-to-br from-white via-amber-50/20 to-white hover:border-amber-500 hover:shadow-xl dark:from-[#111317] dark:via-[#16120e] dark:to-[#0f1115] dark:border-amber-600/30 dark:hover:border-amber-500 cursor-pointer group'
-                    : isOfflineBlocked
-                    ? 'border-amber-500/25 bg-slate-50/80 dark:border-amber-900/40 dark:bg-[#111216] opacity-85 cursor-not-allowed'
-                    : 'border-slate-200 bg-slate-50/60 dark:border-slate-800 dark:bg-[#0c0d10] opacity-80'
-                }`}
-              >
-                <div>
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex size-12 items-center justify-center rounded-2xl border border-amber-500/30 bg-amber-500/10 shadow-inner">
-                      {game.icon}
-                    </div>
-
-                    {canEnter ? (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/20 px-2.5 py-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
-                        <span className="size-1.5 rounded-full bg-emerald-400 animate-ping" />
-                        <span>{game.tag}</span>
-                      </span>
-                    ) : isOfflineBlocked ? (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-rose-500/35 bg-rose-500/15 px-2.5 py-0.5 text-[10px] font-bold text-rose-600 dark:text-rose-300">
-                        <WifiOff size={10} />
-                        <span>CẦN MẠNG</span>
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/15 px-2.5 py-0.5 text-[10px] font-bold text-amber-600 dark:text-amber-400">
-                        <Lock size={10} />
-                        <span>{game.tag}</span>
-                      </span>
-                    )}
-                  </div>
-
-                  <h3 className="mt-4 text-xl font-black text-slate-800 dark:text-slate-100 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
-                    {game.title}
-                  </h3>
-                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                    {game.subtitle}
-                  </p>
-
-                  <div className="mt-4 space-y-1.5 border-t border-slate-100 pt-3 dark:border-slate-800/80">
-                    {game.features.map((f, i) => (
-                      <div
-                        key={i}
-                        className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300"
-                      >
-                        <span className="size-1.5 rounded-full bg-amber-500/80" />
-                        <span>{f}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="mt-6 pt-3 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between">
-                  {canEnter ? (
-                    <>
-                      <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-600 dark:text-amber-400 group-hover:translate-x-1 transition-transform">
-                        <span>Vào sòng ngay</span>
-                        <ArrowRight size={14} />
-                      </span>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setShareGame(game);
-                        }}
-                        title="Chia sẻ liên kết bàn chơi"
-                        className="os-focus-ring inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-500 hover:text-amber-600 hover:bg-amber-500/10 dark:text-slate-400 dark:hover:text-amber-400 transition-colors cursor-pointer"
-                      >
-                        <Share2 size={13} />
-                        <span>Chia sẻ</span>
-                      </button>
-                    </>
-                  ) : isOfflineBlocked ? (
-                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-rose-500 dark:text-rose-400">
-                      <WifiOff size={13} />
-                      <span>Kết nối mạng để vào sòng</span>
-                    </span>
-                  ) : (
-                    <span className="text-xs text-slate-400 italic">Đang xây dựng...</span>
-                  )}
-                </div>
-              </CardWrapper>
-            );
-          })}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {FOLK_CASINO_GAMES.map((game) => (
+            <GameStoreCard
+              key={game.id}
+              game={game}
+              isOnline={isOnline}
+              onShare={setShareGame}
+            />
+          ))}
         </div>
       </section>
 
@@ -409,8 +396,8 @@ export default function Entertainment() {
             : ''
         }
         description={
-          shareGame?.subtitle ||
-          'Mời bạn bè cùng tham gia không gian Giải trí trên nền tảng WindHub!'
+          shareGame?.description ||
+          'Mời bạn bè cùng tham gia trò chơi giải trí trên nền tảng WindHub!'
         }
       />
     </motion.div>

@@ -29,11 +29,14 @@ function offlineAppPlugin() {
         '/windhub-192.png',
         '/windhub-512.png',
         '/windhub-logo.svg',
+        '/games/windtank-cover.jpg',
+        '/games/tai-xiu-cover.jpg',
+        '/games/bau-cua-cover.jpg',
         ...appAssets,
       ])];
 
       const workerSource = [
-        'const CACHE_NAME = "windhub-shell-v6";',
+        'const CACHE_NAME = "windhub-shell-v7";',
         'const WINDTANK_CACHE = "windhub-windtank-v1";',
         `const PRECACHE_URLS = ${JSON.stringify(precacheUrls)};`,
         'self.addEventListener("install", (event) => {',

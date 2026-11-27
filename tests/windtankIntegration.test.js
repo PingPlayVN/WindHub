@@ -87,6 +87,17 @@ test('Entertainment tab is renamed to Giải trí and split into offline games v
   assert.match(entSrc, /WindTank Trouble/);
   assert.match(entSrc, /Tài Xỉu Dân Gian/);
   assert.match(entSrc, /Bầu Cua Tôm Cá/);
+  assert.match(entSrc, /\/games\/windtank-cover\.jpg/);
+  assert.match(entSrc, /\/games\/tai-xiu-cover\.jpg/);
+  assert.match(entSrc, /\/games\/bau-cua-cover\.jpg/);
+
+  for (const thumb of ['windtank-cover.jpg', 'tai-xiu-cover.jpg', 'bau-cua-cover.jpg']) {
+    assert.equal(
+      fs.existsSync(path.join(repoRoot, 'public/games', thumb)),
+      true,
+      `missing game thumbnail ${thumb}`
+    );
+  }
 });
 
 test('built sw.js isolates /windtank/* cache from WindHub shell /index.html', () => {
