@@ -287,6 +287,7 @@ export default {
             sessionToken,
             user: loginData.user,
             balance: loginData.balance,
+            ownedSkins: loginData.ownedSkins || ['classic'],
             dailyReward: loginData.dailyReward
           }, { status: 200, headers: resHeaders });
 
@@ -377,6 +378,37 @@ export default {
         const doRes = await playerStub.fetch(`http://internal/balance?userId=${encodeURIComponent(session.userId)}`);
         const data = await doRes.json();
         return Response.json(data, { headers });
+      }
+
+      // GET /api/wallet/skins - Lấy kho Chiến Xa đã đồng bộ theo tài khoản Google
+      if (requestUrl.pathname === '/api/wallet/skins' && request.method === 'GET') {
+        const doRes = await playerStub.fetch(`http://internal/skins?userId=${encodeURIComponent(session.userId)}`);
+        const data = await doRes.json();
+        return Response.json(data, { headers });
+      }
+
+      // POST /api/wallet/skins/sync - Đồng bộ kho Chiến Xa lên tài khoản Google (PlayerAccountDO)
+      if (requestUrl.pathname === '/api/wallet/skins/sync' && request.method === 'POST') {
+        const body = (await request.json().catch(() => ({}))) || {};
+        const doRes = await playerStub.fetch(`http://internal/skins/sync?userId=${encodeURIComponent(session.userId)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ownedSkins: Array.isArray(body.ownedSkins) ? body.ownedSkins : [] })
+        });
+        const data = await doRes.json();
+        return Response.json(data, { status: doRes.status, headers });
+      }
+
+      // POST /api/wallet/skins/purchase - Mua & đồng bộ Chiến Xa trực tiếp trên tài khoản Google
+      if (requestUrl.pathname === '/api/wallet/skins/purchase' && request.method === 'POST') {
+        const body = (await request.json().catch(() => ({}))) || {};
+        const doRes = await playerStub.fetch(`http://internal/skins/purchase?userId=${encodeURIComponent(session.userId)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        const data = await doRes.json();
+        return Response.json(data, { status: doRes.status, headers });
       }
 
       // POST /api/wallet/dev-credit - Lệnh nạp tiền thử nghiệm DevTools Console

@@ -1,8 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { ArrowLeft, RefreshCw, WifiOff } from 'lucide-react';
+import { toast } from 'sonner';
+import { auth } from '@/services/firebase';
 import { useAuthStore } from '@/store/useAuthStore';
-import { getStoredOwnedTankSkins } from '@/services/firebaseWallet';
+import {
+  getStoredOwnedTankSkins,
+  resolveGoogleAccountStorageKey,
+} from '@/services/firebaseWallet';
 import {
   WINDTANK_ENTRY_PATH,
   hasWindTankOfflineCache,
@@ -175,27 +181,84 @@ export default function WindTankGame() {
   }, [reloadNonce]);
 
   useEffect(() => {
+    let loginInFlight = false;
+
+    const triggerGoogleSignInPopup = async () => {
+      if (loginInFlight) return;
+      loginInFlight = true;
+      try {
+        const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: 'select_account' });
+        const result = await signInWithPopup(auth, provider);
+        const user = result.user;
+
+        try {
+          const credential = GoogleAuthProvider.credentialFromResult(result);
+          const googleOAuthIdToken = credential?.idToken;
+          const firebaseIdToken = user ? await user.getIdToken() : '';
+          const tokenToVerify = googleOAuthIdToken || firebaseIdToken;
+          if (tokenToVerify) {
+            await useAuthStore.getState().loginWithGoogle(tokenToVerify);
+          } else {
+            await useAuthStore.getState().initPlayerAuth();
+          }
+        } catch {
+          if (user) {
+            try {
+              const fbToken = await user.getIdToken();
+              if (fbToken) await useAuthStore.getState().loginWithGoogle(fbToken);
+            } catch {}
+          }
+        }
+
+        toast.success(
+          `☁ Đã đồng bộ Google (${user?.email || user?.displayName || 'Tài khoản'}) & kho Chiến Xa!`,
+        );
+      } catch (err) {
+        if (err?.code !== 'auth/popup-closed-by-user' && err?.code !== 'auth/cancelled-popup-request') {
+          toast.error(err?.message || 'Đăng nhập Google không thành công. Vui lòng thử lại.');
+        }
+      } finally {
+        loginInFlight = false;
+      }
+    };
+
     const buildWalletBridge = () => ({
       getState: () => {
         const st = useAuthStore.getState();
         const uid = st.user?.uid || st.player?.userId || st.player?.uid || null;
+        const email = st.player?.email || st.user?.email || '';
+        const googleSub =
+          st.player?.googleSub || st.user?.providerData?.[0]?.uid || null;
         const authenticated = Boolean(st.isPlayerAuthenticated || st.user);
-        const ownedSkins = Array.from(
-          new Set([
-            'classic',
-            ...getStoredOwnedTankSkins(uid),
-            ...(Array.isArray(st.ownedTankSkins) ? st.ownedTankSkins : []),
-          ]),
-        );
+        const identity = authenticated ? { uid, email, googleSub } : null;
+        const accountKey = authenticated ? resolveGoogleAccountStorageKey(identity) : null;
+        const ownedSkins = authenticated
+          ? Array.from(
+              new Set([
+                'classic',
+                ...getStoredOwnedTankSkins(identity),
+                ...(Array.isArray(st.ownedTankSkins) ? st.ownedTankSkins : []),
+              ]),
+            )
+          : ['classic'];
+
         return {
           connectedToWindHub: true,
           authenticated,
           online: typeof navigator !== 'undefined' ? navigator.onLine : true,
           uid,
+          googleSub,
+          accountKey,
+          email,
           displayName:
-            st.player?.displayName || st.user?.displayName || st.user?.email || 'Chiến Binh WindHub',
+            st.player?.displayName ||
+            st.user?.displayName ||
+            email ||
+            (authenticated ? 'Tài Khoản Google' : 'Chưa đăng nhập Google'),
           avatarUrl: st.player?.avatarUrl || st.user?.photoURL || '',
           balance: typeof st.betBalance === 'number' ? st.betBalance : 0,
+          cloudSynced: authenticated,
           ownedSkins,
         };
       },
@@ -217,8 +280,11 @@ export default function WindTankGame() {
       purchaseSkin: async ({ skinId, skinName, costXu }) => {
         return useAuthStore.getState().purchaseTankSkin(skinId, skinName, costXu);
       },
+      syncOwnedSkins: async (ownedSkins) => {
+        return useAuthStore.getState().syncOwnedTankSkins?.(ownedSkins);
+      },
       openWindHubLogin: () => {
-        navigate('/tai-xiu');
+        void triggerGoogleSignInPopup();
       },
     });
 

@@ -39,8 +39,13 @@ export function base64UrlDecodeToString(str) {
   return new TextDecoder().decode(bytes);
 }
 
-// Memory cache for Google's JWKS
+// Memory cache for Google's JWKS and Firebase SecureToken JWKS
 let jwksCache = {
+  keys: null,
+  expiresAt: 0
+};
+
+let firebaseJwksCache = {
   keys: null,
   expiresAt: 0
 };
@@ -69,6 +74,34 @@ export async function fetchGoogleJWKS(fetchFn = fetch) {
   } catch (err) {
     console.error('[Auth] Error fetching Google JWKS:', err);
     if (jwksCache.keys) return jwksCache.keys; // fallback to stale cache if available
+    throw err;
+  }
+}
+
+export async function fetchFirebaseJWKS(fetchFn = fetch) {
+  const now = Date.now();
+  if (firebaseJwksCache.keys && firebaseJwksCache.expiresAt > now) {
+    return firebaseJwksCache.keys;
+  }
+
+  try {
+    const res = await fetchFn(
+      'https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com',
+      { headers: { 'Accept': 'application/json' } }
+    );
+    if (!res.ok) throw new Error(`Firebase SecureToken certs returned ${res.status}`);
+    const data = await res.json();
+    if (Array.isArray(data.keys)) {
+      firebaseJwksCache = {
+        keys: data.keys,
+        expiresAt: now + 6 * 3600 * 1000
+      };
+      return data.keys;
+    }
+    throw new Error('Invalid Firebase JWKS response');
+  } catch (err) {
+    console.error('[Auth] Error fetching Firebase JWKS:', err);
+    if (firebaseJwksCache.keys) return firebaseJwksCache.keys;
     throw err;
   }
 }
@@ -113,6 +146,62 @@ export async function verifyGoogleIdToken(idToken, env = {}, fetchFn = fetch) {
       name: payload.name || 'Mock User',
       picture: payload.picture || '',
       email_verified: true
+    };
+  }
+
+  // Support Firebase Google Auth ID Token (`https://securetoken.google.com/<FIREBASE_PROJECT_ID>`)
+  // so existing signed-in Google sessions on WindHub sync across devices seamlessly on reload!
+  const firebaseProjectId = (env.FIREBASE_PROJECT_ID || '').trim();
+  if (
+    firebaseProjectId &&
+    payload.iss === `https://securetoken.google.com/${firebaseProjectId}` &&
+    payload.aud === firebaseProjectId
+  ) {
+    const nowSec = Math.floor(Date.now() / 1000);
+    if (!payload.sub || typeof payload.sub !== 'string' || !payload.sub.trim()) {
+      throw new Error('Missing sub in Firebase token');
+    }
+    if (!payload.exp || typeof payload.exp !== 'number' || payload.exp < nowSec - 60) {
+      throw new Error('Firebase token has expired');
+    }
+    if (!payload.iat || typeof payload.iat !== 'number' || payload.iat > nowSec + 300) {
+      throw new Error('Invalid Firebase token issue time');
+    }
+
+    const fbKeys = await fetchFirebaseJWKS(fetchFn);
+    const matchingFbKey = fbKeys.find((k) => k.kid === header.kid);
+    if (!matchingFbKey) {
+      throw new Error(`No matching Firebase public key for kid: ${header.kid}`);
+    }
+
+    const fbCryptoKey = await crypto.subtle.importKey(
+      'jwk',
+      matchingFbKey,
+      { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+      false,
+      ['verify']
+    );
+    const fbValid = await crypto.subtle.verify(
+      'RSASSA-PKCS1-v1_5',
+      fbCryptoKey,
+      base64UrlDecode(signatureStr),
+      new TextEncoder().encode(signedContent)
+    );
+    if (!fbValid) {
+      throw new Error('Firebase token signature verification failed');
+    }
+
+    const googleIdentities = payload.firebase?.identities?.['google.com'];
+    const googleSub =
+      (Array.isArray(googleIdentities) && googleIdentities[0]) ? String(googleIdentities[0]) : payload.sub;
+
+    return {
+      sub: googleSub,
+      firebaseUid: payload.user_id || payload.sub,
+      email: payload.email || '',
+      name: payload.name || '',
+      picture: payload.picture || '',
+      email_verified: Boolean(payload.email_verified)
     };
   }
 

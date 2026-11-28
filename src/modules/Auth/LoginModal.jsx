@@ -39,14 +39,23 @@ export default function LoginModal({ open, onClose }) {
 
       try {
         const credential = GoogleAuthProvider.credentialFromResult(result);
-        const idToken = credential?.idToken;
-        if (idToken) {
-          await useAuthStore.getState().loginWithGoogle(idToken);
+        const googleIdToken = credential?.idToken;
+        const fbIdToken = user ? await user.getIdToken() : '';
+        const tokenToUse = googleIdToken || fbIdToken;
+        if (tokenToUse) {
+          await useAuthStore.getState().loginWithGoogle(tokenToUse);
         } else {
           await useAuthStore.getState().initPlayerAuth();
         }
       } catch (err) {
-        console.warn('Game wallet sync error:', err);
+        if (user) {
+          try {
+            const fbIdToken = await user.getIdToken();
+            if (fbIdToken) await useAuthStore.getState().loginWithGoogle(fbIdToken);
+          } catch {
+            console.warn('Game wallet sync error:', err);
+          }
+        }
       }
 
       if (isAdminEmail(user?.email)) {

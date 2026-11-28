@@ -100,6 +100,24 @@ export async function claimDailyRewardApi() {
   return apiRequest('/api/reward/claim', { method: 'POST' });
 }
 
+export async function fetchPlayerOwnedSkinsApi() {
+  return apiRequest('/api/wallet/skins', { method: 'GET' });
+}
+
+export async function syncPlayerOwnedSkinsApi(ownedSkins = []) {
+  return apiRequest('/api/wallet/skins/sync', {
+    method: 'POST',
+    body: JSON.stringify({ ownedSkins })
+  });
+}
+
+export async function purchasePlayerSkinApi({ skinId, skinName, costXu }) {
+  return apiRequest('/api/wallet/skins/purchase', {
+    method: 'POST',
+    body: JSON.stringify({ skinId, skinName, costXu })
+  });
+}
+
 export async function fetchWsTicket(params = {}) {
   return apiRequest('/api/lottery/ws-ticket', {
     method: 'POST',

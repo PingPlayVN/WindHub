@@ -18,17 +18,62 @@ import { db } from './firebase.js';
 
 export const DAILY_REWARD_AMOUNTS = [5000, 10000, 15000, 25000, 40000, 60000, 100000];
 const DAILY_STORAGE_KEY_PREFIX = 'windhub_daily_reward_';
-const OWNED_SKINS_GLOBAL_KEY = 'windtank_owned_skins_v1';
+const OWNED_SKINS_LEGACY_GLOBAL_KEY = 'windtank_owned_skins_v1';
 const OWNED_SKINS_USER_PREFIX = 'windtank_owned_skins_';
+const OWNED_SKINS_ACCOUNT_PREFIX = 'windtank_owned_skins_acct_';
+const LAST_GOOGLE_ACCOUNT_KEY = 'windtank_last_google_account';
+const LAST_GOOGLE_LABEL_KEY = 'windtank_last_google_label';
 
-export function getStoredOwnedTankSkins(uid) {
+export function resolveGoogleAccountStorageKey(identity) {
+  if (!identity) return null;
+  if (typeof identity === 'string') {
+    const trimmed = identity.trim();
+    if (!trimmed) return null;
+    if (trimmed.startsWith('google_') || trimmed.startsWith('sub_') || trimmed.startsWith('uid_')) {
+      return trimmed;
+    }
+    if (trimmed.includes('@')) return `google_${trimmed.toLowerCase()}`;
+    return `uid_${trimmed}`;
+  }
+  const email = typeof identity.email === 'string' ? identity.email.trim().toLowerCase() : '';
+  if (email && email.includes('@')) return `google_${email}`;
+  const acct = typeof identity.accountKey === 'string' ? identity.accountKey.trim() : '';
+  if (acct) return acct;
+  const sub =
+    identity.googleSub ||
+    identity.providerData?.[0]?.uid ||
+    '';
+  if (typeof sub === 'string' && sub.trim()) return `sub_${sub.trim()}`;
+  const uid = identity.uid || identity.userId || '';
+  if (typeof uid === 'string' && uid.trim()) return `uid_${uid.trim()}`;
+  return null;
+}
+
+export function getStoredOwnedTankSkins(identity) {
   const merged = new Set(['classic']);
   try {
-    const rawGlobal = localStorage.getItem(OWNED_SKINS_GLOBAL_KEY);
-    if (rawGlobal) {
-      const parsed = JSON.parse(rawGlobal);
-      if (Array.isArray(parsed)) parsed.forEach((id) => typeof id === 'string' && merged.add(id));
+    const acctKey = resolveGoogleAccountStorageKey(identity);
+    const uid =
+      typeof identity === 'string'
+        ? identity
+        : identity?.uid || identity?.userId || null;
+
+    if (acctKey) {
+      const rawAcct = localStorage.getItem(`${OWNED_SKINS_ACCOUNT_PREFIX}${acctKey}`);
+      if (rawAcct !== null) {
+        const parsedA = JSON.parse(rawAcct);
+        if (Array.isArray(parsedA)) parsedA.forEach((id) => typeof id === 'string' && merged.add(id));
+      } else {
+        // Migrate legacy global key only once for the first signed-in Google account
+        const rawLegacy = localStorage.getItem(OWNED_SKINS_LEGACY_GLOBAL_KEY);
+        if (rawLegacy) {
+          const parsedL = JSON.parse(rawLegacy);
+          if (Array.isArray(parsedL)) parsedL.forEach((id) => typeof id === 'string' && merged.add(id));
+          localStorage.removeItem(OWNED_SKINS_LEGACY_GLOBAL_KEY);
+        }
+      }
     }
+
     if (uid) {
       const rawUser = localStorage.getItem(`${OWNED_SKINS_USER_PREFIX}${uid}`);
       if (rawUser) {
@@ -40,16 +85,52 @@ export function getStoredOwnedTankSkins(uid) {
   return Array.from(merged);
 }
 
-export function saveStoredOwnedTankSkins(uid, skins) {
-  const merged = new Set(['classic', ...(Array.isArray(skins) ? skins : [])]);
+export function saveStoredOwnedTankSkins(identity, skins) {
+  const merged = new Set(['classic', ...(Array.isArray(skins) ? skins.filter((s) => typeof s === 'string') : [])]);
   const arr = Array.from(merged);
   try {
-    localStorage.setItem(OWNED_SKINS_GLOBAL_KEY, JSON.stringify(arr));
+    const acctKey = resolveGoogleAccountStorageKey(identity);
+    const uid =
+      typeof identity === 'string'
+        ? identity
+        : identity?.uid || identity?.userId || null;
+    const label =
+      typeof identity === 'object' && identity
+        ? identity.email || identity.displayName || ''
+        : '';
+
+    if (acctKey) {
+      localStorage.setItem(`${OWNED_SKINS_ACCOUNT_PREFIX}${acctKey}`, JSON.stringify(arr));
+      localStorage.setItem(LAST_GOOGLE_ACCOUNT_KEY, acctKey);
+      if (label) {
+        localStorage.setItem(LAST_GOOGLE_LABEL_KEY, label);
+      }
+    }
     if (uid) {
       localStorage.setItem(`${OWNED_SKINS_USER_PREFIX}${uid}`, JSON.stringify(arr));
     }
   } catch {}
   return arr;
+}
+
+export async function syncOwnedTankSkinsToFirestore(uid, skins) {
+  if (!uid || !Array.isArray(skins)) return;
+  const normalized = Array.from(new Set(['classic', ...skins.filter((s) => typeof s === 'string')]));
+  try {
+    const playerRef = doc(db, 'players', uid);
+    await setDoc(
+      playerRef,
+      {
+        ownedTankSkins: normalized,
+        updatedAt: Date.now(),
+      },
+      { merge: true }
+    );
+  } catch (err) {
+    if (err?.code === 'permission-denied') {
+      notifyRulesWarningOnce();
+    }
+  }
 }
 
 let hasLoggedRulesWarning = false;
@@ -192,8 +273,14 @@ export async function getOrCreatePlayerWallet(user) {
         localStorage.setItem(`windhub_wallet_balance_${user.uid}`, String(currentBal));
         localStorage.setItem('windhub_dev_balance', String(currentBal));
       } catch {}
-      const mergedSkins = saveStoredOwnedTankSkins(user.uid, [
-        ...getStoredOwnedTankSkins(user.uid),
+      const identity = {
+        uid: user.uid,
+        email: user.email || data.email || '',
+        googleSub: user.providerData?.[0]?.uid || data.googleSub || '',
+        displayName: user.displayName || data.displayName || ''
+      };
+      const mergedSkins = saveStoredOwnedTankSkins(identity, [
+        ...getStoredOwnedTankSkins(identity),
         ...(Array.isArray(data.ownedTankSkins) ? data.ownedTankSkins : []),
       ]);
       return { ...data, ...updates, balance: currentBal, ownedTankSkins: mergedSkins };

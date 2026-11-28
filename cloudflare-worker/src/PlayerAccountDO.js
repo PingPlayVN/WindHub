@@ -2,6 +2,17 @@
 
 export const DAILY_REWARD_AMOUNTS = [5000, 10000, 15000, 25000, 40000, 60000, 100000];
 
+export const VALID_TANK_SKIN_IDS = new Set([
+  'classic',
+  'viper_scout',
+  'titan_heavy',
+  'falcon_sniper',
+  'arachnid_barrage',
+  'hover_specter',
+  'magma_drake',
+  'cyber_omega'
+]);
+
 export function getVietnamDateString(date = new Date()) {
   const formatter = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Ho_Chi_Minh',
@@ -71,6 +82,13 @@ export class PlayerAccountDO {
         current_streak INTEGER NOT NULL DEFAULT 0,
         last_claimed_date TEXT,
         updated_at INTEGER NOT NULL
+      )`,
+      `CREATE TABLE IF NOT EXISTS owned_skins (
+        user_id TEXT NOT NULL,
+        skin_id TEXT NOT NULL,
+        cost_xu INTEGER NOT NULL DEFAULT 0,
+        purchased_at INTEGER NOT NULL,
+        PRIMARY KEY (user_id, skin_id)
       )`,
       `ALTER TABLE account ADD COLUMN last_logout_at INTEGER NOT NULL DEFAULT 0`
     ];
@@ -185,6 +203,7 @@ export class PlayerAccountDO {
 
     const balance = this.getBalance(acc.user_id);
     const rewardStatus = this.getDailyRewardStatus(acc.user_id);
+    const ownedSkins = this.getOwnedSkins(acc.user_id);
 
     return {
       user: {
@@ -198,6 +217,7 @@ export class PlayerAccountDO {
         lastLogoutAt: acc.last_logout_at || 0
       },
       balance,
+      ownedSkins,
       dailyReward: rewardStatus
     };
   }
@@ -536,10 +556,135 @@ export class PlayerAccountDO {
     return { ok: true, logoutAt: now };
   }
 
+  getOwnedSkins(userId) {
+    this.initSchema();
+    const list = ['classic'];
+    if (!this.sql || !userId) return list;
+    try {
+      const cursor = this.sql.exec(
+        'SELECT skin_id FROM owned_skins WHERE user_id = ? ORDER BY purchased_at ASC, rowid ASC',
+        userId
+      );
+      for (const row of cursor) {
+        if (row.skin_id && VALID_TANK_SKIN_IDS.has(row.skin_id) && !list.includes(row.skin_id)) {
+          list.push(row.skin_id);
+        }
+      }
+    } catch {}
+    return list;
+  }
+
+  syncOwnedSkins(userId, skinIds = []) {
+    this.initSchema();
+    if (!this.sql || !userId) {
+      return { ok: false, success: false, ownedSkins: ['classic'] };
+    }
+    const now = Date.now();
+    const incoming = Array.isArray(skinIds) ? skinIds : [];
+    for (const rawId of incoming) {
+      if (typeof rawId === 'string' && rawId !== 'classic' && VALID_TANK_SKIN_IDS.has(rawId)) {
+        try {
+          this.sql.exec(
+            'INSERT OR IGNORE INTO owned_skins (user_id, skin_id, cost_xu, purchased_at) VALUES (?, ?, 0, ?)',
+            userId,
+            rawId,
+            now
+          );
+        } catch {}
+      }
+    }
+    return {
+      ok: true,
+      success: true,
+      balance: this.getBalance(userId),
+      ownedSkins: this.getOwnedSkins(userId)
+    };
+  }
+
+  purchaseSkin({ userId, skinId, skinName = '', costXu = 0 }) {
+    this.initSchema();
+    if (!this.sql || !userId) {
+      return { ok: false, success: false, code: 'AUTH_REQUIRED', message: 'Yêu cầu đăng nhập tài khoản Google.' };
+    }
+    if (!skinId || !VALID_TANK_SKIN_IDS.has(skinId)) {
+      return { ok: false, success: false, code: 'INVALID_SKIN', message: 'Mã Chiến Xa không hợp lệ.' };
+    }
+
+    const existing = this.getOwnedSkins(userId);
+    const curBalance = this.getBalance(userId);
+    if (skinId === 'classic' || existing.includes(skinId)) {
+      return {
+        ok: true,
+        success: true,
+        alreadyOwned: true,
+        newBalance: curBalance,
+        ownedSkins: existing,
+        message: `Chiến Xa ${skinName || skinId} đã có sẵn trong tài khoản Google của bạn!`
+      };
+    }
+
+    const normalizedCost = Math.max(0, Math.round(Number(costXu) || 0));
+    if (curBalance < normalizedCost) {
+      return {
+        ok: false,
+        success: false,
+        code: 'INSUFFICIENT_FUNDS',
+        newBalance: curBalance,
+        ownedSkins: existing,
+        message: `Không đủ Xu! Cần ${normalizedCost.toLocaleString()} Xu (hiện có ${curBalance.toLocaleString()} Xu).`
+      };
+    }
+
+    const now = Date.now();
+    const newBalance = curBalance - normalizedCost;
+    const txId = `tx_skin_${userId}_${skinId}_${now}`;
+
+    try {
+      this.sql.exec(
+        'UPDATE wallet SET balance = balance - ?, updated_at = ? WHERE user_id = ?',
+        normalizedCost,
+        now,
+        userId
+      );
+      this.sql.exec(
+        'INSERT OR IGNORE INTO owned_skins (user_id, skin_id, cost_xu, purchased_at) VALUES (?, ?, ?, ?)',
+        userId,
+        skinId,
+        normalizedCost,
+        now
+      );
+      this.sql.exec(
+        'INSERT INTO transactions (id, user_id, type, amount, balance_after, reference_id, description, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        txId,
+        userId,
+        'SKIN_PURCHASE',
+        -normalizedCost,
+        newBalance,
+        skinId,
+        `Mở khóa Chiến Xa WindTank: ${skinName || skinId}`,
+        now
+      );
+
+      return {
+        ok: true,
+        success: true,
+        skinId,
+        costXu: normalizedCost,
+        newBalance,
+        ownedSkins: this.getOwnedSkins(userId),
+        message: `🎉 Đã mở khóa ${skinName || skinId}! Đã đồng bộ vào tài khoản Google & lưu Offline.`
+      };
+    } catch (err) {
+      console.error('[PlayerAccountDO] purchaseSkin error:', err);
+      return { ok: false, success: false, code: 'DB_ERROR', message: 'Lỗi ghi nhận mở khóa Chiến Xa.' };
+    }
+  }
+
   getProfile(userId) {
     const acc = this.getAccountByUserId(userId);
     if (!acc) return null;
     const balance = this.getBalance(userId);
+    const ownedSkins = this.getOwnedSkins(userId);
     const dailyReward = this.getDailyRewardStatus(userId);
     const stats = this.getPlayerStats(userId);
 
@@ -555,6 +700,7 @@ export class PlayerAccountDO {
         lastLogoutAt: acc.last_logout_at || 0
       },
       balance,
+      ownedSkins,
       dailyReward,
       stats
     };
@@ -626,6 +772,26 @@ export class PlayerAccountDO {
       if (path === '/stats' && request.method === 'GET') {
         const stats = this.getPlayerStats(userId);
         return Response.json({ ok: true, stats });
+      }
+
+      if (path === '/skins' && request.method === 'GET') {
+        return Response.json({
+          ok: true,
+          balance: this.getBalance(userId),
+          ownedSkins: this.getOwnedSkins(userId)
+        });
+      }
+
+      if (path === '/skins/sync' && request.method === 'POST') {
+        const body = (await request.json().catch(() => ({}))) || {};
+        const result = this.syncOwnedSkins(userId, body.ownedSkins);
+        return Response.json(result);
+      }
+
+      if (path === '/skins/purchase' && request.method === 'POST') {
+        const body = (await request.json().catch(() => ({}))) || {};
+        const result = this.purchaseSkin({ userId, ...body });
+        return Response.json(result, { status: result.success ? 200 : 400 });
       }
 
       return Response.json({ error: 'Not Found' }, { status: 404 });
