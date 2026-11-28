@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, RefreshCw, WifiOff } from 'lucide-react';
+import { useAuthStore } from '@/store/useAuthStore';
+import { getStoredOwnedTankSkins } from '@/services/firebaseWallet';
 import {
   WINDTANK_ENTRY_PATH,
   hasWindTankOfflineCache,
@@ -173,6 +175,63 @@ export default function WindTankGame() {
   }, [reloadNonce]);
 
   useEffect(() => {
+    const buildWalletBridge = () => ({
+      getState: () => {
+        const st = useAuthStore.getState();
+        const uid = st.user?.uid || st.player?.userId || st.player?.uid || null;
+        const authenticated = Boolean(st.isPlayerAuthenticated || st.user);
+        const ownedSkins = Array.from(
+          new Set([
+            'classic',
+            ...getStoredOwnedTankSkins(uid),
+            ...(Array.isArray(st.ownedTankSkins) ? st.ownedTankSkins : []),
+          ]),
+        );
+        return {
+          connectedToWindHub: true,
+          authenticated,
+          online: typeof navigator !== 'undefined' ? navigator.onLine : true,
+          uid,
+          displayName:
+            st.player?.displayName || st.user?.displayName || st.user?.email || 'Chiến Binh WindHub',
+          avatarUrl: st.player?.avatarUrl || st.user?.photoURL || '',
+          balance: typeof st.betBalance === 'number' ? st.betBalance : 0,
+          ownedSkins,
+        };
+      },
+      subscribe: (listener) => {
+        const emit = () => {
+          try {
+            listener(window.__WINDHUB_TANK_WALLET_BRIDGE__?.getState?.());
+          } catch {}
+        };
+        const unsubStore = useAuthStore.subscribe(emit);
+        window.addEventListener('online', emit);
+        window.addEventListener('offline', emit);
+        return () => {
+          unsubStore();
+          window.removeEventListener('online', emit);
+          window.removeEventListener('offline', emit);
+        };
+      },
+      purchaseSkin: async ({ skinId, skinName, costXu }) => {
+        return useAuthStore.getState().purchaseTankSkin(skinId, skinName, costXu);
+      },
+      openWindHubLogin: () => {
+        navigate('/tai-xiu');
+      },
+    });
+
+    const bridge = buildWalletBridge();
+    window.__WINDHUB_TANK_WALLET_BRIDGE__ = bridge;
+    return () => {
+      if (window.__WINDHUB_TANK_WALLET_BRIDGE__ === bridge) {
+        delete window.__WINDHUB_TANK_WALLET_BRIDGE__;
+      }
+    };
+  }, [navigate]);
+
+  useEffect(() => {
     return () => {
       cleanupBridgeRef.current?.();
       cleanupBridgeRef.current = null;
@@ -196,6 +255,10 @@ export default function WindTankGame() {
         // Not genuine WindTank HTML (e.g. offline error document)
         if (!navigator.onLine) setHasOfflineCopy(false);
         return;
+      }
+
+      if (window.__WINDHUB_TANK_WALLET_BRIDGE__) {
+        iframeWin.__WINDHUB_TANK_WALLET_BRIDGE__ = window.__WINDHUB_TANK_WALLET_BRIDGE__;
       }
 
       if (!iframeDoc.getElementById(BRIDGE_STYLE_ID)) {

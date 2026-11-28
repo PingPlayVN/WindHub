@@ -18,6 +18,39 @@ import { db } from './firebase.js';
 
 export const DAILY_REWARD_AMOUNTS = [5000, 10000, 15000, 25000, 40000, 60000, 100000];
 const DAILY_STORAGE_KEY_PREFIX = 'windhub_daily_reward_';
+const OWNED_SKINS_GLOBAL_KEY = 'windtank_owned_skins_v1';
+const OWNED_SKINS_USER_PREFIX = 'windtank_owned_skins_';
+
+export function getStoredOwnedTankSkins(uid) {
+  const merged = new Set(['classic']);
+  try {
+    const rawGlobal = localStorage.getItem(OWNED_SKINS_GLOBAL_KEY);
+    if (rawGlobal) {
+      const parsed = JSON.parse(rawGlobal);
+      if (Array.isArray(parsed)) parsed.forEach((id) => typeof id === 'string' && merged.add(id));
+    }
+    if (uid) {
+      const rawUser = localStorage.getItem(`${OWNED_SKINS_USER_PREFIX}${uid}`);
+      if (rawUser) {
+        const parsedU = JSON.parse(rawUser);
+        if (Array.isArray(parsedU)) parsedU.forEach((id) => typeof id === 'string' && merged.add(id));
+      }
+    }
+  } catch {}
+  return Array.from(merged);
+}
+
+export function saveStoredOwnedTankSkins(uid, skins) {
+  const merged = new Set(['classic', ...(Array.isArray(skins) ? skins : [])]);
+  const arr = Array.from(merged);
+  try {
+    localStorage.setItem(OWNED_SKINS_GLOBAL_KEY, JSON.stringify(arr));
+    if (uid) {
+      localStorage.setItem(`${OWNED_SKINS_USER_PREFIX}${uid}`, JSON.stringify(arr));
+    }
+  } catch {}
+  return arr;
+}
 
 let hasLoggedRulesWarning = false;
 function notifyRulesWarningOnce() {
@@ -159,7 +192,11 @@ export async function getOrCreatePlayerWallet(user) {
         localStorage.setItem(`windhub_wallet_balance_${user.uid}`, String(currentBal));
         localStorage.setItem('windhub_dev_balance', String(currentBal));
       } catch {}
-      return { ...data, ...updates, balance: currentBal };
+      const mergedSkins = saveStoredOwnedTankSkins(user.uid, [
+        ...getStoredOwnedTankSkins(user.uid),
+        ...(Array.isArray(data.ownedTankSkins) ? data.ownedTankSkins : []),
+      ]);
+      return { ...data, ...updates, balance: currentBal, ownedTankSkins: mergedSkins };
     }
 
     // Tài khoản mới: Tặng ngay 10,000 xu tân thủ khởi nghiệp
@@ -872,5 +909,153 @@ export async function redeemFirebaseGiftCode(uid, rawCode) {
     };
   }
 }
+
+/**
+ * Mở khóa Chiến Xa (Tank Skin) trong WindTank bằng Ví Xu WindHub.
+ * Yêu cầu có kết nối mạng khi mua; sau khi mở khóa sẽ đồng bộ lên Firestore + lưu xuống LocalStorage
+ * để người chơi có thể sử dụng Chiến Xa hoàn toàn Offline 100%.
+ */
+export async function purchaseWindTankSkinInFirestore(uid, skinId, skinName, costXu) {
+  if (!uid) {
+    return {
+      success: false,
+      code: 'AUTH_REQUIRED',
+      message: 'Vui lòng đăng nhập tài khoản trên WindHub để mua Chiến Xa!'
+    };
+  }
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    return {
+      success: false,
+      code: 'OFFLINE',
+      message: 'Cần kết nối mạng để xác thực mua Chiến Xa mới. Các xe đã mua vẫn dùng Offline bình thường!'
+    };
+  }
+
+  const normalizedCost = Math.max(0, Math.round(Number(costXu) || 0));
+  const localOwned = getStoredOwnedTankSkins(uid);
+  if (skinId === 'classic' || localOwned.includes(skinId)) {
+    return {
+      success: true,
+      alreadyOwned: true,
+      ownedSkins: saveStoredOwnedTankSkins(uid, [...localOwned, skinId]),
+      message: `Đã sở hữu ${skinName}!`
+    };
+  }
+
+  const playerRef = doc(db, 'players', uid);
+
+  try {
+    return await runTransaction(db, async (transaction) => {
+      const snap = await transaction.get(playerRef);
+      const data = snap.exists() ? snap.data() : {};
+      let currentBalance = typeof data.balance === 'number' ? data.balance : 0;
+      try {
+        const stored = localStorage.getItem(`windhub_wallet_balance_${uid}`) || localStorage.getItem('windhub_dev_balance');
+        if (stored && !isNaN(Number(stored))) {
+          currentBalance = Math.max(currentBalance, Number(stored));
+        }
+      } catch {}
+
+      const cloudSkins = Array.isArray(data.ownedTankSkins) ? data.ownedTankSkins : [];
+      const combinedOwned = Array.from(new Set(['classic', ...localOwned, ...cloudSkins]));
+      if (combinedOwned.includes(skinId)) {
+        const synced = saveStoredOwnedTankSkins(uid, combinedOwned);
+        return {
+          success: true,
+          alreadyOwned: true,
+          newBalance: currentBalance,
+          ownedSkins: synced,
+          message: `Chiến Xa ${skinName} đã có sẵn trong kho của bạn!`
+        };
+      }
+
+      if (currentBalance < normalizedCost) {
+        return {
+          success: false,
+          code: 'INSUFFICIENT_FUNDS',
+          newBalance: currentBalance,
+          ownedSkins: combinedOwned,
+          message: `Không đủ Xu! Cần ${normalizedCost.toLocaleString()} Xu (hiện có ${currentBalance.toLocaleString()} Xu).`
+        };
+      }
+
+      const newBalance = currentBalance - normalizedCost;
+      const nextOwned = Array.from(new Set([...combinedOwned, skinId]));
+      const now = Date.now();
+
+      transaction.set(playerRef, {
+        balance: newBalance,
+        ownedTankSkins: nextOwned,
+        updatedAt: now
+      }, { merge: true });
+
+      const txId = `tx_skin_${uid}_${skinId}_${now}`;
+      const txRef = doc(db, 'players', uid, 'transactions', txId);
+      transaction.set(txRef, {
+        id: txId,
+        type: 'SKIN_PURCHASE',
+        skinId,
+        amount: -normalizedCost,
+        balanceAfter: newBalance,
+        description: `Mở khóa Chiến Xa WindTank: ${skinName} (-${normalizedCost.toLocaleString()} xu)`,
+        createdAt: now
+      });
+
+      try {
+        localStorage.setItem(`windhub_wallet_balance_${uid}`, String(newBalance));
+        localStorage.setItem('windhub_dev_balance', String(newBalance));
+      } catch {}
+      const persistedSkins = saveStoredOwnedTankSkins(uid, nextOwned);
+
+      return {
+        success: true,
+        skinId,
+        costXu: normalizedCost,
+        newBalance,
+        ownedSkins: persistedSkins,
+        message: `🎉 Đã mở khóa ${skinName}! Đã lưu vào kho Offline vĩnh viễn.`
+      };
+    });
+  } catch (err) {
+    if (err?.code === 'permission-denied') {
+      notifyRulesWarningOnce();
+      let currentBalance = 0;
+      try {
+        const stored = localStorage.getItem(`windhub_wallet_balance_${uid}`) || localStorage.getItem('windhub_dev_balance');
+        if (stored && !isNaN(Number(stored))) currentBalance = Number(stored);
+      } catch {}
+      if (currentBalance < normalizedCost) {
+        return {
+          success: false,
+          code: 'INSUFFICIENT_FUNDS',
+          newBalance: currentBalance,
+          ownedSkins: localOwned,
+          message: `Không đủ Xu! Cần ${normalizedCost.toLocaleString()} Xu (hiện có ${currentBalance.toLocaleString()} Xu).`
+        };
+      }
+      const newBalance = currentBalance - normalizedCost;
+      try {
+        localStorage.setItem(`windhub_wallet_balance_${uid}`, String(newBalance));
+        localStorage.setItem('windhub_dev_balance', String(newBalance));
+      } catch {}
+      const persistedSkins = saveStoredOwnedTankSkins(uid, [...localOwned, skinId]);
+      return {
+        success: true,
+        skinId,
+        costXu: normalizedCost,
+        newBalance,
+        ownedSkins: persistedSkins,
+        message: `🎉 Đã mở khóa ${skinName}! Đã lưu vào kho Offline vĩnh viễn.`
+      };
+    }
+
+    return {
+      success: false,
+      code: 'ERROR',
+      message: err?.message || 'Lỗi kết nối khi mở khóa Chiến Xa. Vui lòng thử lại!'
+    };
+  }
+}
+
 
 

@@ -14,7 +14,10 @@ import {
   claimFirebaseDailyReward,
   setPlayerBalanceInFirestore,
   formatDailyRewardState,
-  redeemFirebaseGiftCode
+  redeemFirebaseGiftCode,
+  getStoredOwnedTankSkins,
+  saveStoredOwnedTankSkins,
+  purchaseWindTankSkinInFirestore
 } from '@/services/firebaseWallet';
 
 let walletUnsubscribe = null;
@@ -63,6 +66,11 @@ function syncFirebaseWallet(user, set, get) {
       }
     } catch {}
 
+    const syncedSkins = saveStoredOwnedTankSkins(user.uid, [
+      ...getStoredOwnedTankSkins(user.uid),
+      ...(Array.isArray(walletData.ownedTankSkins) ? walletData.ownedTankSkins : []),
+    ]);
+
     set({
       player: {
         userId: user.uid,
@@ -70,11 +78,13 @@ function syncFirebaseWallet(user, set, get) {
         displayName: walletData.displayName || user.displayName || 'Người Chơi',
         email: playerEmail,
         avatarUrl: walletData.avatarUrl || user.photoURL || '',
-        ...walletData
+        ...walletData,
+        ownedTankSkins: syncedSkins
       },
       isPlayerAuthenticated: true,
       isPlayerLoading: false,
       betBalance: balance,
+      ownedTankSkins: syncedSkins,
       dailyReward: formatDailyRewardState(walletData.dailyReward),
       playerStats: walletData.stats || null,
       isAdmin: hasAdminRights
@@ -108,6 +118,11 @@ function syncFirebaseWallet(user, set, get) {
       }
     } catch {}
 
+    const syncedSkins = saveStoredOwnedTankSkins(user.uid, [
+      ...getStoredOwnedTankSkins(user.uid),
+      ...(Array.isArray(walletData.ownedTankSkins) ? walletData.ownedTankSkins : []),
+    ]);
+
     set((state) => ({
       player: {
         ...(state.player || {}),
@@ -116,11 +131,13 @@ function syncFirebaseWallet(user, set, get) {
         displayName: walletData.displayName || user.displayName || state.player?.displayName || 'Người Chơi',
         email: playerEmail,
         avatarUrl: walletData.avatarUrl || user.photoURL || state.player?.avatarUrl || '',
-        ...walletData
+        ...walletData,
+        ownedTankSkins: syncedSkins
       },
       isPlayerAuthenticated: true,
       isPlayerLoading: false,
       betBalance: balance,
+      ownedTankSkins: syncedSkins,
       dailyReward: walletData.dailyReward,
       playerStats: walletData.stats || state.playerStats,
       isAdmin: hasAdminRights
@@ -163,6 +180,7 @@ export const useAuthStore = create((set, get) => ({
   isPlayerAuthenticated: false,
   isPlayerLoading: true,
   betBalance: 0,
+  ownedTankSkins: getStoredOwnedTankSkins(null),
   dailyReward: null,
   playerStats: null,
 
@@ -406,6 +424,32 @@ export const useAuthStore = create((set, get) => ({
           redeemedGiftcodes: [...currentRedeemed, res.code]
         }
       });
+    }
+    return res;
+  },
+
+  purchaseTankSkin: async (skinId, skinName, costXu) => {
+    const state = get();
+    const uid = state.user?.uid || state.player?.userId || state.player?.uid || localStorage.getItem('windhub_last_user_id');
+    if (!uid || (!state.isPlayerAuthenticated && !state.user)) {
+      return {
+        success: false,
+        code: 'AUTH_REQUIRED',
+        message: 'Vui lòng đăng nhập tài khoản trên WindHub để mua Chiến Xa!'
+      };
+    }
+    const res = await purchaseWindTankSkinInFirestore(uid, skinId, skinName, costXu);
+    if (res && res.success) {
+      if (typeof res.newBalance === 'number') {
+        get().updateBetBalance(res.newBalance);
+      }
+      const nextOwned = Array.isArray(res.ownedSkins)
+        ? res.ownedSkins
+        : saveStoredOwnedTankSkins(uid, [...(get().ownedTankSkins || []), skinId]);
+      set((cur) => ({
+        ownedTankSkins: nextOwned,
+        player: cur.player ? { ...cur.player, ownedTankSkins: nextOwned } : cur.player
+      }));
     }
     return res;
   }
