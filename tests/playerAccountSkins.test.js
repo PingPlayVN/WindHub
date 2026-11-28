@@ -110,4 +110,33 @@ test('PlayerAccountDO Google Skin Sync: purchases, debits Xu ledger, and restore
 
   const profile = playerDO.getProfile(userId);
   assert.deepEqual(profile.ownedSkins, ['classic', 'viper_scout', 'titan_heavy', 'hover_specter']);
+
+  // 7. Shared Giftcode & Daily Reward sync between Tài Xỉu and WindTank on the same Google Account
+  const claimTaiXiu = playerDO.claimDailyReward(userId, '2026-11-28');
+  assert.equal(claimTaiXiu.success, true);
+
+  // Coming over to WindTank on the same day -> cannot claim daily login reward again!
+  const claimWindTankSameDay = playerDO.claimDailyReward(userId, '2026-11-28');
+  assert.equal(claimWindTankSameDay.success, false);
+  assert.equal(claimWindTankSameDay.code, 'ALREADY_CLAIMED');
+
+  // Syncing redeemed giftcodes persists across logins & devices
+  const giftSyncRes = await playerDO.fetch(
+    new Request(`http://internal/giftcodes/sync?userId=${encodeURIComponent(userId)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ redeemedGiftcodes: ['tanthu', 'WINDHUB2026', 'tanthu'] })
+    })
+  );
+  const giftSyncJson = await giftSyncRes.json();
+  assert.equal(giftSyncJson.ok, true);
+  assert.deepEqual(giftSyncJson.redeemedGiftcodes, ['TANTHU', 'WINDHUB2026']);
+
+  const loginAfterGift = playerDO.loginOrRegister({
+    googleSub: 'google_sub_998877',
+    email: 'tankcommander@gmail.com',
+    displayName: 'Tank Commander',
+    avatarUrl: ''
+  });
+  assert.deepEqual(loginAfterGift.redeemedGiftcodes, ['TANTHU', 'WINDHUB2026']);
 });

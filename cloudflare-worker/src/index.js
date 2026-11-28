@@ -288,6 +288,7 @@ export default {
             user: loginData.user,
             balance: loginData.balance,
             ownedSkins: loginData.ownedSkins || ['classic'],
+            redeemedGiftcodes: loginData.redeemedGiftcodes || [],
             dailyReward: loginData.dailyReward
           }, { status: 200, headers: resHeaders });
 
@@ -406,6 +407,20 @@ export default {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body)
+        });
+        const data = await doRes.json();
+        return Response.json(data, { status: doRes.status, headers });
+      }
+
+      // POST /api/wallet/giftcodes/sync - Đồng bộ danh sách Giftcode đã dùng chung giữa Tài Xỉu & WindTank
+      if (requestUrl.pathname === '/api/wallet/giftcodes/sync' && request.method === 'POST') {
+        const body = (await request.json().catch(() => ({}))) || {};
+        const doRes = await playerStub.fetch(`http://internal/giftcodes/sync?userId=${encodeURIComponent(session.userId)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            redeemedGiftcodes: Array.isArray(body.redeemedGiftcodes) ? body.redeemedGiftcodes : []
+          })
         });
         const data = await doRes.json();
         return Response.json(data, { status: doRes.status, headers });

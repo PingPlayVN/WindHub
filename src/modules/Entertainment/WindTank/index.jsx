@@ -6,7 +6,11 @@ import { toast } from 'sonner';
 import { auth } from '@/services/firebase';
 import { useAuthStore } from '@/store/useAuthStore';
 import {
+  DAILY_REWARD_AMOUNTS,
+  formatDailyRewardState,
+  getStoredDailyReward,
   getStoredOwnedTankSkins,
+  getStoredRedeemedGiftcodes,
   resolveGoogleAccountStorageKey,
 } from '@/services/firebaseWallet';
 import {
@@ -181,6 +185,10 @@ export default function WindTankGame() {
   }, [reloadNonce]);
 
   useEffect(() => {
+    void useAuthStore.getState().initPlayerAuth();
+  }, []);
+
+  useEffect(() => {
     let loginInFlight = false;
 
     const triggerGoogleSignInPopup = async () => {
@@ -243,6 +251,30 @@ export default function WindTankGame() {
             )
           : ['classic'];
 
+        const redeemedGiftcodes = authenticated
+          ? Array.from(
+              new Set([
+                ...(Array.isArray(st.player?.redeemedGiftcodes) ? st.player.redeemedGiftcodes : []),
+                ...getStoredRedeemedGiftcodes(identity),
+              ]),
+            )
+          : [];
+
+        const rawDaily = authenticated
+          ? st.dailyReward || getStoredDailyReward(identity) || {}
+          : null;
+        const formattedDaily = rawDaily ? formatDailyRewardState(rawDaily) : null;
+        const dailyReward = formattedDaily
+          ? {
+              currentStreak: formattedDaily.currentStreak || 0,
+              claimedToday: Boolean(formattedDaily.claimedToday),
+              canClaimToday: Boolean(formattedDaily.canClaimToday),
+              nextStreakDay: formattedDaily.nextStreakDay || 1,
+              nextRewardAmount: formattedDaily.nextRewardAmount || 5000,
+              rewardAmounts: DAILY_REWARD_AMOUNTS,
+            }
+          : null;
+
         return {
           connectedToWindHub: true,
           authenticated,
@@ -260,6 +292,8 @@ export default function WindTankGame() {
           balance: typeof st.betBalance === 'number' ? st.betBalance : 0,
           cloudSynced: authenticated,
           ownedSkins,
+          redeemedGiftcodes,
+          dailyReward,
         };
       },
       subscribe: (listener) => {
@@ -282,6 +316,15 @@ export default function WindTankGame() {
       },
       syncOwnedSkins: async (ownedSkins) => {
         return useAuthStore.getState().syncOwnedTankSkins?.(ownedSkins);
+      },
+      claimDailyReward: async () => {
+        return useAuthStore.getState().claimDailyReward();
+      },
+      redeemGiftCode: async (code) => {
+        return useAuthStore.getState().redeemGiftCode(code);
+      },
+      logoutAccount: async () => {
+        return useAuthStore.getState().logout();
       },
       openWindHubLogin: () => {
         void triggerGoogleSignInPopup();

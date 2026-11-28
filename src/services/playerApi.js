@@ -118,6 +118,13 @@ export async function purchasePlayerSkinApi({ skinId, skinName, costXu }) {
   });
 }
 
+export async function syncPlayerRedeemedGiftcodesApi(redeemedGiftcodes = []) {
+  return apiRequest('/api/wallet/giftcodes/sync', {
+    method: 'POST',
+    body: JSON.stringify({ redeemedGiftcodes })
+  });
+}
+
 export async function fetchWsTicket(params = {}) {
   return apiRequest('/api/lottery/ws-ticket', {
     method: 'POST',

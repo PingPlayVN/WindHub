@@ -90,6 +90,13 @@ export class PlayerAccountDO {
         purchased_at INTEGER NOT NULL,
         PRIMARY KEY (user_id, skin_id)
       )`,
+      `CREATE TABLE IF NOT EXISTS redeemed_giftcodes (
+        user_id TEXT NOT NULL,
+        code TEXT NOT NULL,
+        amount INTEGER NOT NULL DEFAULT 0,
+        redeemed_at INTEGER NOT NULL,
+        PRIMARY KEY (user_id, code)
+      )`,
       `ALTER TABLE account ADD COLUMN last_logout_at INTEGER NOT NULL DEFAULT 0`
     ];
 
@@ -204,6 +211,7 @@ export class PlayerAccountDO {
     const balance = this.getBalance(acc.user_id);
     const rewardStatus = this.getDailyRewardStatus(acc.user_id);
     const ownedSkins = this.getOwnedSkins(acc.user_id);
+    const redeemedGiftcodes = this.getRedeemedGiftcodes(acc.user_id);
 
     return {
       user: {
@@ -212,12 +220,14 @@ export class PlayerAccountDO {
         email: acc.email,
         displayName: acc.display_name,
         avatarUrl: acc.avatar_url,
+        redeemedGiftcodes,
         createdAt: acc.created_at,
         lastLoginAt: acc.last_login_at,
         lastLogoutAt: acc.last_logout_at || 0
       },
       balance,
       ownedSkins,
+      redeemedGiftcodes,
       dailyReward: rewardStatus
     };
   }
@@ -574,6 +584,50 @@ export class PlayerAccountDO {
     return list;
   }
 
+  getRedeemedGiftcodes(userId) {
+    this.initSchema();
+    const codes = [];
+    if (!this.sql || !userId) return codes;
+    try {
+      const cursor = this.sql.exec(
+        'SELECT code FROM redeemed_giftcodes WHERE user_id = ? ORDER BY redeemed_at ASC, rowid ASC',
+        userId
+      );
+      for (const row of cursor) {
+        if (row.code && !codes.includes(row.code)) {
+          codes.push(row.code);
+        }
+      }
+    } catch {}
+    return codes;
+  }
+
+  syncRedeemedGiftcodes(userId, codes = []) {
+    this.initSchema();
+    if (!this.sql || !userId) {
+      return { ok: false, redeemedGiftcodes: [] };
+    }
+    const now = Date.now();
+    const list = Array.isArray(codes) ? codes : [];
+    for (const raw of list) {
+      if (typeof raw === 'string' && raw.trim()) {
+        const clean = raw.trim().toUpperCase().slice(0, 48);
+        try {
+          this.sql.exec(
+            'INSERT OR IGNORE INTO redeemed_giftcodes (user_id, code, amount, redeemed_at) VALUES (?, ?, 0, ?)',
+            userId,
+            clean,
+            now
+          );
+        } catch {}
+      }
+    }
+    return {
+      ok: true,
+      redeemedGiftcodes: this.getRedeemedGiftcodes(userId)
+    };
+  }
+
   syncOwnedSkins(userId, skinIds = []) {
     this.initSchema();
     if (!this.sql || !userId) {
@@ -685,6 +739,7 @@ export class PlayerAccountDO {
     if (!acc) return null;
     const balance = this.getBalance(userId);
     const ownedSkins = this.getOwnedSkins(userId);
+    const redeemedGiftcodes = this.getRedeemedGiftcodes(userId);
     const dailyReward = this.getDailyRewardStatus(userId);
     const stats = this.getPlayerStats(userId);
 
@@ -695,12 +750,14 @@ export class PlayerAccountDO {
         email: acc.email,
         displayName: acc.display_name,
         avatarUrl: acc.avatar_url,
+        redeemedGiftcodes,
         createdAt: acc.created_at,
         lastLoginAt: acc.last_login_at,
         lastLogoutAt: acc.last_logout_at || 0
       },
       balance,
       ownedSkins,
+      redeemedGiftcodes,
       dailyReward,
       stats
     };
@@ -792,6 +849,12 @@ export class PlayerAccountDO {
         const body = (await request.json().catch(() => ({}))) || {};
         const result = this.purchaseSkin({ userId, ...body });
         return Response.json(result, { status: result.success ? 200 : 400 });
+      }
+
+      if (path === '/giftcodes/sync' && request.method === 'POST') {
+        const body = (await request.json().catch(() => ({}))) || {};
+        const result = this.syncRedeemedGiftcodes(userId, body.redeemedGiftcodes);
+        return Response.json(result);
       }
 
       return Response.json({ error: 'Not Found' }, { status: 404 });

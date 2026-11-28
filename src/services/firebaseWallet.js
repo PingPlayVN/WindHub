@@ -18,6 +18,7 @@ import { db } from './firebase.js';
 
 export const DAILY_REWARD_AMOUNTS = [5000, 10000, 15000, 25000, 40000, 60000, 100000];
 const DAILY_STORAGE_KEY_PREFIX = 'windhub_daily_reward_';
+const REDEEMED_CODES_KEY_PREFIX = 'windhub_redeemed_giftcodes_';
 const OWNED_SKINS_LEGACY_GLOBAL_KEY = 'windtank_owned_skins_v1';
 const OWNED_SKINS_USER_PREFIX = 'windtank_owned_skins_';
 const OWNED_SKINS_ACCOUNT_PREFIX = 'windtank_owned_skins_acct_';
@@ -146,20 +147,81 @@ function notifyRulesWarningOnce() {
   );
 }
 
-export function getStoredDailyReward(uid) {
-  if (!uid) return null;
+export function getStoredDailyReward(identity) {
+  if (!identity) return null;
   try {
-    const raw = localStorage.getItem(`${DAILY_STORAGE_KEY_PREFIX}${uid}`);
-    if (raw) return JSON.parse(raw);
+    const acctKey = resolveGoogleAccountStorageKey(identity);
+    const uid = typeof identity === 'string' ? identity : identity?.uid || identity?.userId || null;
+    if (acctKey) {
+      const rawAcct = localStorage.getItem(`${DAILY_STORAGE_KEY_PREFIX}${acctKey}`);
+      if (rawAcct) return JSON.parse(rawAcct);
+    }
+    if (uid) {
+      const rawUid = localStorage.getItem(`${DAILY_STORAGE_KEY_PREFIX}${uid}`);
+      if (rawUid) return JSON.parse(rawUid);
+    }
   } catch {}
   return null;
 }
 
-export function saveStoredDailyReward(uid, dailyData) {
-  if (!uid || !dailyData) return;
+export function saveStoredDailyReward(identity, dailyData) {
+  if (!identity || !dailyData) return;
   try {
-    localStorage.setItem(`${DAILY_STORAGE_KEY_PREFIX}${uid}`, JSON.stringify(dailyData));
+    const acctKey = resolveGoogleAccountStorageKey(identity);
+    const uid = typeof identity === 'string' ? identity : identity?.uid || identity?.userId || null;
+    const serialized = JSON.stringify(dailyData);
+    if (acctKey) {
+      localStorage.setItem(`${DAILY_STORAGE_KEY_PREFIX}${acctKey}`, serialized);
+    }
+    if (uid) {
+      localStorage.setItem(`${DAILY_STORAGE_KEY_PREFIX}${uid}`, serialized);
+    }
   } catch {}
+}
+
+export function getStoredRedeemedGiftcodes(identity) {
+  const merged = new Set();
+  if (!identity) return [];
+  try {
+    const acctKey = resolveGoogleAccountStorageKey(identity);
+    const uid = typeof identity === 'string' ? identity : identity?.uid || identity?.userId || null;
+    if (acctKey) {
+      const rawA = localStorage.getItem(`${REDEEMED_CODES_KEY_PREFIX}${acctKey}`);
+      if (rawA) {
+        const parsedA = JSON.parse(rawA);
+        if (Array.isArray(parsedA)) parsedA.forEach((c) => typeof c === 'string' && merged.add(c.trim().toUpperCase()));
+      }
+    }
+    if (uid) {
+      const rawU = localStorage.getItem(`${REDEEMED_CODES_KEY_PREFIX}${uid}`);
+      if (rawU) {
+        const parsedU = JSON.parse(rawU);
+        if (Array.isArray(parsedU)) parsedU.forEach((c) => typeof c === 'string' && merged.add(c.trim().toUpperCase()));
+      }
+    }
+  } catch {}
+  return Array.from(merged);
+}
+
+export function saveStoredRedeemedGiftcodes(identity, codes = []) {
+  const merged = new Set([
+    ...getStoredRedeemedGiftcodes(identity),
+    ...(Array.isArray(codes) ? codes.filter((c) => typeof c === 'string' && c.trim()).map((c) => c.trim().toUpperCase()) : [])
+  ]);
+  const arr = Array.from(merged);
+  if (!identity) return arr;
+  try {
+    const acctKey = resolveGoogleAccountStorageKey(identity);
+    const uid = typeof identity === 'string' ? identity : identity?.uid || identity?.userId || null;
+    const serialized = JSON.stringify(arr);
+    if (acctKey) {
+      localStorage.setItem(`${REDEEMED_CODES_KEY_PREFIX}${acctKey}`, serialized);
+    }
+    if (uid) {
+      localStorage.setItem(`${REDEEMED_CODES_KEY_PREFIX}${uid}`, serialized);
+    }
+  } catch {}
+  return arr;
 }
 
 // Lấy ngày hiện tại theo múi giờ Việt Nam (Asia/Ho_Chi_Minh: YYYY-MM-DD)
@@ -877,7 +939,12 @@ export async function redeemFirebaseGiftCode(uid, rawCode) {
     const playerRef = doc(db, 'players', uid);
     const playerSnap = await getDoc(playerRef);
     const playerData = playerSnap.exists() ? playerSnap.data() : {};
-    const playerRedeemedCodes = playerData.redeemedGiftcodes || [];
+    const playerRedeemedCodes = Array.from(
+      new Set([
+        ...(Array.isArray(playerData.redeemedGiftcodes) ? playerData.redeemedGiftcodes : []),
+        ...getStoredRedeemedGiftcodes(uid)
+      ])
+    );
 
     // 3. Kiểm tra tính hợp lệ trước khi bắt đầu transaction
     const check = validateGiftCodeEligibility(giftData, uid, normalizedCode, playerRedeemedCodes);

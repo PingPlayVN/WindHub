@@ -4,9 +4,11 @@ import {
   logoutPlayerApi,
   fetchCurrentPlayerProfile,
   claimDailyRewardApi,
+  fetchDailyRewardStatus,
   fetchPlayerOwnedSkinsApi,
   syncPlayerOwnedSkinsApi,
   purchasePlayerSkinApi,
+  syncPlayerRedeemedGiftcodesApi,
   getStoredSessionToken,
   setStoredSessionToken
 } from '@/services/playerApi';
@@ -18,7 +20,12 @@ import {
   setPlayerBalanceInFirestore,
   formatDailyRewardState,
   redeemFirebaseGiftCode,
+  normalizeGiftCode,
   resolveGoogleAccountStorageKey,
+  getStoredDailyReward,
+  saveStoredDailyReward,
+  getStoredRedeemedGiftcodes,
+  saveStoredRedeemedGiftcodes,
   getStoredOwnedTankSkins,
   saveStoredOwnedTankSkins,
   syncOwnedTankSkinsToFirestore,
@@ -44,9 +51,25 @@ function buildIdentityFromUser(user, extra = {}) {
 }
 
 /**
+ * Merges two dailyReward snapshots (e.g. Firestore + Cloudflare Worker / LocalStorage)
+ * so if the player ALREADY claimed today's login reward in Tài Xỉu, WindTank immediately
+ * recognizes `claimedToday === true` (`canClaimToday === false`) and vice versa!
+ */
+function reconcileDailyRewardStates(primaryDaily, secondaryDaily) {
+  const formattedA = formatDailyRewardState(primaryDaily || {});
+  const formattedB = formatDailyRewardState(secondaryDaily || {});
+  if (formattedA.claimedToday) return formattedA;
+  if (formattedB.claimedToday) return formattedB;
+  if ((formattedB.currentStreak || 0) > (formattedA.currentStreak || 0)) {
+    return formattedB;
+  }
+  return formattedA;
+}
+
+/**
  * Ensures the signed-in Firebase Google user also establishes an authenticated
  * Cloudflare Worker `PlayerAccountDO` session (`idFromName(googleSub)`) and merges
- * `ownedSkins` across Worker SQLite + Firestore + Per-Google-Account Offline Cache!
+ * `ownedSkins`, `redeemedGiftcodes`, and `dailyReward` across Tài Xỉu & WindTank!
  */
 async function syncWorkerGoogleSkinsForUser(firebaseUser, set, get) {
   if (!firebaseUser || (typeof navigator !== 'undefined' && navigator.onLine === false)) {
@@ -55,14 +78,30 @@ async function syncWorkerGoogleSkinsForUser(firebaseUser, set, get) {
 
   try {
     let workerSkins = [];
+    let workerCodes = [];
+    let workerDaily = null;
     let workerProfile = null;
     let hasValidWorkerSession = Boolean(getStoredSessionToken());
 
     if (hasValidWorkerSession) {
       try {
-        const skinRes = await fetchPlayerOwnedSkinsApi();
+        const [skinRes, profRes] = await Promise.all([
+          fetchPlayerOwnedSkinsApi().catch(() => null),
+          fetchCurrentPlayerProfile().catch(() => null)
+        ]);
         if (skinRes?.ok && Array.isArray(skinRes.ownedSkins)) {
           workerSkins = skinRes.ownedSkins;
+        }
+        if (profRes?.authenticated) {
+          workerProfile = profRes;
+          if (Array.isArray(profRes.redeemedGiftcodes)) {
+            workerCodes = profRes.redeemedGiftcodes;
+          }
+          if (profRes.dailyReward) {
+            workerDaily = profRes.dailyReward;
+          }
+        } else if (!skinRes?.ok) {
+          hasValidWorkerSession = false;
         }
       } catch (err) {
         if (err?.status === 401) {
@@ -81,29 +120,49 @@ async function syncWorkerGoogleSkinsForUser(firebaseUser, set, get) {
             if (Array.isArray(loginRes.ownedSkins)) {
               workerSkins = loginRes.ownedSkins;
             }
+            if (Array.isArray(loginRes.redeemedGiftcodes)) {
+              workerCodes = loginRes.redeemedGiftcodes;
+            }
+            if (loginRes.dailyReward) {
+              workerDaily = loginRes.dailyReward;
+            }
           }
         }
       } catch {
-        // Worker may not yet have FIREBASE_PROJECT_ID deployed; fallback gracefully
+        // Worker fallback
       }
     }
 
     const identity = buildIdentityFromUser(firebaseUser, workerProfile?.user || get().player || {});
-    const localAndStateSkins = [
+    const mergedSkins = saveStoredOwnedTankSkins(identity, [
       ...getStoredOwnedTankSkins(identity),
       ...(Array.isArray(get().ownedTankSkins) ? get().ownedTankSkins : []),
       ...workerSkins
-    ];
-    const mergedSkins = saveStoredOwnedTankSkins(identity, localAndStateSkins);
+    ]);
 
-    // Push any locally-unlocked skins for this Google account up to Worker DO + Firestore
-    if (getStoredSessionToken() && mergedSkins.some((id) => id !== 'classic' && !workerSkins.includes(id))) {
-      try {
-        const pushed = await syncPlayerOwnedSkinsApi(mergedSkins);
-        if (pushed?.ok && Array.isArray(pushed.ownedSkins)) {
-          saveStoredOwnedTankSkins(identity, [...mergedSkins, ...pushed.ownedSkins]);
-        }
-      } catch {}
+    const mergedCodes = saveStoredRedeemedGiftcodes(identity, [
+      ...getStoredRedeemedGiftcodes(identity),
+      ...(Array.isArray(get().player?.redeemedGiftcodes) ? get().player.redeemedGiftcodes : []),
+      ...workerCodes
+    ]);
+
+    const reconciledDaily = reconcileDailyRewardStates(
+      get().dailyReward || getStoredDailyReward(identity),
+      workerDaily
+    );
+    saveStoredDailyReward(identity, reconciledDaily);
+
+    if (getStoredSessionToken()) {
+      if (mergedSkins.some((id) => id !== 'classic' && !workerSkins.includes(id))) {
+        syncPlayerOwnedSkinsApi(mergedSkins).catch(() => {});
+      }
+      if (mergedCodes.some((c) => !workerCodes.includes(c))) {
+        syncPlayerRedeemedGiftcodesApi(mergedCodes).catch(() => {});
+      }
+      // If today's daily reward was already claimed in Firestore/Tài Xỉu, mark Worker DO claimed too (without double-adding local balance!)
+      if (reconciledDaily.claimedToday && workerDaily && !workerDaily.claimedToday) {
+        claimDailyRewardApi().catch(() => {});
+      }
     }
 
     if (firebaseUser.uid && mergedSkins.length > 1) {
@@ -113,12 +172,14 @@ async function syncWorkerGoogleSkinsForUser(firebaseUser, set, get) {
     const finalOwned = getStoredOwnedTankSkins(identity);
     set((cur) => ({
       ownedTankSkins: finalOwned,
+      dailyReward: reconciledDaily,
       player: cur.player
         ? {
             ...cur.player,
             googleSub: identity?.googleSub || cur.player.googleSub,
             accountKey: resolveGoogleAccountStorageKey(identity),
-            ownedTankSkins: finalOwned
+            ownedTankSkins: finalOwned,
+            redeemedGiftcodes: mergedCodes
           }
         : cur.player
     }));
@@ -147,7 +208,6 @@ function syncFirebaseWallet(user, set, get) {
   }
   currentWalletUid = user.uid;
 
-  // Khởi tạo hoặc lấy thông tin ví người chơi trên Firestore + Đồng bộ kho Chiến Xa Google
   getOrCreatePlayerWallet(user).then((walletData) => {
     if (!walletData) return;
     const playerEmail = user.email || walletData.email || '';
@@ -155,7 +215,7 @@ function syncFirebaseWallet(user, set, get) {
     const identity = buildIdentityFromUser(user, walletData);
     let balance = typeof walletData.balance === 'number' ? walletData.balance : 0;
     try {
-      const stored = localStorage.getItem(`windhub_wallet_balance_${user.uid}`) || localStorage.getItem('windhub_dev_balance');
+      const stored = localStorage.getItem(`windhub_wallet_balance_${user.uid}`);
       if (stored && !isNaN(Number(stored))) {
         const sNum = Number(stored);
         if (sNum > balance) {
@@ -163,12 +223,11 @@ function syncFirebaseWallet(user, set, get) {
           setPlayerBalanceInFirestore(user.uid, sNum).catch(() => {});
         } else if (balance > sNum) {
           localStorage.setItem(`windhub_wallet_balance_${user.uid}`, String(balance));
-          localStorage.setItem('windhub_dev_balance', String(balance));
         }
-      } else if (balance > 0) {
+      } else if (balance >= 0) {
         localStorage.setItem(`windhub_wallet_balance_${user.uid}`, String(balance));
-        localStorage.setItem('windhub_dev_balance', String(balance));
       }
+      localStorage.setItem('windhub_dev_balance', String(balance));
     } catch {}
 
     const syncedSkins = saveStoredOwnedTankSkins(identity, [
@@ -176,6 +235,17 @@ function syncFirebaseWallet(user, set, get) {
       ...(Array.isArray(walletData.ownedTankSkins) ? walletData.ownedTankSkins : []),
       ...(Array.isArray(get().ownedTankSkins) ? get().ownedTankSkins : [])
     ]);
+
+    const syncedCodes = saveStoredRedeemedGiftcodes(identity, [
+      ...getStoredRedeemedGiftcodes(identity),
+      ...(Array.isArray(walletData.redeemedGiftcodes) ? walletData.redeemedGiftcodes : [])
+    ]);
+
+    const reconciledDaily = reconcileDailyRewardStates(
+      walletData.dailyReward,
+      getStoredDailyReward(identity)
+    );
+    saveStoredDailyReward(identity, reconciledDaily);
 
     set({
       player: {
@@ -187,19 +257,19 @@ function syncFirebaseWallet(user, set, get) {
         email: playerEmail,
         avatarUrl: walletData.avatarUrl || user.photoURL || '',
         ...walletData,
-        ownedTankSkins: syncedSkins
+        ownedTankSkins: syncedSkins,
+        redeemedGiftcodes: syncedCodes
       },
       isPlayerAuthenticated: true,
       isPlayerLoading: false,
       betBalance: balance,
       ownedTankSkins: syncedSkins,
-      dailyReward: formatDailyRewardState(walletData.dailyReward),
+      dailyReward: reconciledDaily,
       playerStats: walletData.stats || null,
       isAdmin: hasAdminRights
     });
 
     try {
-      localStorage.setItem('windhub_dev_balance', String(balance));
       localStorage.setItem(`windhub_wallet_balance_${user.uid}`, String(balance));
       localStorage.setItem('windhub_last_user_id', user.uid);
     } catch {}
@@ -212,7 +282,6 @@ function syncFirebaseWallet(user, set, get) {
     void syncWorkerGoogleSkinsForUser(user, set, get);
   });
 
-  // Lắng nghe thay đổi ví theo thời gian thực (Real-time Firestore)
   walletUnsubscribe = subscribeToPlayerWallet(user.uid, (walletData) => {
     if (!walletData) return;
     const playerEmail = user.email || walletData.email || '';
@@ -220,7 +289,7 @@ function syncFirebaseWallet(user, set, get) {
     const identity = buildIdentityFromUser(user, walletData);
     let balance = typeof walletData.balance === 'number' ? walletData.balance : get().betBalance;
     try {
-      const stored = localStorage.getItem(`windhub_wallet_balance_${user.uid}`) || localStorage.getItem('windhub_dev_balance');
+      const stored = localStorage.getItem(`windhub_wallet_balance_${user.uid}`);
       if (stored && !isNaN(Number(stored))) {
         const sNum = Number(stored);
         if (sNum > balance) {
@@ -236,6 +305,18 @@ function syncFirebaseWallet(user, set, get) {
       ...(Array.isArray(get().ownedTankSkins) ? get().ownedTankSkins : [])
     ]);
 
+    const syncedCodes = saveStoredRedeemedGiftcodes(identity, [
+      ...getStoredRedeemedGiftcodes(identity),
+      ...(Array.isArray(walletData.redeemedGiftcodes) ? walletData.redeemedGiftcodes : []),
+      ...(Array.isArray(get().player?.redeemedGiftcodes) ? get().player.redeemedGiftcodes : [])
+    ]);
+
+    const reconciledDaily = reconcileDailyRewardStates(
+      walletData.dailyReward,
+      getStoredDailyReward(identity)
+    );
+    saveStoredDailyReward(identity, reconciledDaily);
+
     set((state) => ({
       player: {
         ...(state.player || {}),
@@ -247,13 +328,14 @@ function syncFirebaseWallet(user, set, get) {
         email: playerEmail,
         avatarUrl: walletData.avatarUrl || user.photoURL || state.player?.avatarUrl || '',
         ...walletData,
-        ownedTankSkins: syncedSkins
+        ownedTankSkins: syncedSkins,
+        redeemedGiftcodes: syncedCodes
       },
       isPlayerAuthenticated: true,
       isPlayerLoading: false,
       betBalance: balance,
       ownedTankSkins: syncedSkins,
-      dailyReward: walletData.dailyReward,
+      dailyReward: reconciledDaily,
       playerStats: walletData.stats || state.playerStats,
       isAdmin: hasAdminRights
     }));
@@ -300,7 +382,7 @@ export const useAuthStore = create((set, get) => ({
     syncFirebaseWallet(user, set, get);
   },
 
-  // Google Player Auth & BET Wallet (cho Tài Xỉu, WindTank và các Game WindHub)
+  // Google Player Auth & BET Wallet (dùng chung 100% giữa Tài Xỉu & WindTank)
   player: null,
   isPlayerAuthenticated: false,
   isPlayerLoading: true,
@@ -336,18 +418,29 @@ export const useAuthStore = create((set, get) => ({
       ...(Array.isArray(data.ownedSkins) ? data.ownedSkins : []),
       ...(Array.isArray(data.user.ownedTankSkins) ? data.user.ownedTankSkins : [])
     ]);
+    const syncedCodes = saveStoredRedeemedGiftcodes(identity, [
+      ...getStoredRedeemedGiftcodes(identity),
+      ...(Array.isArray(data.redeemedGiftcodes) ? data.redeemedGiftcodes : []),
+      ...(Array.isArray(data.user.redeemedGiftcodes) ? data.user.redeemedGiftcodes : [])
+    ]);
+    const reconciledDaily = reconcileDailyRewardStates(
+      data.dailyReward,
+      getStoredDailyReward(identity)
+    );
+    saveStoredDailyReward(identity, reconciledDaily);
 
     set({
       player: {
         ...data.user,
         accountKey: resolveGoogleAccountStorageKey(identity),
-        ownedTankSkins: syncedSkins
+        ownedTankSkins: syncedSkins,
+        redeemedGiftcodes: syncedCodes
       },
       isPlayerAuthenticated: true,
       isPlayerLoading: false,
       betBalance: data.balance ?? get().betBalance,
       ownedTankSkins: syncedSkins,
-      dailyReward: data.dailyReward ?? get().dailyReward,
+      dailyReward: reconciledDaily,
       playerStats: data.stats ?? get().playerStats,
       isAdmin: hasAdminRights
     });
@@ -374,7 +467,7 @@ export const useAuthStore = create((set, get) => ({
     let savedBal = null;
     try {
       const lastUid = localStorage.getItem('windhub_last_user_id');
-      const stored = (lastUid ? localStorage.getItem(`windhub_wallet_balance_${lastUid}`) : null) || localStorage.getItem('windhub_dev_balance');
+      const stored = lastUid ? localStorage.getItem(`windhub_wallet_balance_${lastUid}`) : null;
       if (stored && !isNaN(Number(stored))) {
         savedBal = Number(stored);
         set({ betBalance: savedBal });
@@ -390,7 +483,7 @@ export const useAuthStore = create((set, get) => ({
       }
     } catch {}
 
-    // 2. Dự phòng token phiên Cloudflare Worker
+    // 2. Dự phòng token phiên Cloudflare Worker (ví dụ đăng nhập từ Tài Xỉu GoogleLoginGate)
     const token = getStoredSessionToken();
     if (!token) {
       set({ isPlayerLoading: false });
@@ -404,31 +497,49 @@ export const useAuthStore = create((set, get) => ({
         const playerEmail = data.user.email || '';
         const hasAdminRights = get().isAdmin || isAdminEmail(playerEmail);
         const serverBal = typeof data.balance === 'number' ? data.balance : 0;
-        const finalBal = savedBal !== null ? Math.max(serverBal, savedBal) : serverBal;
+        const uidKey = data.user.userId;
+        let storedUserBal = null;
+        try {
+          const rawU = uidKey ? localStorage.getItem(`windhub_wallet_balance_${uidKey}`) : null;
+          if (rawU && !isNaN(Number(rawU))) storedUserBal = Number(rawU);
+        } catch {}
+        const finalBal = storedUserBal !== null ? Math.max(serverBal, storedUserBal) : serverBal;
+
         const identity = buildIdentityFromUser(null, data.user);
         const syncedSkins = saveStoredOwnedTankSkins(identity, [
           ...getStoredOwnedTankSkins(identity),
           ...(Array.isArray(data.ownedSkins) ? data.ownedSkins : [])
         ]);
+        const syncedCodes = saveStoredRedeemedGiftcodes(identity, [
+          ...getStoredRedeemedGiftcodes(identity),
+          ...(Array.isArray(data.redeemedGiftcodes) ? data.redeemedGiftcodes : [])
+        ]);
+        const reconciledDaily = reconcileDailyRewardStates(
+          data.dailyReward,
+          getStoredDailyReward(identity)
+        );
+        saveStoredDailyReward(identity, reconciledDaily);
 
         set({
           player: {
             ...data.user,
             accountKey: resolveGoogleAccountStorageKey(identity),
-            ownedTankSkins: syncedSkins
+            ownedTankSkins: syncedSkins,
+            redeemedGiftcodes: syncedCodes
           },
           isPlayerAuthenticated: true,
           isPlayerLoading: false,
           betBalance: finalBal,
           ownedTankSkins: syncedSkins,
-          dailyReward: data.dailyReward ?? null,
+          dailyReward: reconciledDaily,
           playerStats: data.stats ?? null,
           isAdmin: hasAdminRights
         });
         try {
           localStorage.setItem('windhub_dev_balance', String(finalBal));
-          if (data.user.userId) {
-            localStorage.setItem('windhub_last_user_id', data.user.userId);
+          if (uidKey) {
+            localStorage.setItem(`windhub_wallet_balance_${uidKey}`, String(finalBal));
+            localStorage.setItem('windhub_last_user_id', uidKey);
           }
         } catch {}
       } else {
@@ -446,33 +557,60 @@ export const useAuthStore = create((set, get) => ({
     if (res.ok && res.user) {
       const playerEmail = res.user.email || '';
       const hasAdminRights = get().isAdmin || isAdminEmail(playerEmail);
-      const identity = buildIdentityFromUser(get().user, res.user);
+      const existingFirebaseUser = get().user;
+      const identity = buildIdentityFromUser(existingFirebaseUser, res.user);
+
       const mergedSkins = saveStoredOwnedTankSkins(identity, [
         ...getStoredOwnedTankSkins(identity),
         ...(Array.isArray(res.ownedSkins) ? res.ownedSkins : [])
       ]);
 
-      // Đồng bộ hai chiều nếu máy hiện tại có sẵn skin của đúng tài khoản Google này
+      const mergedCodes = saveStoredRedeemedGiftcodes(identity, [
+        ...getStoredRedeemedGiftcodes(identity),
+        ...(Array.isArray(res.redeemedGiftcodes) ? res.redeemedGiftcodes : []),
+        ...(Array.isArray(get().player?.redeemedGiftcodes) ? get().player.redeemedGiftcodes : [])
+      ]);
+
+      const reconciledDaily = reconcileDailyRewardStates(
+        get().dailyReward || getStoredDailyReward(identity),
+        res.dailyReward
+      );
+      saveStoredDailyReward(identity, reconciledDaily);
+
       if (
         Array.isArray(res.ownedSkins) &&
         mergedSkins.some((id) => id !== 'classic' && !res.ownedSkins.includes(id))
       ) {
         syncPlayerOwnedSkinsApi(mergedSkins).catch(() => {});
       }
+      if (mergedCodes.length > 0) {
+        syncPlayerRedeemedGiftcodesApi(mergedCodes).catch(() => {});
+      }
+      if (reconciledDaily.claimedToday && res.dailyReward && !res.dailyReward.claimedToday) {
+        claimDailyRewardApi().catch(() => {});
+      }
 
-      set({
+      // Nếu đã có ví Firebase của chính tài khoản này đang active (ví dụ từ Tài Xỉu), giữ nguyên số dư thực tế (không nhân đôi vốn tân thủ!)
+      const nextBalance = existingFirebaseUser && get().isPlayerAuthenticated
+        ? get().betBalance
+        : (res.balance ?? 0);
+
+      set((cur) => ({
         player: {
+          ...(cur.player || {}),
           ...res.user,
+          uid: existingFirebaseUser?.uid || res.user.userId,
           accountKey: resolveGoogleAccountStorageKey(identity),
-          ownedTankSkins: mergedSkins
+          ownedTankSkins: mergedSkins,
+          redeemedGiftcodes: mergedCodes
         },
         isPlayerAuthenticated: true,
         isPlayerLoading: false,
-        betBalance: Math.max(res.balance ?? 0, get().betBalance || 0),
+        betBalance: nextBalance,
         ownedTankSkins: mergedSkins,
-        dailyReward: res.dailyReward ?? null,
+        dailyReward: reconciledDaily,
         isAdmin: hasAdminRights
-      });
+      }));
     }
     return res;
   },
@@ -481,7 +619,6 @@ export const useAuthStore = create((set, get) => ({
     return get().logout();
   },
 
-  // Đăng xuất hợp nhất toàn diện (xóa phiên đang chạy, giữ kho Offline theo từng tài khoản riêng biệt)
   logout: async () => {
     if (walletUnsubscribe) {
       walletUnsubscribe();
@@ -501,6 +638,10 @@ export const useAuthStore = create((set, get) => ({
       await signOut(auth);
     } catch {}
 
+    try {
+      localStorage.removeItem('windhub_dev_balance');
+    } catch {}
+
     setStoredSessionToken('');
     set({
       user: null,
@@ -516,11 +657,66 @@ export const useAuthStore = create((set, get) => ({
   },
 
   claimDailyReward: async () => {
-    const uid = get().user?.uid || get().player?.userId || get().player?.uid;
-    if (uid) {
+    const state = get();
+    const uid = state.user?.uid || state.player?.userId || state.player?.uid;
+    const identity = buildIdentityFromUser(state.user, state.player || {});
+
+    // Chốt chặn đồng bộ Tài Xỉu <-> WindTank: nếu hôm nay đã điểm danh ở bất kỳ game nào thì chặn ngay!
+    const currentDaily = reconcileDailyRewardStates(
+      state.dailyReward,
+      getStoredDailyReward(identity)
+    );
+    if (currentDaily.claimedToday) {
+      set({ dailyReward: currentDaily });
+      return {
+        ok: false,
+        success: false,
+        code: 'ALREADY_CLAIMED',
+        message: 'Hôm nay bạn đã điểm danh nhận thưởng rồi! (Dùng chung Tài Xỉu & WindTank)'
+      };
+    }
+
+    // Kiểm tra thêm trên Cloudflare Worker nếu có session để chống nhận chéo trên trình duyệt khác
+    if (getStoredSessionToken()) {
+      try {
+        const workerStatus = await fetchDailyRewardStatus();
+        if (workerStatus?.dailyReward?.claimedToday) {
+          const syncedDaily = formatDailyRewardState({
+            ...workerStatus.dailyReward,
+            lastClaimedDate: workerStatus.dailyReward.lastClaimedDate || workerStatus.dailyReward.todayDate
+          });
+          saveStoredDailyReward(identity, syncedDaily);
+          set({ dailyReward: syncedDaily });
+          return {
+            ok: false,
+            success: false,
+            code: 'ALREADY_CLAIMED',
+            message: 'Tài khoản Google này đã nhận thưởng đăng nhập hôm nay rồi!'
+          };
+        }
+      } catch {}
+    }
+
+    if (uid && state.user) {
       try {
         const res = await claimFirebaseDailyReward(uid);
         if (res && res.success) {
+          saveStoredDailyReward(identity, {
+            currentStreak: res.streakDay,
+            lastClaimedDate: res.dailyReward?.lastClaimedDate || new Intl.DateTimeFormat('en-CA', {
+              timeZone: 'Asia/Ho_Chi_Minh',
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit'
+            }).format(new Date()),
+            claimedToday: true,
+            canClaimToday: false,
+            updatedAt: Date.now()
+          });
+          // Đánh dấu đã điểm danh đồng thời trên Worker DO (không cộng lặp vào betBalance local)
+          if (getStoredSessionToken()) {
+            claimDailyRewardApi().catch(() => {});
+          }
           set({
             betBalance: res.newBalance,
             dailyReward: res.dailyReward
@@ -536,7 +732,7 @@ export const useAuthStore = create((set, get) => ({
             dailyReward: res.dailyReward
           };
         }
-        return { ok: false, success: false, message: res?.message || 'Không thể nhận thưởng hôm nay.' };
+        return { ok: false, success: false, message: res?.message || 'Hôm nay bạn đã điểm danh nhận thưởng rồi.' };
       } catch (err) {
         return { ok: false, success: false, message: err.message || 'Lỗi nhận thưởng' };
       }
@@ -545,28 +741,19 @@ export const useAuthStore = create((set, get) => ({
     const res = await claimDailyRewardApi();
     if (res.success || res.ok) {
       const balance = typeof res.newBalance === 'number' ? res.newBalance : (res.balance ?? get().betBalance);
-      set((state) => ({
-        betBalance: balance,
-        dailyReward: res.dailyReward || {
-          ...state.dailyReward,
-          canClaimToday: false,
+      const formattedDaily = formatDailyRewardState(
+        res.dailyReward || {
+          currentStreak: res.streakDay ?? 1,
+          lastClaimedDate: res.rewardDate,
           claimedToday: true,
-          canClaim: false,
-          currentStreak: res.streakDay ?? state.dailyReward?.currentStreak,
-          streakDay: res.streakDay,
-          rewardAmount: res.amount || res.rewardAmount,
-          amount: res.amount || res.rewardAmount,
-          nextRewardTime: res.nextRewardTime,
-          history: [
-            ...(state.dailyReward?.history || []),
-            {
-              claimedAt: new Date().toISOString(),
-              amount: res.amount || res.rewardAmount,
-              streakDay: res.streakDay
-            }
-          ]
+          canClaimToday: false
         }
-      }));
+      );
+      saveStoredDailyReward(identity, formattedDaily);
+      set({
+        betBalance: balance,
+        dailyReward: formattedDaily
+      });
     }
     return res;
   },
@@ -576,22 +763,57 @@ export const useAuthStore = create((set, get) => ({
   },
 
   redeemGiftCode: async (code) => {
-    const uid = get().user?.uid || get().player?.userId || get().player?.uid;
-    if (!uid) {
-      return { success: false, code: 'AUTH_REQUIRED', message: 'Vui lòng đăng nhập tài khoản trước khi nhập mã quà tặng.' };
+    const state = get();
+    const uid = state.user?.uid || state.player?.userId || state.player?.uid;
+    if (!uid || (!state.isPlayerAuthenticated && !state.user)) {
+      return {
+        success: false,
+        code: 'AUTH_REQUIRED',
+        message: 'Vui lòng đăng nhập tài khoản Google trước khi nhập mã Giftcode.'
+      };
     }
-    const res = await redeemFirebaseGiftCode(uid, code);
-    if (res && res.success && typeof res.newBalance === 'number') {
-      get().updateBetBalance(res.newBalance);
-      const currentPlayer = get().player || {};
-      const currentRedeemed = Array.isArray(currentPlayer.redeemedGiftcodes) ? currentPlayer.redeemedGiftcodes : [];
-      set({
-        player: {
-          ...currentPlayer,
-          balance: res.newBalance,
-          redeemedGiftcodes: [...currentRedeemed, res.code]
-        }
-      });
+
+    const cleanCode = normalizeGiftCode(code);
+    if (!cleanCode) {
+      return { success: false, code: 'EMPTY_CODE', message: 'Vui lòng nhập mã Giftcode.' };
+    }
+
+    const identity = buildIdentityFromUser(state.user, state.player || {});
+    const knownRedeemed = Array.from(
+      new Set([
+        ...(Array.isArray(state.player?.redeemedGiftcodes) ? state.player.redeemedGiftcodes : []),
+        ...getStoredRedeemedGiftcodes(identity)
+      ])
+    );
+
+    if (knownRedeemed.includes(cleanCode)) {
+      return {
+        success: false,
+        code: 'ALREADY_REDEEMED',
+        message: `Bạn đã nhập mã ${cleanCode} rồi! Mỗi tài khoản chỉ được nhập 1 lần (dùng chung Tài Xỉu & WindTank).`
+      };
+    }
+
+    const res = await redeemFirebaseGiftCode(uid, cleanCode);
+    if (res && (res.success || res.code === 'ALREADY_REDEEMED')) {
+      const updatedCodes = saveStoredRedeemedGiftcodes(identity, [...knownRedeemed, cleanCode]);
+      if (getStoredSessionToken()) {
+        syncPlayerRedeemedGiftcodesApi(updatedCodes).catch(() => {});
+      }
+
+      if (res.success && typeof res.newBalance === 'number') {
+        get().updateBetBalance(res.newBalance);
+      }
+
+      set((cur) => ({
+        player: cur.player
+          ? {
+              ...cur.player,
+              balance: typeof res.newBalance === 'number' ? res.newBalance : cur.player.balance,
+              redeemedGiftcodes: updatedCodes
+            }
+          : cur.player
+      }));
     }
     return res;
   },
@@ -644,7 +866,6 @@ export const useAuthStore = create((set, get) => ({
     const identity = buildIdentityFromUser(state.user, state.player || {});
     let res = null;
 
-    // 1. Thử giao dịch trực tiếp qua Cloudflare Worker PlayerAccountDO (Authoritative Google Account SQLite)
     if (getStoredSessionToken()) {
       try {
         const workerRes = await purchasePlayerSkinApi({ skinId, skinName, costXu });
@@ -652,11 +873,10 @@ export const useAuthStore = create((set, get) => ({
           res = workerRes;
         }
       } catch {
-        // Nếu Worker chưa cập nhật số dư từ Firestore hoặc chưa deploy route mới -> xử lý tiếp qua Firestore + Sync
+        // Fallback to Firestore wallet if Xu balance is held in Firestore
       }
     }
 
-    // 2. Nếu chưa trừ qua Worker DO (ví dụ Xu nằm bên ví Firestore), trừ qua Firestore và đẩy danh sách Skin lên Worker DO
     if (!res) {
       res = await purchaseWindTankSkinInFirestore(uid, skinId, skinName, costXu);
     }
@@ -672,7 +892,6 @@ export const useAuthStore = create((set, get) => ({
         skinId
       ]);
 
-      // Đồng bộ ngay lên cả Cloudflare Worker SQLite (theo GoogleSub) & Firestore (theo Firebase UID)
       if (getStoredSessionToken()) {
         syncPlayerOwnedSkinsApi(nextOwned).catch(() => {});
       }
